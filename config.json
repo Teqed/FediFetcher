@@ -8,5 +8,5 @@
   "max-follow-requests": 80,
   "from-notifications": 1,
   "reply-interval-in-hours": 1,
-  "remember-users-for-hours": 24,
+  "remember-users-for-hours": 24
 }
