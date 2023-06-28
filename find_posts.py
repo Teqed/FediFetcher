@@ -362,7 +362,7 @@ def get_all_known_context_urls(server, reply_toots,parsed_urls):
         filter(
             lambda url: not url.startswith(f"https://{server}/"),
             itertools.chain.from_iterable(
-                get_toot_context(*parse_url(toot["url"] if toot["reblog"] is None else toot["reblog"]["url"],parsed_urls), toot["url"])
+                get_context(*parse_url(toot["url"] if toot["reblog"] is None else toot["reblog"]["url"],parsed_urls), toot["url"])
                 for toot in filter(
                     lambda toot: toot_has_parseable_url(toot,parsed_urls),
                     reply_toots
@@ -579,7 +579,7 @@ def get_all_context_urls(server, replied_toot_ids):
     return filter(
         lambda url: not url.startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
-            get_toot_context(server, toot_id, url)
+            get_context(server, toot_id, url)
             for (url, (server, toot_id)) in replied_toot_ids
         ),
     )
@@ -587,6 +587,8 @@ def get_all_context_urls(server, replied_toot_ids):
 def get_context(server, toot_id, toot_url):
     if toot_url.find("/comment/") != -1:
         return get_comment_context(server, toot_id, toot_url)
+    if toot_url.find("/post/") != -1:
+        return get_comments_urls(server, toot_id, toot_url)
     return get_toot_context(server, toot_id, toot_url)
 
 def get_toot_context(server, toot_id, toot_url):
@@ -610,7 +612,7 @@ def get_toot_context(server, toot_id, toot_url):
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
-        return get_toot_context(server, toot_id, toot_url)
+        return get_context(server, toot_id, toot_url)
 
     log(
         f"Error getting context for toot {toot_url}. Status code: {resp.status_code}"
