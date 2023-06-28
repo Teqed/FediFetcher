@@ -534,7 +534,7 @@ def parse_pixelfed_profile_url(url):
 def parse_lemmy_url(url):
     """parse a Lemmy URL and return the server and ID"""
     match = re.match(
-        r"https://(?P<server>.*)/comment/(?P<toot_id>.*)", url
+        r"https://(?P<server>[^/]+)/comment/(?P<toot_id>.*)", url
     )
     if match is not None:
         return (match.group("server"), match.group("toot_id"))
@@ -542,7 +542,7 @@ def parse_lemmy_url(url):
 
 def parse_lemmy_profile_url(url):
     """parse a Lemmy Profile URL and return the server and username"""
-    match = re.match(r"https://(?P<server>.*)/u/(?P<username>.*)", url)
+    match = re.match(r"https://(?P<server>[^/]+)/u/(?P<username>.*)", url)
     if match is not None:
         return (match.group("server"), match.group("username"))
     return None
@@ -619,7 +619,7 @@ def get_comment_context(server, toot_id, toot_url):
     try:
         resp = get(authoritative_comment)
     except Exception as ex:
-        log(f"Error getting context for toot {toot_url}. Exception: {ex}")
+        log(f"Error getting context for comment {toot_url}. Exception: {ex}")
         return []
     
     if resp.status_code == 200:
@@ -628,7 +628,7 @@ def get_comment_context(server, toot_id, toot_url):
             log(f"Got post ID for toot {toot_url}")
             return get_comments_urls(server, res['post_id'], toot_url)
         except Exception as ex:
-            log(f"Error parsing context for toot {toot_url}. Exception: {ex}")
+            log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
         return []
     elif resp.status_code == 429:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
