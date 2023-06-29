@@ -585,6 +585,9 @@ def get_all_context_urls(server, replied_toot_ids):
 
 
 def get_toot_context(server, toot_id, toot_url):
+    if server or toot_id or toot_url is None:
+        log(f"Error getting context for toot {toot_url} on server {server} for toot id {toot_id}")
+        return []
     """get the URLs of the context toots of the given toot"""
     if toot_url.find("/comment/") != -1:
         return get_comment_context(server, toot_id, toot_url)
