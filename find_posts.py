@@ -674,7 +674,7 @@ def get_comment_context(server, toot_id, toot_url):
 
 def get_comments_urls(server, post_id, toot_url):
     """get the URLs of the comments of the given post"""
-    url = f"https://{server}/api/v3/comment/list?post_id={post_id}"
+    url = f"https://{server}/api/v3/comment/list?post_id={post_id}&sort=New&limit=50"
     try:
         resp = get(url)
     except Exception as ex:
