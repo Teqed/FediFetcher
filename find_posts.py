@@ -532,7 +532,7 @@ def parse_pixelfed_profile_url(url):
     return None
 
 def parse_lemmy_url(url):
-    """parse a Lemmy URL and return the server and ID"""
+    """parse a Lemmy URL and return the server, username (None), and ID"""
     match = re.match(
         r"https://(?P<server>[^/]+)/comment/(?P<toot_id>.*)", url
     )
@@ -541,7 +541,7 @@ def parse_lemmy_url(url):
             r"https://(?P<server>[^/]+)/post/(?P<toot_id>.*)", url
         )
     if match is not None:
-        return (match.group("server"), match.group("toot_id"))
+        return (match.group("server"), None, match.group("toot_id"))
     return None
 
 def parse_lemmy_profile_url(url):
