@@ -362,11 +362,8 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
     for toot in reply_toots:
         if toot_has_parseable_url(toot, parsed_urls):
             url = toot["url"] if toot["reblog"] is None else toot["reblog"]["url"]
-            log(f"Found reply toot with parseable URL: {url}")
             parsed_url = parse_url(url, parsed_urls)
-            log(f"Found parsed URL: {parsed_url}")
-            context = get_context(parsed_url[0], parsed_url[1], url)
-            log(f"Found context: {context}")
+            context = get_toot_context(parsed_url[0], parsed_url[1], url)
             known_context_urls.update(context) # type: ignore
     
     known_context_urls = set(filter(lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
@@ -578,25 +575,20 @@ def get_redirect_url(url):
 def get_all_context_urls(server, replied_toot_ids):
     """get the URLs of the context toots of the given toots"""
     return filter(
-        lambda url: not url.startswith(f"https://{server}/"), # type: ignore
+        lambda url: not url.startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
-            get_context(server, toot_id, url)
-            for (url, (server, toot_id)) in replied_toot_ids # type: ignore
+            get_toot_context(server, toot_id, url)
+            for (url, (server, toot_id)) in replied_toot_ids
         ),
     )
 
-def get_context(server, toot_id, toot_url):
-    if toot_url is None:
-        log(f"Error getting context for toot {toot_url} on server {server} for toot id {toot_id}")
-        return []
+
+def get_toot_context(server, toot_id, toot_url):
+    """get the URLs of the context toots of the given toot"""
     if toot_url.find("/comment/") != -1:
         return get_comment_context(server, toot_id, toot_url)
     if toot_url.find("/post/") != -1:
         return get_comments_urls(server, toot_id, toot_url)
-    return get_toot_context(server, toot_id, toot_url)
-
-def get_toot_context(server, toot_id, toot_url):
-    """get the URLs of the context toots of the given toot"""
     url = f"https://{server}/api/v1/statuses/{toot_id}/context"
     try:
         resp = get(url)
@@ -616,7 +608,7 @@ def get_toot_context(server, toot_id, toot_url):
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
-        return get_context(server, toot_id, toot_url)
+        return get_toot_context(server, toot_id, toot_url)
 
     log(
         f"Error getting context for toot {toot_url}. Status code: {resp.status_code}"
@@ -625,18 +617,18 @@ def get_toot_context(server, toot_id, toot_url):
 
 def get_comment_context(server, toot_id, toot_url):
     """get the URLs of the context toots of the given toot"""
-    authoritative_comment = f"https://{server}/api/v3/comment?id={toot_id}"
+    comment = f"https://{server}/api/v3/comment?id={toot_id}"
     try:
-        resp = get(authoritative_comment)
+        resp = get(comment)
     except Exception as ex:
-        log(f"Error getting context for comment {toot_url}. Exception: {ex}")
+        log(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
     
     if resp.status_code == 200:
         try:
             res = resp.json()
             post_id = res['comment_view']['comment']['post_id']
-            log(f"Got post ID {post_id} for toot {toot_url}")
+            log(f"Got parent post ID {post_id} for comment {toot_url}")
             return get_comments_urls(server, post_id, toot_url)
         except Exception as ex:
             log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
@@ -659,13 +651,8 @@ def get_comments_urls(server, post_id, toot_url):
     if resp.status_code == 200:
         try:
             res = resp.json()
-            log(f"Got comments for post {toot_url}")
-            # Describe the structure of the response
-            log(f"Response: {res}")
             list_of_urls = [comment_info['comment']['ap_id'] for comment_info in res['comments']]
             log(f"Got {len(list_of_urls)} comments for post {toot_url}")
-            for url in list_of_urls:
-                log(f"Comment URL: {url}")
             return list_of_urls
         except Exception as ex:
             log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
