@@ -121,7 +121,11 @@ def get_user_posts(user, know_followings, server):
             response = get(url)
 
             if(response.status_code == 200):
-                posts = [post['post'] for post in response.json()['posts']]
+                community_posts = response.json()
+                # Log community posts as string # DEBUG
+                log(f"Community posts: {community_posts}") # DEBUG
+                log(f"Found {len(community_posts['posts'])} posts for community {parsed_url[1]}") # DEBUG
+                posts = [post['post'] for post in community_posts['posts']]
                 for post in posts:
                     post['url'] = post['ap_id']
                     log(f"Found post {post['url']}") # DEBUG
