@@ -635,7 +635,8 @@ def get_comment_context(server, toot_id, toot_url):
     if resp.status_code == 200:
         try:
             res = resp.json()
-            log(f"Got post ID for toot {toot_url}")
+            post_id = res['post_id']
+            log(f"Got post ID {post_id} for toot {toot_url}")
             return get_comments_urls(server, res['post_id'], toot_url)
         except Exception as ex:
             log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
@@ -652,7 +653,7 @@ def get_comments_urls(server, post_id, toot_url):
     try:
         resp = get(url)
     except Exception as ex:
-        log(f"Error getting comments for post {toot_url}. Exception: {ex}")
+        log(f"Error getting comments for post {post_id} from {toot_url}. Exception: {ex}")
         return []
 
     if resp.status_code == 200:
