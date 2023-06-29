@@ -534,7 +534,6 @@ def parse_pixelfed_profile_url(url):
 
 def parse_lemmy_url(url):
     """parse a Lemmy URL and return the server, and ID"""
-    # We don't want to parse https://kbin.social/m/technology@beehaw.org/t/109830/-/comment/440268
     match = re.match(
         r"https://(?P<server>[^/]+)/comment/(?P<toot_id>[^/]+)", url
     )
@@ -636,7 +635,7 @@ def get_comment_context(server, toot_id, toot_url):
     if resp.status_code == 200:
         try:
             res = resp.json()
-            post_id = res['post_id']
+            post_id = res['comment_view']['comment']['post_id']
             log(f"Got post ID {post_id} for toot {toot_url}")
             return get_comments_urls(server, res['post_id'], toot_url)
         except Exception as ex:
