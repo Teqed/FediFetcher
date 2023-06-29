@@ -114,6 +114,38 @@ def get_user_posts(user, know_followings, server):
         know_followings.add(user['acct'])
         return None
     
+    if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
+        try:
+            url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
+            response = get(url)
+
+            if(response.status_code == 200):
+                posts = [post['post'] for post in response.json()['posts']]
+                for post in posts:
+                    post['url'] = post['ap_id']
+                return posts
+
+        except Exception as ex:
+            log(f"Error getting community posts for community {parsed_url[1]}: {ex}")
+            return None
+    
+    if re.match(r"^https:\/\/[^\/]+\/u\/", user['url']):
+        try:
+            url = f"https://{parsed_url[0]}/api/v3/users?username={parsed_url[1]}&sort=New&limit=50"
+            response = get(url)
+
+            if(response.status_code == 200):
+                comments = [post['post'] for post in response.json()['comments']]
+                posts = [post['post'] for post in response.json()['posts']]
+                all_posts = comments + posts
+                for post in all_posts:
+                    post['url'] = post['ap_id']
+                return all_posts
+            
+        except Exception as ex:
+            log(f"Error getting user posts for user {parsed_url[1]}: {ex}")
+            return None
+    
     try:
         user_id = get_user_id(parsed_url[0], parsed_url[1])
     except Exception as ex:
@@ -642,7 +674,7 @@ def get_comment_context(server, toot_id, toot_url):
 
 def get_comments_urls(server, post_id, toot_url):
     """get the URLs of the comments of the given post"""
-    url = f"https://{server}/api/v3/comment/list?post_id={post_id}"
+    url = f"https://{server}/api/v3/comment/list?post_id={post_id}&sort=New&limit=50"
     try:
         resp = get(url)
     except Exception as ex:
