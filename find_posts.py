@@ -356,22 +356,21 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
     )
 
 
-def get_all_known_context_urls(server, reply_toots, parsed_urls):
-    known_context_urls = set()
-    
-    for toot in reply_toots:
-        if toot_has_parseable_url(toot, parsed_urls):
-            url = toot["url"] if toot["reblog"] is None else toot["reblog"]["url"]
-            log(f"Found reply toot with parseable URL: {url}")
-            parsed_url = parse_url(url, parsed_urls)
-            log(f"Found parsed URL: {parsed_url}")
-            context = get_context(parsed_url[0], parsed_url[1], url)
-            log(f"Found context: {context}")
-            known_context_urls.update(context) # type: ignore
-    
-    known_context_urls = set(filter(lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
+def get_all_known_context_urls(server, reply_toots,parsed_urls):
+    """get the context toots of the given toots from their original server"""
+    known_context_urls = set(
+        filter(
+            lambda url: not url.startswith(f"https://{server}/"),
+            itertools.chain.from_iterable(
+                get_toot_context(*parse_url(toot["url"] if toot["reblog"] is None else toot["reblog"]["url"],parsed_urls), toot["url"])
+                for toot in filter(
+                    lambda toot: toot_has_parseable_url(toot,parsed_urls),
+                    reply_toots
+                )            
+            ),
+        )
+    )
     log(f"Found {len(known_context_urls)} known context toots")
-    
     return known_context_urls
 
 
@@ -440,10 +439,6 @@ def parse_user_url(url):
     if match is not None:
         return match
 
-    match = parse_lemmy_profile_url(url)
-    if match is not None:
-        return match
-
     log(f"Error parsing Profile URL {url}")
     
     return None
@@ -461,11 +456,6 @@ def parse_url(url, parsed_urls):
 
     if url not in parsed_urls:
         match = parse_pixelfed_url(url)
-        if match is not None:
-            parsed_urls[url] = match
-
-    if url not in parsed_urls:
-        match = parse_lemmy_url(url)
         if match is not None:
             parsed_urls[url] = match
 
@@ -532,25 +522,6 @@ def parse_pixelfed_profile_url(url):
         return (match.group("server"), match.group("username"))
     return None
 
-def parse_lemmy_url(url):
-    """parse a Lemmy URL and return the server, and ID"""
-    match = re.match(
-        r"https://(?P<server>[^/]+)/comment/(?P<toot_id>[^/]+)", url
-    )
-    if match is None:
-        match = re.match(
-            r"https://(?P<server>[^/]+)/post/(?P<toot_id>[^/]+)", url
-        )
-    if match is not None:
-        return (match.group("server"), match.group("toot_id"))
-    return None
-
-def parse_lemmy_profile_url(url):
-    """parse a Lemmy Profile URL and return the server and username"""
-    match = re.match(r"https://(?P<server>[^/]+)/u/(?P<username>[^/]+)", url)
-    if match is not None:
-        return (match.group("server"), match.group("username"))
-    return None
 
 def get_redirect_url(url):
     """get the URL given URL redirects to"""
@@ -578,22 +549,13 @@ def get_redirect_url(url):
 def get_all_context_urls(server, replied_toot_ids):
     """get the URLs of the context toots of the given toots"""
     return filter(
-        lambda url: not url.startswith(f"https://{server}/"), # type: ignore
+        lambda url: not url.startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
-            get_context(server, toot_id, url)
-            for (url, (server, toot_id)) in replied_toot_ids # type: ignore
+            get_toot_context(server, toot_id, url)
+            for (url, (server, toot_id)) in replied_toot_ids
         ),
     )
 
-def get_context(server, toot_id, toot_url):
-    if toot_url is None:
-        log(f"Error getting context for toot {toot_url} on server {server} for toot id {toot_id}")
-        return []
-    if toot_url.find("/comment/") != -1:
-        return get_comment_context(server, toot_id, toot_url)
-    if toot_url.find("/post/") != -1:
-        return get_comments_urls(server, toot_id, toot_url)
-    return get_toot_context(server, toot_id, toot_url)
 
 def get_toot_context(server, toot_id, toot_url):
     """get the URLs of the context toots of the given toot"""
@@ -616,70 +578,13 @@ def get_toot_context(server, toot_id, toot_url):
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
-        return get_context(server, toot_id, toot_url)
+        return get_toot_context(server, toot_id, toot_url)
 
     log(
         f"Error getting context for toot {toot_url}. Status code: {resp.status_code}"
     )
     return []
 
-def get_comment_context(server, toot_id, toot_url):
-    """get the URLs of the context toots of the given toot"""
-    authoritative_comment = f"https://{server}/api/v3/comment?id={toot_id}"
-    try:
-        resp = get(authoritative_comment)
-    except Exception as ex:
-        log(f"Error getting context for comment {toot_url}. Exception: {ex}")
-        return []
-    
-    if resp.status_code == 200:
-        try:
-            res = resp.json()
-            post_id = res['comment_view']['comment']['post_id']
-            log(f"Got post ID {post_id} for toot {toot_url}")
-            return get_comments_urls(server, post_id, toot_url)
-        except Exception as ex:
-            log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
-        return []
-    elif resp.status_code == 429:
-        reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
-        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
-        time.sleep((reset - datetime.now()).total_seconds() + 1)
-        return get_comment_context(server, toot_id, toot_url)
-
-def get_comments_urls(server, post_id, toot_url):
-    """get the URLs of the comments of the given post"""
-    url = f"https://{server}/api/v3/comment/list?post_id={post_id}"
-    try:
-        resp = get(url)
-    except Exception as ex:
-        log(f"Error getting comments for post {post_id} from {toot_url}. Exception: {ex}")
-        return []
-
-    if resp.status_code == 200:
-        try:
-            res = resp.json()
-            log(f"Got comments for post {toot_url}")
-            # Describe the structure of the response
-            log(f"Response: {res}")
-            list_of_urls = [comment_info['comment']['ap_id'] for comment_info in res['comments']]
-            log(f"Got {len(list_of_urls)} comments for post {toot_url}")
-            for url in list_of_urls:
-                log(f"Comment URL: {url}")
-            return list_of_urls
-        except Exception as ex:
-            log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
-        return []
-    elif resp.status_code == 429:
-        reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
-        log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
-        time.sleep((reset - datetime.now()).total_seconds() + 1)
-        return get_comments_urls(server, post_id, toot_url)
-
-    log(
-        f"Error getting comments for post {toot_url}. Status code: {resp.status_code}"
-    )
-    return []
 
 def add_context_urls(server, access_token, context_urls, seen_urls):
     """add the given toot URLs to the server"""
