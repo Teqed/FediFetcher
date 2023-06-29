@@ -635,7 +635,7 @@ def get_comment_context(server, toot_id, toot_url):
     if resp.status_code == 200:
         try:
             res = resp.json()
-            post_id = (comment["post_id"] for comment in res['comment_view'])
+            post_id = res.comment.post_id
             log(f"Got post ID {post_id} for toot {toot_url}")
             return get_comments_urls(server, res['post_id'], toot_url)
         except Exception as ex:
