@@ -356,21 +356,22 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
     )
 
 
-def get_all_known_context_urls(server, reply_toots,parsed_urls):
-    """get the context toots of the given toots from their original server"""
-    known_context_urls = set(
-        filter(
-            lambda url: not url.startswith(f"https://{server}/"),
-            itertools.chain.from_iterable(
-                get_context(*parse_url(toot["url"] if toot["reblog"] is None else toot["reblog"]["url"],parsed_urls), toot["url"])
-                for toot in filter(
-                    lambda toot: toot_has_parseable_url(toot,parsed_urls),
-                    reply_toots
-                )            
-            ),
-        )
-    )
+def get_all_known_context_urls(server, reply_toots, parsed_urls):
+    known_context_urls = set()
+    
+    for toot in reply_toots:
+        if toot_has_parseable_url(toot, parsed_urls):
+            url = toot["url"] if toot["reblog"] is None else toot["reblog"]["url"]
+            log(f"Found reply toot with parseable URL: {url}")
+            parsed_url = parse_url(url, parsed_urls)
+            log(f"Found parsed URL: {parsed_url}")
+            context = get_context(parsed_url[0], parsed_url[1], toot["url"])
+            log(f"Found context: {context}")
+            known_context_urls.update(context) # type: ignore
+    
+    known_context_urls = set(filter(lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
     log(f"Found {len(known_context_urls)} known context toots")
+    
     return known_context_urls
 
 
@@ -577,10 +578,10 @@ def get_redirect_url(url):
 def get_all_context_urls(server, replied_toot_ids):
     """get the URLs of the context toots of the given toots"""
     return filter(
-        lambda url: not url.startswith(f"https://{server}/"),
+        lambda url: not url.startswith(f"https://{server}/"), # type: ignore
         itertools.chain.from_iterable(
             get_context(server, toot_id, url)
-            for (url, (server, toot_id)) in replied_toot_ids
+            for (url, (server, toot_id)) in replied_toot_ids # type: ignore
         ),
     )
 
