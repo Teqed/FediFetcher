@@ -365,7 +365,7 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
             log(f"Found reply toot with parseable URL: {url}")
             parsed_url = parse_url(url, parsed_urls)
             log(f"Found parsed URL: {parsed_url}")
-            context = get_context(parsed_url[0], parsed_url[1], toot["url"])
+            context = get_context(parsed_url[0], parsed_url[1], url)
             log(f"Found context: {context}")
             known_context_urls.update(context) # type: ignore
     
