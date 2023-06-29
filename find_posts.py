@@ -121,7 +121,10 @@ def get_user_posts(user, know_followings, server):
             response = get(url)
 
             if(response.status_code == 200):
-                posts = [post['post'] for post in response.json()['posts']]
+                response_json = response.json()
+                log(f"Community posts: {response_json}") # DEBUG
+                log(f"Found {len(response_json['posts'])} posts for community {parsed_url[1]}") # DEBUG
+                posts = [post['post'] for post in response_json['posts']]
                 for post in posts:
                     post['url'] = post['ap_id']
                     log(f"Found post {post['url']}") # DEBUG
@@ -134,11 +137,14 @@ def get_user_posts(user, know_followings, server):
     if re.match(r"^https:\/\/[^\/]+\/u\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/users?username={parsed_url[1]}&sort=New&limit=50"
+            log(f"Getting user posts for user {parsed_url[1]}") # DEBUG
             response = get(url)
 
             if(response.status_code == 200):
-                comments = [post['post'] for post in response.json()['comments']]
-                posts = [post['post'] for post in response.json()['posts']]
+                response_json = response.json()
+                log(f"User posts: {response_json}") # DEBUG
+                comments = [post['post'] for post in response_json['comments']]
+                posts = [post['post'] for post in response_json['posts']]
                 all_posts = comments + posts
                 for post in all_posts:
                     post['url'] = post['ap_id']
