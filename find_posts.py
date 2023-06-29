@@ -357,6 +357,7 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
 
 
 def get_all_known_context_urls(server, reply_toots, parsed_urls):
+    """get the context toots of the given toots from their original server"""
     known_context_urls = set()
     
     for toot in reply_toots:
@@ -368,6 +369,7 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
     
     known_context_urls = set(filter(lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
     log(f"Found {len(known_context_urls)} known context toots")
+    
     return known_context_urls
 
 
