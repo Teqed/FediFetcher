@@ -130,7 +130,7 @@ def get_user_posts(user, know_followings, server):
 
         except Exception as ex:
             log(f"Error getting community posts for community {parsed_url[1]}: {ex}")
-            return None
+        return None
     else:
         log("Not community post") # DEBUG
     
@@ -138,7 +138,9 @@ def get_user_posts(user, know_followings, server):
         log(f"Fetching user posts for {user['url']}") # DEBUG
         try:
             url = f"https://{parsed_url[0]}/api/v3/users?username={parsed_url[1]}&sort=New&limit=50"
+            log(url)  # DEBUG
             response = get(url)
+            log(response.status_code) # DEBUG
 
             if(response.status_code == 200):
                 comments = [post['post'] for post in response.json()['comments']]
@@ -150,7 +152,7 @@ def get_user_posts(user, know_followings, server):
             
         except Exception as ex:
             log(f"Error getting user posts for user {parsed_url[1]}: {ex}")
-            return None
+        return None
     else:
         log("Not user post") # DEBUG
     
