@@ -234,7 +234,7 @@ def get_user_id(server, user = None, access_token = None):
         return response.json()['id'] 
     elif response.status_code == 404:
         raise Exception(
-            f"User {user} was not found on server {server}."
+            f"User {user} was not found on server {server} at {url} (404)"
         )
     else:
         raise Exception(
