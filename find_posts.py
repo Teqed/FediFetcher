@@ -471,6 +471,10 @@ def get_replied_toot_server_id(server, toot, replied_toot_server_ids,parsed_urls
     return None
 
 def parse_user_url(url):
+    match = parse_lemmy_profile_url(url)
+    if match is not None:
+        return match
+
     match = parse_mastodon_profile_url(url)
     if match is not None:
         return match
@@ -483,15 +487,16 @@ def parse_user_url(url):
     if match is not None:
         return match
 
-    match = parse_lemmy_profile_url(url)
-    if match is not None:
-        return match
-
     log(f"Error parsing Profile URL {url}")
     
     return None
 
 def parse_url(url, parsed_urls):
+    if url not in parsed_urls:
+        match = parse_lemmy_url(url)
+        if match is not None:
+            parsed_urls[url] = match
+
     if url not in parsed_urls:
         match = parse_mastodon_url(url)
         if match is not None:
@@ -504,11 +509,6 @@ def parse_url(url, parsed_urls):
 
     if url not in parsed_urls:
         match = parse_pixelfed_url(url)
-        if match is not None:
-            parsed_urls[url] = match
-
-    if url not in parsed_urls:
-        match = parse_lemmy_url(url)
         if match is not None:
             parsed_urls[url] = match
 
