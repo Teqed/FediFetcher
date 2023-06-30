@@ -117,6 +117,7 @@ def get_user_posts(user, know_followings, server):
     log(f"Fetching posts for {user['url']}") # DEBUG
     
     if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
+        log(f"Fetching community posts for {user['url']}") # DEBUG
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
             response = get(url)
@@ -130,8 +131,11 @@ def get_user_posts(user, know_followings, server):
         except Exception as ex:
             log(f"Error getting community posts for community {parsed_url[1]}: {ex}")
             return None
+    else:
+        log("Not community post") # DEBUG
     
     if re.match(r"^https:\/\/[^\/]+\/u\/", user['url']):
+        log(f"Fetching user posts for {user['url']}") # DEBUG
         try:
             url = f"https://{parsed_url[0]}/api/v3/users?username={parsed_url[1]}&sort=New&limit=50"
             response = get(url)
@@ -147,8 +151,11 @@ def get_user_posts(user, know_followings, server):
         except Exception as ex:
             log(f"Error getting user posts for user {parsed_url[1]}: {ex}")
             return None
+    else:
+        log("Not user post") # DEBUG
     
     try:
+        log(f"Fetching user ID for {user['acct']}") # DEBUG
         user_id = get_user_id(parsed_url[0], parsed_url[1])
     except Exception as ex:
         log(f"Error getting user ID for user {user['acct']}: {ex}")
