@@ -113,7 +113,6 @@ def get_user_posts(user, know_followings, server):
         log(f"{user['acct']} is a local user. Skip")
         know_followings.add(user['acct'])
         return None
-        
     if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
@@ -160,7 +159,7 @@ def get_user_posts(user, know_followings, server):
             return response.json()
         elif response.status_code == 404:
             raise Exception(
-                f"User {user['acct']} was not found on server {parsed_url[0]} at {url} (404)"
+                f"User {user['acct']} was not found on server {parsed_url[0]}"
             )
         else:
             raise Exception(
@@ -234,7 +233,7 @@ def get_user_id(server, user = None, access_token = None):
         return response.json()['id'] 
     elif response.status_code == 404:
         raise Exception(
-            f"User {user} was not found on server {server} at {url} (404)"
+            f"User {user} was not found on server {server}."
         )
     else:
         raise Exception(
@@ -461,10 +460,6 @@ def get_replied_toot_server_id(server, toot, replied_toot_server_ids,parsed_urls
     return None
 
 def parse_user_url(url):
-    match = parse_lemmy_profile_url(url)
-    if match is not None:
-        return match
-
     match = parse_mastodon_profile_url(url)
     if match is not None:
         return match
@@ -477,16 +472,15 @@ def parse_user_url(url):
     if match is not None:
         return match
 
+    match = parse_lemmy_profile_url(url)
+    if match is not None:
+        return match
+
     log(f"Error parsing Profile URL {url}")
     
     return None
 
 def parse_url(url, parsed_urls):
-    if url not in parsed_urls:
-        match = parse_lemmy_url(url)
-        if match is not None:
-            parsed_urls[url] = match
-
     if url not in parsed_urls:
         match = parse_mastodon_url(url)
         if match is not None:
@@ -499,6 +493,11 @@ def parse_url(url, parsed_urls):
 
     if url not in parsed_urls:
         match = parse_pixelfed_url(url)
+        if match is not None:
+            parsed_urls[url] = match
+
+    if url not in parsed_urls:
+        match = parse_lemmy_url(url)
         if match is not None:
             parsed_urls[url] = match
 
