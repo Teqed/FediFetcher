@@ -117,14 +117,12 @@ def get_user_posts(user, know_followings, server):
     if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
-            log(f"Getting community posts for community {parsed_url[1]}") # DEBUG
             response = get(url)
 
             if(response.status_code == 200):
                 posts = [post['post'] for post in response.json()['posts']]
                 for post in posts:
                     post['url'] = post['ap_id']
-                    log(f"Found post {post['url']}") # DEBUG
                 return posts
 
         except Exception as ex:
