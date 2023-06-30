@@ -90,7 +90,7 @@ def add_post_with_context(post, server, access_token, seen_urls):
     added = add_context_url(post['url'], server, access_token)
     if added is True:
         seen_urls.add(post['url'])
-        if (post['replies_count'] or post['in_reply_to_id']) and arguments.backfill_with_context > 0:
+        if ('replies_count' in post or 'in_reply_to_id' in post) and arguments.get('backfill_with_context', 0) > 0:
             parsed_urls = {}
             parsed = parse_url(post['url'], parsed_urls)
             if parsed == None:
@@ -117,19 +117,12 @@ def get_user_posts(user, know_followings, server):
     if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
-            log(f"Getting community posts for community {parsed_url[1]}") # DEBUG
-            log(f"URL: {url}") # DEBUG
             response = get(url)
-            log(f"Response: {response.status_code}") # DEBUG
 
             if(response.status_code == 200):
-                response_json = response.json()
-                log(f"Community posts: {response_json}") # DEBUG
-                log(f"Found {len(response_json['posts'])} posts for community {parsed_url[1]}") # DEBUG
-                posts = [post['post'] for post in response_json['posts']]
+                posts = [post['post'] for post in response.json()['posts']]
                 for post in posts:
                     post['url'] = post['ap_id']
-                    log(f"Found post {post['url']}") # DEBUG
                 return posts
 
         except Exception as ex:
@@ -139,14 +132,11 @@ def get_user_posts(user, know_followings, server):
     if re.match(r"^https:\/\/[^\/]+\/u\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/users?username={parsed_url[1]}&sort=New&limit=50"
-            log(f"Getting user posts for user {parsed_url[1]}") # DEBUG
             response = get(url)
 
             if(response.status_code == 200):
-                response_json = response.json()
-                log(f"User posts: {response_json}") # DEBUG
-                comments = [post['post'] for post in response_json['comments']]
-                posts = [post['post'] for post in response_json['posts']]
+                comments = [post['post'] for post in response.json()['comments']]
+                posts = [post['post'] for post in response.json()['posts']]
                 all_posts = comments + posts
                 for post in all_posts:
                     post['url'] = post['ap_id']
