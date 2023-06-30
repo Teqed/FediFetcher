@@ -114,6 +114,8 @@ def get_user_posts(user, know_followings, server):
         know_followings.add(user['acct'])
         return None
     
+    log(f"Fetching posts for {user['url']}") # DEBUG
+    
     if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
