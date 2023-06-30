@@ -704,7 +704,7 @@ def get_comments_urls(server, post_id, toot_url):
             res = resp.json()
             list_of_urls = [comment_info['comment']['ap_id'] for comment_info in res['comments']]
             log(f"Got {len(list_of_urls)} comments for post {toot_url}")
-            urls.extend(list_of_urls)  # Use extend() instead of append()
+            urls.extend(list_of_urls)
             return urls
         except Exception as ex:
             log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
