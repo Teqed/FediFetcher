@@ -521,7 +521,7 @@ def parse_url(url, parsed_urls):
 def parse_mastodon_profile_url(url):
     """parse a Mastodon Profile URL and return the server and username"""
     match = re.match(
-        r"https://(?P<server>.*)/@(?P<username>.*)", url
+        r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)", url
     )
     if match is not None:
         return (match.group("server"), match.group("username"))
@@ -530,7 +530,7 @@ def parse_mastodon_profile_url(url):
 def parse_mastodon_url(url):
     """parse a Mastodon URL and return the server and ID"""
     match = re.match(
-        r"https://(?P<server>.*)/@(?P<username>.*)/(?P<toot_id>.*)", url
+        r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)", url
     )
     if match is not None:
         return (match.group("server"), match.group("toot_id"))
@@ -539,14 +539,14 @@ def parse_mastodon_url(url):
 
 def parse_pleroma_url(url):
     """parse a Pleroma URL and return the server and ID"""
-    match = re.match(r"https://(?P<server>.*)/objects/(?P<toot_id>.*)", url)
+    match = re.match(r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)", url)
     if match is not None:
         server = match.group("server")
         url = get_redirect_url(url)
         if url is None:
             return None
         
-        match = re.match(r"/notice/(?P<toot_id>.*)", url)
+        match = re.match(r"/notice/(?P<toot_id>[^/]+)", url)
         if match is not None:
             return (server, match.group("toot_id"))
         return None
@@ -554,7 +554,7 @@ def parse_pleroma_url(url):
 
 def parse_pleroma_profile_url(url):
     """parse a Pleroma Profile URL and return the server and username"""
-    match = re.match(r"https://(?P<server>.*)/users/(?P<username>.*)", url)
+    match = re.match(r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)", url)
     if match is not None:
         return (match.group("server"), match.group("username"))
     return None
@@ -562,7 +562,7 @@ def parse_pleroma_profile_url(url):
 def parse_pixelfed_url(url):
     """parse a Pixelfed URL and return the server and ID"""
     match = re.match(
-        r"https://(?P<server>.*)/p/(?P<username>.*)/(?P<toot_id>.*)", url
+        r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)", url
     )
     if match is not None:
         return (match.group("server"), match.group("toot_id"))
@@ -570,7 +570,7 @@ def parse_pixelfed_url(url):
 
 def parse_pixelfed_profile_url(url):
     """parse a Pixelfed Profile URL and return the server and username"""
-    match = re.match(r"https://(?P<server>.*)/(?P<username>.*)", url)
+    match = re.match(r"https://(?P<server>[^/]+)/(?P<username>[^/]+)", url)
     if match is not None:
         return (match.group("server"), match.group("username"))
     return None
