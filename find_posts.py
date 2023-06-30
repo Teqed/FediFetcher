@@ -397,7 +397,8 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
             parsed_url = parse_url(url, parsed_urls)
             context = get_toot_context(parsed_url[0], parsed_url[1], url)
             if context is not None:
-                known_context_urls.update(context) # type: ignore
+                for item in context:  # Iterate over the context list
+                    known_context_urls.add(item)  # Add each item individually to the set
             else:
                 log(f"Error getting context for toot {url}")
     
@@ -680,7 +681,7 @@ def get_comments_urls(server, post_id, toot_url):
     except Exception as ex:
         log(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
         return []
-    
+
     if resp.status_code == 200:
         try:
             res = resp.json()
@@ -703,20 +704,17 @@ def get_comments_urls(server, post_id, toot_url):
             res = resp.json()
             list_of_urls = [comment_info['comment']['ap_id'] for comment_info in res['comments']]
             log(f"Got {len(list_of_urls)} comments for post {toot_url}")
-            urls.append(list_of_urls)
+            urls.extend(list_of_urls)  # Use extend() instead of append()
             return urls
         except Exception as ex:
             log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
-        return []
     elif resp.status_code == 429:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_comments_urls(server, post_id, toot_url)
 
-    log(
-        f"Error getting comments for post {toot_url}. Status code: {resp.status_code}"
-    )
+    log(f"Error getting comments for post {toot_url}. Status code: {resp.status_code}")
     return []
 
 def add_context_urls(server, access_token, context_urls, seen_urls):
