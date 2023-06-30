@@ -118,7 +118,9 @@ def get_user_posts(user, know_followings, server):
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
             log(f"Getting community posts for community {parsed_url[1]}") # DEBUG
+            log(f"URL: {url}") # DEBUG
             response = get(url)
+            log(f"Response: {response.status_code}") # DEBUG
 
             if(response.status_code == 200):
                 response_json = response.json()
