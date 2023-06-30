@@ -591,6 +591,8 @@ def parse_lemmy_url(url):
 def parse_lemmy_profile_url(url):
     """parse a Lemmy Profile URL and return the server and username"""
     match = re.match(r"https://(?P<server>[^/]+)/u/(?P<username>[^/]+)", url)
+    if match is None:
+        match = re.match(r"https://(?P<server>[^/]+)/c/(?P<username>[^/]+)", url)
     if match is not None:
         return (match.group("server"), match.group("username"))
     return None
