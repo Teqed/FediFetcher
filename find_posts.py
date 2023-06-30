@@ -673,6 +673,24 @@ def get_comment_context(server, toot_id, toot_url):
 
 def get_comments_urls(server, post_id, toot_url):
     """get the URLs of the comments of the given post"""
+    urls = []
+    url = f"https://{server}/api/v3/post?id={post_id}"
+    try:
+        resp = get(url)
+    except Exception as ex:
+        log(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
+        return []
+    
+    if resp.status_code == 200:
+        try:
+            res = resp.json()
+            log(f"Got post {post_id} from {toot_url}")
+            if res['post_view']['counts']['comments'] == 0:
+                return []
+            urls.append(res['post_view']['post']['ap_id'])
+        except Exception as ex:
+            log(f"Error parsing post {post_id} from {toot_url}. Exception: {ex}")
+
     url = f"https://{server}/api/v3/comment/list?post_id={post_id}&sort=New&limit=50"
     try:
         resp = get(url)
@@ -685,7 +703,8 @@ def get_comments_urls(server, post_id, toot_url):
             res = resp.json()
             list_of_urls = [comment_info['comment']['ap_id'] for comment_info in res['comments']]
             log(f"Got {len(list_of_urls)} comments for post {toot_url}")
-            return list_of_urls
+            urls.append(list_of_urls)
+            return urls
         except Exception as ex:
             log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
         return []
