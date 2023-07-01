@@ -17,7 +17,7 @@ jobs:
   dependabot:
     name: 'Dependabot 🤖'
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
+    if: ${{ github.actor == 'dependabot[bot]'}}
     steps:
       - name: Dependabot metadata
         id: dependabot-metadata
