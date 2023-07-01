@@ -3,6 +3,19 @@ from dateutil import parser
 import time
 import requests
 
+class Response:
+    OK = 200
+    CREATED = 201
+    ACCEPTED = 202
+    FOUND = 302
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    CONFLICT = 409
+    TOO_MANY_REQUESTS = 429
+    INTERNAL_SERVER_ERROR = 500
+
 def get(url, headers = {}, timeout = 0, max_tries = 5):
     """A simple wrapper to make a get request while providing our user agent, \
         and respecting rate limits"""
