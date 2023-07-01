@@ -8,14 +8,11 @@ import re
 import sys
 import uuid
 
-from fedifetcher import argparser
 import fedifetcher.helpers as helper
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.parsers import parse_url_post, parse_url_user
 import fedifetcher.add_context
 import fedifetcher.getters
-
-argparser.add_arguments()
 
 
 if __name__ == "__main__":
@@ -23,40 +20,38 @@ if __name__ == "__main__":
 
     helper.log("Starting FediFetcher")
 
-    arguments = argparser.parse_args()
-
-    if(arguments.config):
-        if os.path.exists(arguments.config):
-            with open(arguments.config, "r", encoding="utf-8") as f:
+    if(helper.arguments.config):
+        if os.path.exists(helper.arguments.config):
+            with open(helper.arguments.config, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
             for key in config:
-                setattr(arguments, key.lower().replace('-','_'), config[key])
+                setattr(helper.arguments, key.lower().replace('-','_'), config[key])
 
         else:
-            helper.log(f"Config file {arguments.config} doesn't exist")
+            helper.log(f"Config file {helper.arguments.config} doesn't exist")
             sys.exit(1)
 
-    if(arguments.server is None or arguments.access_token is None):
+    if(helper.arguments.server is None or helper.arguments.access_token is None):
         helper.log("You must supply at least a server name and an access token")
         sys.exit(1)
 
     # in case someone provided the server name as url instead,
-    setattr(arguments, 'server', re.sub(r"^(https://)?([^/]*)/?$", "\\2",
-        arguments.server))
+    setattr(helper.arguments, 'server', re.sub(r"^(https://)?([^/]*)/?$", "\\2",
+        helper.arguments.server))
 
 
     runId = uuid.uuid4()
 
-    if(arguments.on_start):
+    if(helper.arguments.on_start):
         try:
-            helper.get(f"{arguments.on_start}?rid={runId}")
+            helper.get(f"{helper.arguments.on_start}?rid={runId}")
         except Exception as ex:
             helper.log(f"Error getting callback url: {ex}")
 
-    if arguments.lock_file is None:
-        arguments.lock_file = os.path.join(arguments.state_dir, 'lock.lock')
-    LOCK_FILE = arguments.lock_file
+    if helper.arguments.lock_file is None:
+        helper.arguments.lock_file = os.path.join(helper.arguments.state_dir, 'lock.lock')
+    LOCK_FILE = helper.arguments.lock_file
 
     if( os.path.exists(LOCK_FILE)):
         helper.log(f"Lock file exists at {LOCK_FILE}")
@@ -66,24 +61,24 @@ if __name__ == "__main__":
                 lock_time = parser.parse(f.read())
 
             if (datetime.now() - lock_time).total_seconds() >= \
-                    arguments.lock_hours * 60 * 60:
+                    helper.arguments.lock_hours * 60 * 60:
                 os.remove(LOCK_FILE)
                 helper.log("Lock file has expired. Removed lock file.")
             else:
                 helper.log(f"Lock file age is {datetime.now() - lock_time} - \
-below --lock-hours={arguments.lock_hours} provided.")
-                if(arguments.on_fail):
+below --lock-hours={helper.arguments.lock_hours} provided.")
+                if(helper.arguments.on_fail):
                     try:
-                        helper.get(f"{arguments.on_fail}?rid={runId}")
+                        helper.get(f"{helper.arguments.on_fail}?rid={runId}")
                     except Exception as ex:
                         helper.log(f"Error getting callback url: {ex}")
                 sys.exit(1)
 
         except Exception:
             helper.log("Cannot read logfile age - aborting.")
-            if(arguments.on_fail):
+            if(helper.arguments.on_fail):
                 try:
-                    helper.get(f"{arguments.on_fail}?rid={runId}")
+                    helper.get(f"{helper.arguments.on_fail}?rid={runId}")
                 except Exception as ex:
                     helper.log(f"Error getting callback url: {ex}")
             sys.exit(1)
@@ -93,12 +88,12 @@ below --lock-hours={arguments.lock_hours} provided.")
 
     try:
 
-        SEEN_URLS_FILE = os.path.join(arguments.state_dir, "seen_urls")
+        SEEN_URLS_FILE = os.path.join(helper.arguments.state_dir, "seen_urls")
         REPLIED_TOOT_SERVER_IDS_FILE = os.path.join(
-            arguments.state_dir, "replied_toot_server_ids")
-        KNOWN_FOLLOWINGS_FILE = os.path.join(arguments.state_dir, "known_followings")
+            helper.arguments.state_dir, "replied_toot_server_ids")
+        KNOWN_FOLLOWINGS_FILE = os.path.join(helper.arguments.state_dir, "known_followings")
         RECENTLY_CHECKED_USERS_FILE = os.path.join(
-            arguments.state_dir, "recently_checked_users")
+            helper.arguments.state_dir, "recently_checked_users")
 
 
         seen_urls = OrderedSet([])
@@ -125,7 +120,7 @@ below --lock-hours={arguments.lock_hours} provided.")
         for user in list(recently_checked_users):
             lastCheck = recently_checked_users.get(user)
             userAge = datetime.now(lastCheck.tzinfo) - lastCheck
-            if(userAge.total_seconds() > arguments.remember_users_for_hours * 60 * 60):
+            if(userAge.total_seconds() > helper.arguments.remember_users_for_hours * 60 * 60):
                 recently_checked_users.pop(user)
 
         parsed_urls = {}
@@ -133,40 +128,40 @@ below --lock-hours={arguments.lock_hours} provided.")
         all_known_users = OrderedSet(
             list(known_followings) + list(recently_checked_users))
 
-        if(isinstance(arguments.access_token, str)):
-            setattr(arguments, 'access_token', [arguments.access_token])
+        if(isinstance(helper.arguments.access_token, str)):
+            setattr(helper.arguments, 'access_token', [helper.arguments.access_token])
 
-        for token in arguments.access_token:
+        for token in helper.arguments.access_token:
 
-            if arguments.reply_interval_in_hours > 0:
+            if helper.arguments.reply_interval_in_hours > 0:
                 """pull the context toots of toots user replied to, from their
                 original server, and add them to the local server."""
                 user_ids = get_active_user_ids(
-                    arguments.server, token, arguments.reply_interval_in_hours)
+                    helper.arguments.server, token, helper.arguments.reply_interval_in_hours)
                 reply_toots = get_all_reply_toots(
-                    arguments.server, user_ids, token,
-                    seen_urls, arguments.reply_interval_in_hours
+                    helper.arguments.server, user_ids, token,
+                    seen_urls, helper.arguments.reply_interval_in_hours
                 )
                 known_context_urls = get_all_known_context_urls(
-                    arguments.server, reply_toots,parsed_urls)
+                    helper.arguments.server, reply_toots,parsed_urls)
                 seen_urls.update(known_context_urls)
                 replied_toot_ids = get_all_replied_toot_server_ids(
-                    arguments.server, reply_toots, replied_toot_server_ids, parsed_urls
+                    helper.arguments.server, reply_toots, replied_toot_server_ids, parsed_urls
                 )
-                context_urls = get_all_context_urls(arguments.server, replied_toot_ids)
-                add_context_urls(arguments.server, token, context_urls, seen_urls)
+                context_urls = get_all_context_urls(helper.arguments.server, replied_toot_ids)
+                add_context_urls(helper.arguments.server, token, context_urls, seen_urls)
 
 
-            if arguments.home_timeline_length > 0:
+            if helper.arguments.home_timeline_length > 0:
                 """Do the same with any toots on the key owner's home timeline """
                 timeline_toots = get_timeline(
-                    arguments.server, token, arguments.home_timeline_length)
+                    helper.arguments.server, token, helper.arguments.home_timeline_length)
                 known_context_urls = get_all_known_context_urls(
-                    arguments.server, timeline_toots,parsed_urls)
-                add_context_urls(arguments.server, token, known_context_urls, seen_urls)
+                    helper.arguments.server, timeline_toots,parsed_urls)
+                add_context_urls(helper.arguments.server, token, known_context_urls, seen_urls)
 
                 # Backfill any post authors, and any mentioned users
-                if arguments.backfill_mentioned_users > 0:
+                if helper.arguments.backfill_mentioned_users > 0:
                     mentioned_users = []
                     cut_off = datetime.now(
                         datetime.now().astimezone().tzinfo) - timedelta(minutes=60)
@@ -188,58 +183,58 @@ below --lock-hours={arguments.lock_hours} provided.")
                                     user['acct'] not in all_known_users:
                                 mentioned_users.append(user)
 
-                    add_user_posts(arguments.server, token, filter_known_users(
+                    add_user_posts(helper.arguments.server, token, filter_known_users(
                         mentioned_users, all_known_users), recently_checked_users,
                         all_known_users, seen_urls)
 
-            if arguments.max_followings > 0:
-                helper.log(f"Getting posts from last {arguments.max_followings} followings")
-                user_id = get_user_id(arguments.server, arguments.user, token)
-                followings = get_new_followings(arguments.server, user_id,
-                                            arguments.max_followings, all_known_users)
-                add_user_posts(arguments.server, token, followings, known_followings,
+            if helper.arguments.max_followings > 0:
+                helper.log(f"Getting posts from last {helper.arguments.max_followings} followings")
+                user_id = get_user_id(helper.arguments.server, helper.arguments.user, token)
+                followings = get_new_followings(helper.arguments.server, user_id,
+                                            helper.arguments.max_followings, all_known_users)
+                add_user_posts(helper.arguments.server, token, followings, known_followings,
                                             all_known_users, seen_urls)
 
-            if arguments.max_followers > 0:
-                helper.log(f"Getting posts from last {arguments.max_followers} followers")
-                user_id = get_user_id(arguments.server, arguments.user, token)
-                followers = get_new_followers(arguments.server, user_id,
-                                            arguments.max_followers, all_known_users)
-                add_user_posts(arguments.server, token, followers,
+            if helper.arguments.max_followers > 0:
+                helper.log(f"Getting posts from last {helper.arguments.max_followers} followers")
+                user_id = get_user_id(helper.arguments.server, helper.arguments.user, token)
+                followers = get_new_followers(helper.arguments.server, user_id,
+                                            helper.arguments.max_followers, all_known_users)
+                add_user_posts(helper.arguments.server, token, followers,
                             recently_checked_users, all_known_users, seen_urls)
 
-            if arguments.max_follow_requests > 0:
-                helper.log(f"Getting posts from last {arguments.max_follow_requests} \
+            if helper.arguments.max_follow_requests > 0:
+                helper.log(f"Getting posts from last {helper.arguments.max_follow_requests} \
 follow requests")
-                follow_requests = get_new_follow_requests(arguments.server, token,
-                                        arguments.max_follow_requests, all_known_users)
-                add_user_posts(arguments.server, token, follow_requests,
+                follow_requests = get_new_follow_requests(helper.arguments.server, token,
+                                        helper.arguments.max_follow_requests, all_known_users)
+                add_user_posts(helper.arguments.server, token, follow_requests,
                                 recently_checked_users, all_known_users, seen_urls)
 
-            if arguments.from_notifications > 0:
-                helper.log(f"Getting notifications for last {arguments.from_notifications} \
+            if helper.arguments.from_notifications > 0:
+                helper.log(f"Getting notifications for last {helper.arguments.from_notifications} \
 hours")
-                notification_users = get_notification_users(arguments.server, token,
-                                        all_known_users, arguments.from_notifications)
-                add_user_posts(arguments.server, token, notification_users,
+                notification_users = get_notification_users(helper.arguments.server, token,
+                                        all_known_users, helper.arguments.from_notifications)
+                add_user_posts(helper.arguments.server, token, notification_users,
                             recently_checked_users, all_known_users, seen_urls)
 
-            if arguments.max_bookmarks > 0:
-                helper.log(f"Pulling replies to the last {arguments.max_bookmarks} bookmarks")
+            if helper.arguments.max_bookmarks > 0:
+                helper.log(f"Pulling replies to the last {helper.arguments.max_bookmarks} bookmarks")
                 bookmarks = get_bookmarks(
-                    arguments.server, token, arguments.max_bookmarks)
+                    helper.arguments.server, token, helper.arguments.max_bookmarks)
                 known_context_urls = get_all_known_context_urls(
-                    arguments.server, bookmarks,parsed_urls)
-                add_context_urls(arguments.server, token, known_context_urls, seen_urls)
+                    helper.arguments.server, bookmarks,parsed_urls)
+                add_context_urls(helper.arguments.server, token, known_context_urls, seen_urls)
 
-            if arguments.max_favourites > 0:
-                helper.log(f"Pulling replies to the last {arguments.max_favourites} \
+            if helper.arguments.max_favourites > 0:
+                helper.log(f"Pulling replies to the last {helper.arguments.max_favourites} \
 favourites")
                 favourites = get_favourites(
-                    arguments.server, token, arguments.max_favourites)
+                    helper.arguments.server, token, helper.arguments.max_favourites)
                 known_context_urls = get_all_known_context_urls(
-                    arguments.server, favourites,parsed_urls)
-                add_context_urls(arguments.server, token, known_context_urls, seen_urls)
+                    helper.arguments.server, favourites,parsed_urls)
+                add_context_urls(helper.arguments.server, token, known_context_urls, seen_urls)
 
         with open(KNOWN_FOLLOWINGS_FILE, "w", encoding="utf-8") as f:
             f.write("\n".join(list(known_followings)[-10000:]))
@@ -255,9 +250,9 @@ favourites")
 
         os.remove(LOCK_FILE)
 
-        if(arguments.on_done):
+        if(helper.arguments.on_done):
             try:
-                helper.get(f"{arguments.on_done}?rid={runId}")
+                helper.get(f"{helper.arguments.on_done}?rid={runId}")
             except Exception as ex:
                 helper.log(f"Error getting callback url: {ex}")
 
@@ -266,9 +261,9 @@ favourites")
     except Exception:
         os.remove(LOCK_FILE)
         helper.log(f"Job failed after {datetime.now() - start}.")
-        if(arguments.on_fail):
+        if(helper.arguments.on_fail):
             try:
-                helper.get(f"{arguments.on_fail}?rid={runId}")
+                helper.get(f"{helper.arguments.on_fail}?rid={runId}")
             except Exception as ex:
                 helper.log(f"Error getting callback url: {ex}")
         raise
