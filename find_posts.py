@@ -111,13 +111,13 @@ def get_notification_users(server, access_token, known_users, max_age):
 
     return new_notification_users
 
-def get_bookmarks(server, access_token, max):
-    return get_paginated_mastodon(f"https://{server}/api/v1/bookmarks", max, {
+def get_bookmarks(server, access_token, limit):
+    return get_paginated_mastodon(f"https://{server}/api/v1/bookmarks", limit, {
         "Authorization": f"Bearer {access_token}",
     })
 
-def get_favourites(server, access_token, max):
-    return get_paginated_mastodon(f"https://{server}/api/v1/favourites", max, {
+def get_favourites(server, access_token, limit):
+    return get_paginated_mastodon(f"https://{server}/api/v1/favourites", limit, {
         "Authorization": f"Bearer {access_token}",
     })
 
@@ -229,12 +229,12 @@ def get_user_posts(user, know_followings, server):
         log(f"Error getting posts for user {user['acct']}: {ex}")
         return None
 
-def get_new_follow_requests(server, access_token, max, known_followings):
+def get_new_follow_requests(server, access_token, limit, known_followings):
     """Get any new follow requests for the specified user, up to the max number \
         provided"""
 
     follow_requests = get_paginated_mastodon(f"https://{server}/api/v1/follow_requests",
-        max, {
+        limit, {
         "Authorization": f"Bearer {access_token}",
     })
 
@@ -252,10 +252,10 @@ def filter_known_users(users, known_users):
         users
     ))
 
-def get_new_followers(server, user_id, max, known_followers):
+def get_new_followers(server, user_id, limit, known_followers):
     """Get any new followings for the specified user, up to the max number provided"""
     followers = get_paginated_mastodon(
-        f"https://{server}/api/v1/accounts/{user_id}/followers", max)
+        f"https://{server}/api/v1/accounts/{user_id}/followers", limit)
 
     # Remove any we already know about
     new_followers = filter_known_users(followers, known_followers)
@@ -264,10 +264,10 @@ def get_new_followers(server, user_id, max, known_followers):
 
     return new_followers
 
-def get_new_followings(server, user_id, max, known_followings):
+def get_new_followings(server, user_id, limit, known_followings):
     """Get any new followings for the specified user, up to the max number provided"""
     following = get_paginated_mastodon(
-        f"https://{server}/api/v1/accounts/{user_id}/following", max)
+        f"https://{server}/api/v1/accounts/{user_id}/following", limit)
 
     # Remove any we already know about
     new_followings = filter_known_users(following, known_followings)
@@ -307,7 +307,7 @@ def get_user_id(server, user = None, access_token = None):
         )
 
 
-def get_timeline(server, access_token, max):
+def get_timeline(server, access_token, limit):
     """Get all post in the user's home timeline"""
 
     url = f"https://{server}/api/v1/timelines/home"
@@ -334,7 +334,7 @@ def get_timeline(server, access_token, max):
             )
 
         # Paginate as needed
-        while len(toots) < max and 'next' in response.links:
+        while len(toots) < limit and 'next' in response.links:
             response = get_toots(response.links['next']['url'], access_token)
             toots = toots + response.json()
     except Exception as ex:
@@ -847,10 +847,10 @@ Status code: {resp.status_code}"
         )
         return False
 
-def get_paginated_mastodon(url, max, headers = {}, timeout = 0, max_tries = 5):
+def get_paginated_mastodon(url, limit, headers = {}, timeout = 0, max_tries = 5):
     """Make a paginated request to mastodon"""
-    if(isinstance(max, int)):
-        furl = f"{url}?limit={max}"
+    if(isinstance(limit, int)):
+        furl = f"{url}?limit={limit}"
     else:
         furl = url
 
@@ -874,12 +874,12 @@ def get_paginated_mastodon(url, max, headers = {}, timeout = 0, max_tries = 5):
 
     result = response.json()
 
-    if(isinstance(max, int)):
-        while len(result) < max and 'next' in response.links:
+    if(isinstance(limit, int)):
+        while len(result) < limit and 'next' in response.links:
             response = get(response.links['next']['url'], headers, timeout, max_tries)
             result = result + response.json()
     else:
-        while parser.parse(result[-1]['created_at']) >= max \
+        while parser.parse(result[-1]['created_at']) >= limit \
                 and 'next' in response.links:
             response = get(response.links['next']['url'], headers, timeout, max_tries)
             result = result + response.json()
