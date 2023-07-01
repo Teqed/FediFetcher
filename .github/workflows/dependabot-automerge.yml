@@ -1,32 +1,46 @@
 name: Dependabot Automerge
 
 on:
-    push:
-        branches:
-            - 'main'
-    pull_request:
-    schedule:
-        - cron: '21 23 * * 4'
-    workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+  schedule:
+    - cron: '21 23 * * 4'
+  workflow_dispatch:
 
 permissions:
-    pull-requests: write
-    contents: write
+  pull-requests: write
+  contents: write
 
 jobs:
-    dependabot:
-        name: 'Dependabot 🤖'
-        runs-on: ubuntu-latest
-        if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
-        steps:
-            - name: Dependabot metadata
-              id: dependabot-metadata
-              uses: dependabot/fetch-metadata@v1.3.1
-              with:
-                github-token: "${{ secrets.GITHUB_TOKEN }}"
-            - name: Enable auto-merge for Dependabot PRs
-              if: ${{ steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major' }}
-              run: gh pr merge --auto --squash "$PR_URL"
-              env:
-                PR_URL: ${{github.event.pull_request.html_url}}
-                GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  dependabot:
+    name: 'Dependabot 🤖'
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
+    steps:
+      - name: Dependabot metadata
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@v1.3.1
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Enable auto-merge for Dependabot PRs
+        if: ${{ steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major' }}
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
+          if [ $? -eq 0 ]; then
+            pr_branch="dependabot-$(echo ${{ github.event.pull_request.head.ref }} | sed 's/[^[:alnum:]]/-/g')"
+            git checkout -b $pr_branch
+            git push origin $pr_branch
+            workflow_run=$(gh workflow run get_context.yml -b $pr_branch --json "id,url,status" | jq -r '.workflow_runs[0]')
+            status=$(echo "$workflow_run" | jq -r '.status')
+            if [ "$status" == "completed" ]; then
+              conclusion=$(echo "$workflow_run" | jq -r '.conclusion')
+              if [ "$conclusion" == "success" ]; then
+                gh pr merge "$PR_URL" --squash
+              fi
+            fi
+          fi
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
