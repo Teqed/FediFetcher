@@ -10,7 +10,28 @@ from dateutil import parser
 from . import helpers, parsers
 
 
-def get_notification_users(server, access_token, known_users, max_age):
+def get_notification_users(
+        server : str,
+        access_token : str,
+        known_users : list[str],
+        max_age : int = 24,
+        ) -> list[str]:
+    """Get a list of users that have interacted with the user in last `max_age` hours.
+
+    Args:
+    ----
+    server (str): The server to get the notifications from.
+    access_token (str): The access token to use for authentication.
+    known_users (list[str]): A list of known users.
+    max_age (int, optional): The maximum age of the notifications to consider. \
+        Defaults to 24.
+
+    Returns:
+    -------
+    list[str]: A list of users that have interacted with the user in the last \
+        `max_age` hours.
+
+    """
     since = datetime.now(datetime.now().astimezone().tzinfo) - timedelta(hours=max_age)
     notifications = get_paginated_mastodon(f"https://{server}/api/v1/notifications",
         since, headers={
