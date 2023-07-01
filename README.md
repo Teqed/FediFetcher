@@ -1,4 +1,5 @@
 # FediFetcher for Mastodon
+[![getAllRepliesToKnownPosts](https://github.com/Teqed/FediFetcher/actions/workflows/get_context.yml/badge.svg)](https://github.com/Teqed/FediFetcher/actions/workflows/get_context.yml)
 
 This GitHub repository provides a simple script that can pull missing posts into Mastodon using the Mastodon API. FediFetcher has no further dependencies, and can be run as either a GitHub Action, as a scheduled cron job, or a pre-packaged container. Here is what FediFetcher can do:
 
