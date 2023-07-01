@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from datetime import datetime, timedelta
-import string
 from dateutil import parser
 import itertools
 import json
@@ -70,7 +69,7 @@ def add_user_posts(server, access_token, followings, know_followings, all_known_
         if user['acct'] not in all_known_users and not user['url'].startswith(f"https://{server}/"):
             posts = get_user_posts(user, know_followings, server)
 
-            if(posts != None):
+            if(posts is not None):
                 count = 0
                 failed = 0
                 for post in posts:
@@ -93,7 +92,7 @@ def add_post_with_context(post, server, access_token, seen_urls):
         if ('replies_count' in post or 'in_reply_to_id' in post) and getattr(arguments, 'backfill_with_context', 0) > 0:
             parsed_urls = {}
             parsed = parse_url(post['url'], parsed_urls)
-            if parsed == None:
+            if parsed is None:
                 return True
             known_context_urls = get_all_known_context_urls(server, [post],parsed_urls)
             add_context_urls(server, access_token, known_context_urls, seen_urls)
@@ -104,7 +103,7 @@ def add_post_with_context(post, server, access_token, seen_urls):
 def get_user_posts(user, know_followings, server):
     parsed_url = parse_user_url(user['url'])
 
-    if parsed_url == None:
+    if parsed_url is None:
         # We are adding it as 'known' anyway, because we won't be able to fix this.
         know_followings.add(user['acct'])
         return None
@@ -217,9 +216,9 @@ def get_user_id(server, user = None, access_token = None):
 
     headers = {}
 
-    if user != None and user != '':
+    if user is not None and user != '':
         url = f"https://{server}/api/v1/accounts/lookup?acct={user}"
-    elif access_token != None:
+    elif access_token is not None:
         url = f"https://{server}/api/v1/accounts/verify_credentials"
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -846,7 +845,7 @@ class OrderedSet:
 
     def add(self, item, time = None):
         if item not in self._dict:
-            if(time == None):
+            if(time is None):
                 self._dict[item] = datetime.now(datetime.now().astimezone().tzinfo)
             else:
                 self._dict[item] = time
@@ -877,11 +876,11 @@ class OrderedSet:
 if __name__ == "__main__":
     start = datetime.now()
 
-    log(f"Starting FediFetcher")
+    log("Starting FediFetcher")
 
     arguments = argparser.parse_args()
 
-    if(arguments.config != None):
+    if(arguments.config is not None):
         if os.path.exists(arguments.config):
             with open(arguments.config, "r", encoding="utf-8") as f:
                 config = json.load(f)
@@ -893,7 +892,7 @@ if __name__ == "__main__":
             log(f"Config file {arguments.config} doesn't exist")
             sys.exit(1)
 
-    if(arguments.server == None or arguments.access_token == None):
+    if(arguments.server is None or arguments.access_token is None):
         log("You must supply at least a server name and an access token")
         sys.exit(1)
 
@@ -903,7 +902,7 @@ if __name__ == "__main__":
 
     runId = uuid.uuid4()
 
-    if(arguments.on_start != None and arguments.on_start != ''):
+    if(arguments.on_start is not None and arguments.on_start != ''):
         try:
             get(f"{arguments.on_start}?rid={runId}")
         except Exception as ex:
@@ -922,10 +921,10 @@ if __name__ == "__main__":
 
             if (datetime.now() - lock_time).total_seconds() >= arguments.lock_hours * 60 * 60: 
                 os.remove(LOCK_FILE)
-                log(f"Lock file has expired. Removed lock file.")
+                log("Lock file has expired. Removed lock file.")
             else:
                 log(f"Lock file age is {datetime.now() - lock_time} - below --lock-hours={arguments.lock_hours} provided.")
-                if(arguments.on_fail != None and arguments.on_fail != ''):
+                if(arguments.on_fail is not None and arguments.on_fail != ''):
                     try:
                         get(f"{arguments.on_fail}?rid={runId}")
                     except Exception as ex:
@@ -933,8 +932,8 @@ if __name__ == "__main__":
                 sys.exit(1)
 
         except Exception:
-            log(f"Cannot read logfile age - aborting.")
-            if(arguments.on_fail != None and arguments.on_fail != ''):
+            log("Cannot read logfile age - aborting.")
+            if(arguments.on_fail is not None and arguments.on_fail != ''):
                 try:
                     get(f"{arguments.on_fail}?rid={runId}")
                 except Exception as ex:
@@ -1021,7 +1020,7 @@ if __name__ == "__main__":
                             these_users.append(toot['account'])
                             if(len(toot['mentions'])):
                                 these_users += toot['mentions']
-                            if(toot['reblog'] != None):
+                            if(toot['reblog'] is not None):
                                 these_users.append(toot['reblog']['account'])
                                 if(len(toot['reblog']['mentions'])):
                                     these_users += toot['reblog']['mentions']
@@ -1079,7 +1078,7 @@ if __name__ == "__main__":
 
         os.remove(LOCK_FILE)
 
-        if(arguments.on_done != None and arguments.on_done != ''):
+        if(arguments.on_done is not None and arguments.on_done != ''):
             try:
                 get(f"{arguments.on_done}?rid={runId}")
             except Exception as ex:
@@ -1087,10 +1086,10 @@ if __name__ == "__main__":
 
         log(f"Processing finished in {datetime.now() - start}.")
 
-    except Exception as ex:
+    except Exception:
         os.remove(LOCK_FILE)
         log(f"Job failed after {datetime.now() - start}.")
-        if(arguments.on_fail != None and arguments.on_fail != ''):
+        if(arguments.on_fail is not None and arguments.on_fail != ''):
             try:
                 get(f"{arguments.on_fail}?rid={runId}")
             except Exception as ex:
