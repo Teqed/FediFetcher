@@ -1,6 +1,6 @@
 certifi==2022.12.7
 charset-normalizer==3.0.1
-docutils==0.19
+docutils==0.20.1
 idna==3.4
 requests==2.31.0
 six==1.16.0
