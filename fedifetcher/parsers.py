@@ -1,20 +1,39 @@
+"""Parsers for various Fediverse platforms.
+
+Submodules:
+-----------
+- user: Provides parsing utilities for user URLs.
+- post: Provides parsing utilities for post URLs.
+"""
 import re
 
-import helpers as helper
+from . import helpers
 
 
-def user():
+def user(unparsed_url: str) -> tuple[str, str] | None:
+    """Parse a user URL and return the server and username.
+
+    Args:
+    ----
+    unparsed_url (str): The URL of the profile.
+
+    Returns:
+    -------
+    Tuple[str, str] | None: A tuple containing the server and username,
+        or None if no match is found.
+    """
+
     def parse_profile(url: str, pattern: str) -> tuple[str, str] | None:
         """Parse a profile URL using the provided regex pattern.
 
         Args:
         ----
-            url (str): The URL of the profile.
-            pattern (str): The regex pattern to match the URL.
+        url (str): The URL of the profile.
+        pattern (str): The regex pattern to match the URL.
 
         Returns:
         -------
-            Optional[Tuple[str, str]]: A tuple containing the server and username,
+        Tuple[str, str] | None: A tuple containing the server and username,
             or None if no match is found.
         """
         match = re.match(pattern, url)
@@ -22,56 +41,70 @@ def user():
             return match.group("server"), match.group("username")
         return None
 
-    def url(url: str, profiles: dict) -> tuple[str, str] | None:
-        """Parse a profile URL and return the server and username.
-
-        Args:
-        ----
-            url (str): The URL of the profile.
-            profiles (dict): The dictionary of profiles and their regex patterns.
-
-        Returns:
-        -------
-            Optional[Tuple[str, str]]: A tuple containing the server and username,
-            or None if no match is found.
-        """
-        for _profile, pattern in profiles.items():
-            match = parse_profile(url, pattern)
-            if match:
-                return match
-
-        helper.log(f"Error parsing Profile URL {url}")
-        return None
-
-    profiles = {
+    profiles: dict[str, str] = {
         "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)",
         "pleroma": r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)",
         "lemmy": r"https://(?P<server>[^/]+)/(?:u|c)/(?P<username>[^/]+)",
         "pixelfed": r"https://(?P<server>[^/]+)/(?P<username>[^/]+)",  # Pixelfed last
     }
 
-    profile_functions = \
-        {profile: lambda url: url(url, profiles) for profile in profiles}
-    globals().update(profile_functions)
+    for _profile, pattern in profiles.items():
+        match = parse_profile(unparsed_url, pattern)
+        if match:
+            return match
 
+    helpers.log(f"Error parsing user URL {unparsed_url}")
+    return None
 
-def post():
-    def url(url, parsed_urls):
-        for _profile, pattern in profiles.items():
-            if url not in parsed_urls:
-                match = re.match(pattern, url)
-                if match:
-                    parsed_urls[url] = (match.group("server"), match.group("toot_id"))
+def post(
+        unparsed_url: str,
+        parsed_urls: dict[str, tuple[str, str] | None],
+        ) -> tuple[str, str] | None:
+    """Parse a post URL and return the server and toot ID.
 
-        if url not in parsed_urls:
-            helper.log(f"Error parsing toot URL {url}")
-            parsed_urls[url] = None
+    Args:
+    ----
+    unparsed_url (str): The URL of the post.
+    parsed_urls (dict): A dictionary to store parsed URLs and their results.
 
-        return parsed_urls[url]
+    Returns:
+    -------
+    tuple[str, str] | None: A tuple containing the server and toot ID,
+        or None if no match is found.
+    """
+    def parse_post(url: str, pattern: str) -> tuple[str, str] | None:
+        """Parse a post URL using the provided regex pattern.
 
-    profiles = {
+        Args:
+        ----
+        url (str): The URL of the post.
+        pattern (str): The regex pattern to match the URL.
+
+        Returns:
+        -------
+        tuple[str, str] | None: A tuple containing the server and toot ID,
+            or None if no match is found.
+        """
+        match = re.match(pattern, url)
+        if match:
+            return match.group("server"), match.group("toot_id")
+        return None
+
+    profiles: dict[str, str] = {
         "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
         "pixelfed": r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
         "pleroma": r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)",
         "lemmy": r"https://(?P<server>[^/]+)/(?:comment|post)/(?P<toot_id>[^/]+)",
     }
+
+    for _profile, pattern in profiles.items():
+        if unparsed_url not in parsed_urls:
+            match = parse_post(unparsed_url, pattern)
+            if match:
+                parsed_urls[unparsed_url] = match
+
+    if unparsed_url not in parsed_urls:
+        helpers.log(f"Error parsing toot URL {unparsed_url}")
+        parsed_urls[unparsed_url] = None
+
+    return parsed_urls[unparsed_url]

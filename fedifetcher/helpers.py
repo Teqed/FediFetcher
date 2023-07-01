@@ -1,9 +1,11 @@
+"""Helper functions for fedifetcher."""
 import time
 from datetime import datetime
 
 import requests
-from argparser import arguments
 from dateutil import parser
+
+from .argparser import arguments
 
 
 class Response:

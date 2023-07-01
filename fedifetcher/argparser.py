@@ -1,3 +1,4 @@
+"""argparser.py - Parses command line arguments."""
 import argparse
 
 argparser=argparse.ArgumentParser()
