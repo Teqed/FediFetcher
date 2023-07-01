@@ -10,7 +10,7 @@ import uuid
 
 import fedifetcher.helpers as helper
 from fedifetcher.ordered_set import OrderedSet
-from fedifetcher.parsers import parse_url_post, parse_url_user
+from fedifetcher.parsers import post, parse_url_user
 import fedifetcher.add_context
 import fedifetcher.getters
 

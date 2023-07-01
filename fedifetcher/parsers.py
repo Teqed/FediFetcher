@@ -1,22 +1,22 @@
 import helpers as helper
 import re
 
-def parse_url_user():
-    def parse_user_url(url):
-        match = parse_mastodon_profile_url(url)
+def user():
+    def url(url):
+        match = mastodon_profile(url)
         if match:
             return match
 
-        match = parse_pleroma_profile_url(url)
+        match = pleroma_profile(url)
         if match:
             return match
 
-        match = parse_lemmy_profile_url(url)
+        match = lemmy_profile(url)
         if match:
             return match
 
 # Pixelfed profile paths do not use a subdirectory, so we need to match for them last.
-        match = parse_pixelfed_profile_url(url)
+        match = pixelfed_profile(url)
         if match:
             return match
 
@@ -24,30 +24,29 @@ def parse_url_user():
 
         return None
 
-    def parse_mastodon_profile_url(url):
+    def mastodon_profile(url):
         """parse a Mastodon Profile URL and return the server and username"""
         match = re.match(
-            r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)", url
-        )
+            r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)", url)
         if match:
             return (match.group("server"), match.group("username"))
         return None
 
-    def parse_pleroma_profile_url(url):
+    def pleroma_profile(url):
         """parse a Pleroma Profile URL and return the server and username"""
         match = re.match(r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)", url)
         if match:
             return (match.group("server"), match.group("username"))
         return None
 
-    def parse_pixelfed_profile_url(url):
+    def pixelfed_profile(url):
         """parse a Pixelfed Profile URL and return the server and username"""
         match = re.match(r"https://(?P<server>[^/]+)/(?P<username>[^/]+)", url)
         if match:
             return (match.group("server"), match.group("username"))
         return None
 
-    def parse_lemmy_profile_url(url):
+    def lemmy_profile(url):
         """parse a Lemmy Profile URL and return the server and username"""
         match = re.match(r"https://(?P<server>[^/]+)/(?:u|c)/(?P<username>[^/]+)", url)
         if match:
@@ -55,7 +54,7 @@ def parse_url_user():
         return None
 
 
-def parse_url_post():
+def post():
     def parse_url(url, parsed_urls):
         if url not in parsed_urls:
             match = parse_mastodon_url(url)

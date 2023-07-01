@@ -2,9 +2,6 @@ import argparse
 
 argparser=argparse.ArgumentParser()
 
-def parse_args():
-    return argparser.parse_args()
-
 def add_arguments():
     argparser.add_argument('-c','--config', required=False, type=str, help='Optionally \
 provide a path to a JSON file containing configuration options. If not provided, \
@@ -69,3 +66,6 @@ switch' monitoring of your task")
     argparser.add_argument('--on-fail', required = False, default=None, help="Provide \
 a url that will be pinged when processing has failed. You can use this for 'dead man \
 switch' monitoring of your task")
+
+add_arguments()
+arguments = argparser.parse_args()

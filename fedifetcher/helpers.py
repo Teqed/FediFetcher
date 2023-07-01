@@ -2,10 +2,8 @@ from datetime import datetime
 from dateutil import parser
 import time
 import requests
-from fedifetcher import argparser
+from argparser import arguments
 
-argparser.add_arguments()
-arguments = argparser.parse_args()
 
 class Response:
     OK = 200
