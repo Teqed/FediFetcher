@@ -70,7 +70,7 @@ def add_post_with_context(post, server, access_token, seen_urls):
     if added is True:
         seen_urls.add(post['url'])
         if ('replies_count' in post or 'in_reply_to_id' in post) and getattr(
-                arguments, 'backfill_with_context', 0) > 0:
+                helper.arguments, 'backfill_with_context', 0) > 0:
             parsed_urls = {}
             parsed = parse_url(post['url'], parsed_urls)
             if parsed is None:

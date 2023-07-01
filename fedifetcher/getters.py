@@ -5,6 +5,7 @@ from dateutil import parser
 import re
 import itertools
 import requests
+from parsers import parse_user_url
 
 def get_notification_users(server, access_token, known_users, max_age):
     since = datetime.now(datetime.now().astimezone().tzinfo) - timedelta(hours=max_age)
