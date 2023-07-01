@@ -78,6 +78,19 @@ argparser.add_argument('--on-fail', required = False, default=None, help="Provid
 url that will be pinged when processing has failed. You can use this for 'dead man \
 switch' monitoring of your task")
 
+class Response:
+    OK = 200
+    CREATED = 201
+    ACCEPTED = 202
+    FOUND = 302
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    CONFLICT = 409
+    TOO_MANY_REQUESTS = 429
+    INTERNAL_SERVER_ERROR = 500
+
 def get_notification_users(server, access_token, known_users, max_age):
     since = datetime.now(datetime.now().astimezone().tzinfo) - timedelta(hours=max_age)
     notifications = get_paginated_mastodon(f"https://{server}/api/v1/notifications",
@@ -165,7 +178,7 @@ def get_user_posts(user, know_followings, server):
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
             response = get(url)
 
-            if(response.status_code == 200):
+            if(response.status_code == Response.OK):
                 posts = [post['post'] for post in response.json()['posts']]
                 for post in posts:
                     post['url'] = post['ap_id']
@@ -180,7 +193,7 @@ def get_user_posts(user, know_followings, server):
             url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
             response = get(url)
 
-            if(response.status_code == 200):
+            if(response.status_code == Response.OK):
                 comments = [post['post'] for post in response.json()['comments']]
                 posts = [post['post'] for post in response.json()['posts']]
                 all_posts = comments + posts
@@ -202,9 +215,9 @@ def get_user_posts(user, know_followings, server):
         url = f"https://{parsed_url[0]}/api/v1/accounts/{user_id}/statuses?limit=40"
         response = get(url)
 
-        if(response.status_code == 200):
+        if(response.status_code == Response.OK):
             return response.json()
-        elif response.status_code == 404:
+        elif response.status_code == Response.NOT_FOUND:
             raise Exception(
                 f"User {user['acct']} was not found on server {parsed_url[0]}"
             )
@@ -282,9 +295,9 @@ def get_user_id(server, user = None, access_token = None):
 
     response = get(url, headers=headers)
 
-    if response.status_code == 200:
+    if response.status_code == Response.OK:
         return response.json()['id']
-    elif response.status_code == 404:
+    elif response.status_code == Response.NOT_FOUND:
         raise Exception(
             f"User {user} was not found on server {server}."
         )
@@ -303,14 +316,14 @@ def get_timeline(server, access_token, max):
 
         response = get_toots(url, access_token)
 
-        if response.status_code == 200:
+        if response.status_code == Response.OK:
             toots = response.json()
-        elif response.status_code == 401:
+        elif response.status_code == Response.UNAUTHORIZED:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
                 "Ensure your access token is correct"
             )
-        elif response.status_code == 403:
+        elif response.status_code == Response.FORBIDDEN:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
             "Make sure you have the read:statuses scope enabled for your access token."
@@ -337,14 +350,14 @@ def get_toots(url, access_token):
         "Authorization": f"Bearer {access_token}",
     })
 
-    if response.status_code == 200:
+    if response.status_code == Response.OK:
         return response
-    elif response.status_code == 401:
+    elif response.status_code == Response.UNAUTHORIZED:
         raise Exception(
             f"Error getting URL {url}. Status code: {response.status_code}. "
             "It looks like your access token is incorrect."
         )
-    elif response.status_code == 403:
+    elif response.status_code == Response.FORBIDDEN:
         raise Exception(
             f"Error getting URL {url}. Status code: {response.status_code}. "
             "Make sure you have the read:statuses scope enabled for your access token."
@@ -362,7 +375,7 @@ def get_active_user_ids(server, access_token, reply_interval_hours):
     resp = get(url, headers={
         "Authorization": f"Bearer {access_token}",
     })
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         for user in resp.json():
             last_status_at = user["account"]["last_status_at"]
             if last_status_at is not None:
@@ -370,12 +383,12 @@ def get_active_user_ids(server, access_token, reply_interval_hours):
                 if last_active > since:
                     log(f"Found active user: {user['username']}")
                     yield user["id"]
-    elif resp.status_code == 401:
+    elif resp.status_code == Response.UNAUTHORIZED:
         raise Exception(
         f"Error getting user IDs on server {server}. Status code: {resp.status_code}. "
         "Ensure your access token is correct"
         )
-    elif resp.status_code == 403:
+    elif resp.status_code == Response.FORBIDDEN:
         raise Exception(
         f"Error getting user IDs on server {server}. Status code: {resp.status_code}. "
     "Make sure you have the admin:read:accounts scope enabled for your access token."
@@ -417,7 +430,7 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
         )
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         toots = [
             toot
             for toot in resp.json()
@@ -429,7 +442,7 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
         for toot in toots:
             log(f"Found reply toot: {toot['url']}")
         return toots
-    elif resp.status_code == 403:
+    elif resp.status_code == Response.FORBIDDEN:
         raise Exception(
             f"Error getting replies for user {user_id} on server {server}. \
 Status code: {resp.status_code}. "
@@ -649,9 +662,9 @@ def get_redirect_url(url):
         log(f"Error getting redirect URL for URL {url}. Exception: {ex}")
         return None
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         return url
-    elif resp.status_code == 302:
+    elif resp.status_code == Response.FOUND:
         redirect_url = resp.headers["Location"]
         log(f"Discovered redirect for URL {url}")
         return redirect_url
@@ -686,7 +699,7 @@ def get_toot_context(server, toot_id, toot_url):
         log(f"Error getting context for toot {toot_url}. Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             log(f"Got context for toot {toot_url}")
@@ -694,6 +707,9 @@ def get_toot_context(server, toot_id, toot_url):
         except Exception as ex:
             log(f"Error parsing context for toot {toot_url}. Exception: {ex}")
         return []
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
     elif resp.status_code == 429:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -716,7 +732,7 @@ def get_comment_context(server, toot_id, toot_url):
         log(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             post_id = res['comment_view']['comment']['post_id']
@@ -724,6 +740,9 @@ def get_comment_context(server, toot_id, toot_url):
         except Exception as ex:
             log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
         return []
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
     elif resp.status_code == 429:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -742,7 +761,7 @@ def get_comments_urls(server, post_id, toot_url):
         log(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             if res['post_view']['counts']['comments'] == 0:
@@ -759,7 +778,7 @@ def get_comments_urls(server, post_id, toot_url):
 Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             list_of_urls = \
@@ -769,6 +788,9 @@ Exception: {ex}")
             return urls
         except Exception as ex:
             log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
     elif resp.status_code == 429:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -810,16 +832,19 @@ def add_context_url(url, server, access_token):
         )
         return False
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         log(f"Added context url {url}")
         return True
-    elif resp.status_code == 403:
+    elif resp.status_code == Response.FORBIDDEN:
         log(
             f"Error adding url {search_url} to server {server}. \
 Status code: {resp.status_code}. "
             "Make sure you have the read:search scope enabled for your access token."
         )
         return False
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when adding url {search_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
     elif resp.status_code == 429:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -844,12 +869,12 @@ def get_paginated_mastodon(url, max, headers = {}, timeout = 0, max_tries = 5):
     response = get(furl, headers, timeout, max_tries)
 
     if response.status_code != 200:
-        if response.status_code == 401:
+        if response.status_code == Response.UNAUTHORIZED:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
                 "Ensure your access token is correct"
             )
-        elif response.status_code == 403:
+        elif response.status_code == Response.FORBIDDEN:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
                 "Make sure you have the correct scopes enabled for your access token."
@@ -885,7 +910,7 @@ def get(url, headers = {}, timeout = 0, max_tries = 5):
         timeout = arguments.http_timeout
 
     response = requests.get( url, headers= h, timeout=timeout)
-    if response.status_code == 429:
+    if response.status_code == Response.TOO_MANY_REQUESTS:
         if max_tries > 0:
             reset = parser.parse(response.headers['x-ratelimit-reset'])
             now = datetime.now(datetime.now().astimezone().tzinfo)
