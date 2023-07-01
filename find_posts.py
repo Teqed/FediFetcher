@@ -14,43 +14,100 @@ import uuid
 
 argparser=argparse.ArgumentParser()
 
-argparser.add_argument('-c','--config', required=False, type=str, help='Optionally provide a path to a JSON file containing configuration options. If not provided, options must be supplied using command line flags.')
-argparser.add_argument('--server', required=False, help="Required: The name of your server (e.g. `mstdn.thms.uk`)")
-argparser.add_argument('--access-token', action="append", required=False, help="Required: The access token can be generated at https://<server>/settings/applications, and must have read:search, read:statuses and admin:read:accounts scopes. You can supply this multiple times, if you want tun run it for multiple users.")
-argparser.add_argument('--reply-interval-in-hours', required = False, type=int, default=0, help="Fetch remote replies to posts that have received replies from users on your own instance in this period")
-argparser.add_argument('--home-timeline-length', required = False, type=int, default=0, help="Look for replies to posts in the API-Key owner's home timeline, up to this many posts")
-argparser.add_argument('--user', required = False, default='', help="Use together with --max-followings or --max-followers to tell us which user's followings/followers we should backfill")
-argparser.add_argument('--max-followings', required = False, type=int, default=0, help="Backfill posts for new accounts followed by --user. We'll backfill at most this many followings' posts")
-argparser.add_argument('--max-followers', required = False, type=int, default=0, help="Backfill posts for new accounts following --user. We'll backfill at most this many followers' posts")
-argparser.add_argument('--max-follow-requests', required = False, type=int, default=0, help="Backfill posts of the API key owners pending follow requests. We'll backfill at most this many requester's posts")
-argparser.add_argument('--max-bookmarks', required = False, type=int, default=0, help="Fetch remote replies to the API key owners Bookmarks. We'll fetch replies to at most this many bookmarks")
-argparser.add_argument('--max-favourites', required = False, type=int, default=0, help="Fetch remote replies to the API key owners Favourites. We'll fetch replies to at most this many favourites")
-argparser.add_argument('--from-notifications', required = False, type=int, default=0, help="Backfill accounts of anyone appearing in your notifications, during the last hours")
-argparser.add_argument('--remember-users-for-hours', required=False, type=int, default=24*7, help="How long to remember users that you aren't following for, before trying to backfill them again.")
-argparser.add_argument('--http-timeout', required = False, type=int, default=5, help="The timeout for any HTTP requests to your own, or other instances.")
-argparser.add_argument('--backfill-with-context', required = False, type=int, default=1, help="If enabled, we'll fetch remote replies when backfilling profiles. Set to `0` to disable.")
-argparser.add_argument('--backfill-mentioned-users', required = False, type=int, default=1, help="If enabled, we'll backfill any mentioned users when fetching remote replies to timeline posts. Set to `0` to disable.")
-argparser.add_argument('--lock-hours', required = False, type=int, default=24, help="The lock timeout in hours.")
-argparser.add_argument('--lock-file', required = False, default=None, help="Location of the lock file")
-argparser.add_argument('--state-dir', required = False, default="artifacts", help="Directory to store persistent files and possibly lock file")
-argparser.add_argument('--on-done', required = False, default=None, help="Provide a url that will be pinged when processing has completed. You can use this for 'dead man switch' monitoring of your task")
-argparser.add_argument('--on-start', required = False, default=None, help="Provide a url that will be pinged when processing is starting. You can use this for 'dead man switch' monitoring of your task")
-argparser.add_argument('--on-fail', required = False, default=None, help="Provide a url that will be pinged when processing has failed. You can use this for 'dead man switch' monitoring of your task")
+argparser.add_argument('-c','--config', required=False, type=str, help='Optionally \
+provide a path to a JSON file containing configuration options. If not provided, \
+options must be supplied using command line flags.')
+argparser.add_argument('--server', required=False, help="Required: The name of your \
+server (e.g. `mstdn.thms.uk`)")
+argparser.add_argument('--access-token', action="append", required=False,
+help="Required: The access token can be generated at \
+https://<server>/settings/applications, and must have read:search, read:statuses and \
+admin:read:accounts scopes. You can supply this multiple times, if you want tun run it \
+for multiple users.")
+argparser.add_argument('--reply-interval-in-hours', required = False, type=int,
+default=0, help="Fetch remote replies to posts that have received replies from users \
+on your own instance in this period")
+argparser.add_argument('--home-timeline-length', required = False, type=int, default=0,
+help="Look for replies to posts in the API-Key owner's home timeline, up to this many \
+posts")
+argparser.add_argument('--user', required = False, default='', help="Use together with \
+--max-followings or --max-followers to tell us which user's followings/followers we \
+should backfill")
+argparser.add_argument('--max-followings', required = False, type=int, default=0,
+help="Backfill posts for new accounts followed by --user. We'll backfill at most this \
+many followings' posts")
+argparser.add_argument('--max-followers', required = False, type=int, default=0,
+help="Backfill posts for new accounts following --user. We'll backfill at most this \
+many followers' posts")
+argparser.add_argument('--max-follow-requests', required = False, type=int, default=0,
+help="Backfill posts of the API key owners pending follow requests. We'll backfill at \
+most this many requester's posts")
+argparser.add_argument('--max-bookmarks', required = False, type=int, default=0,
+help="Fetch remote replies to the API key owners Bookmarks. We'll fetch replies to at \
+most this many bookmarks")
+argparser.add_argument('--max-favourites', required = False, type=int, default=0,
+help="Fetch remote replies to the API key owners Favourites. We'll fetch replies to at \
+most this many favourites")
+argparser.add_argument('--from-notifications', required = False, type=int, default=0,
+help="Backfill accounts of anyone appearing in your notifications, during the last \
+hours")
+argparser.add_argument('--remember-users-for-hours', required=False, type=int,
+default=24*7, help="How long to remember users that you aren't following for, before \
+trying to backfill them again.")
+argparser.add_argument('--http-timeout', required = False, type=int, default=5,
+help="The timeout for any HTTP requests to your own, or other instances.")
+argparser.add_argument('--backfill-with-context', required = False, type=int, default=1,
+help="If enabled, we'll fetch remote replies when backfilling profiles. Set to `0` to \
+disable.")
+argparser.add_argument('--backfill-mentioned-users', required = False, type=int,
+default=1, help="If enabled, we'll backfill any mentioned users when fetching remote \
+replies to timeline posts. Set to `0` to disable.")
+argparser.add_argument('--lock-hours', required = False, type=int, default=24,
+help="The lock timeout in hours.")
+argparser.add_argument('--lock-file', required = False, default=None, help="Location \
+of the lock file")
+argparser.add_argument('--state-dir', required = False, default="artifacts",
+help="Directory to store persistent files and possibly lock file")
+argparser.add_argument('--on-done', required = False, default=None, help="Provide a \
+url that will be pinged when processing has completed. You can use this for 'dead man \
+switch' monitoring of your task")
+argparser.add_argument('--on-start', required = False, default=None, help="Provide a \
+url that will be pinged when processing is starting. You can use this for 'dead man \
+switch' monitoring of your task")
+argparser.add_argument('--on-fail', required = False, default=None, help="Provide a \
+url that will be pinged when processing has failed. You can use this for 'dead man \
+switch' monitoring of your task")
+
+class Response:
+    OK = 200
+    CREATED = 201
+    ACCEPTED = 202
+    FOUND = 302
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    CONFLICT = 409
+    TOO_MANY_REQUESTS = 429
+    INTERNAL_SERVER_ERROR = 500
 
 def get_notification_users(server, access_token, known_users, max_age):
     since = datetime.now(datetime.now().astimezone().tzinfo) - timedelta(hours=max_age)
-    notifications = get_paginated_mastodon(f"https://{server}/api/v1/notifications", since, headers={
+    notifications = get_paginated_mastodon(f"https://{server}/api/v1/notifications",
+        since, headers={
         "Authorization": f"Bearer {access_token}",
     })
     notification_users = []
     for notification in notifications:
         notificationDate = parser.parse(notification['created_at'])
-        if(notificationDate >= since and notification['account'] not in notification_users):
+        if(notificationDate >= since and notification['account'] not in \
+                notification_users):
             notification_users.append(notification['account'])
 
     new_notification_users = filter_known_users(notification_users, known_users)
 
-    log(f"Found {len(notification_users)} users in notifications, {len(new_notification_users)} of which are new")
+    log(f"Found {len(notification_users)} users in notifications, \
+        {len(new_notification_users)} of which are new")
 
     return new_notification_users
 
@@ -64,7 +121,8 @@ def get_favourites(server, access_token, max):
         "Authorization": f"Bearer {access_token}",
     })
 
-def add_user_posts(server, access_token, followings, know_followings, all_known_users, seen_urls):
+def add_user_posts(server, access_token, followings, know_followings, all_known_users,
+        seen_urls):
     for user in followings:
         if user['acct'] not in all_known_users and not user['url'].startswith(f"https://{server}/"):
             posts = get_user_posts(user, know_followings, server)
@@ -73,8 +131,10 @@ def add_user_posts(server, access_token, followings, know_followings, all_known_
                 count = 0
                 failed = 0
                 for post in posts:
-                    if post.get('reblog') is None and post.get('url') and post.get('url') not in seen_urls:
-                        added = add_post_with_context(post, server, access_token, seen_urls)
+                    if post.get('reblog') is None and post.get('url') and \
+                            post.get('url') not in seen_urls:
+                        added = add_post_with_context(
+                            post, server, access_token, seen_urls)
                         if added is True:
                             seen_urls.add(post['url'])
                             count += 1
@@ -89,7 +149,8 @@ def add_post_with_context(post, server, access_token, seen_urls):
     added = add_context_url(post['url'], server, access_token)
     if added is True:
         seen_urls.add(post['url'])
-        if ('replies_count' in post or 'in_reply_to_id' in post) and getattr(arguments, 'backfill_with_context', 0) > 0:
+        if ('replies_count' in post or 'in_reply_to_id' in post) and getattr(
+                arguments, 'backfill_with_context', 0) > 0:
             parsed_urls = {}
             parsed = parse_url(post['url'], parsed_urls)
             if parsed is None:
@@ -117,7 +178,7 @@ def get_user_posts(user, know_followings, server):
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
             response = get(url)
 
-            if(response.status_code == 200):
+            if(response.status_code == Response.OK):
                 posts = [post['post'] for post in response.json()['posts']]
                 for post in posts:
                     post['url'] = post['ap_id']
@@ -132,7 +193,7 @@ def get_user_posts(user, know_followings, server):
             url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
             response = get(url)
 
-            if(response.status_code == 200):
+            if(response.status_code == Response.OK):
                 comments = [post['post'] for post in response.json()['comments']]
                 posts = [post['post'] for post in response.json()['posts']]
                 all_posts = comments + posts
@@ -154,9 +215,9 @@ def get_user_posts(user, know_followings, server):
         url = f"https://{parsed_url[0]}/api/v1/accounts/{user_id}/statuses?limit=40"
         response = get(url)
 
-        if(response.status_code == 200):
+        if(response.status_code == Response.OK):
             return response.json()
-        elif response.status_code == 404:
+        elif response.status_code == Response.NOT_FOUND:
             raise Exception(
                 f"User {user['acct']} was not found on server {parsed_url[0]}"
             )
@@ -169,16 +230,19 @@ def get_user_posts(user, know_followings, server):
         return None
 
 def get_new_follow_requests(server, access_token, max, known_followings):
-    """Get any new follow requests for the specified user, up to the max number provided"""
+    """Get any new follow requests for the specified user, up to the max number \
+        provided"""
 
-    follow_requests = get_paginated_mastodon(f"https://{server}/api/v1/follow_requests", max, {
+    follow_requests = get_paginated_mastodon(f"https://{server}/api/v1/follow_requests",
+        max, {
         "Authorization": f"Bearer {access_token}",
     })
 
     # Remove any we already know about
     new_follow_requests = filter_known_users(follow_requests, known_followings)
 
-    log(f"Got {len(follow_requests)} follow_requests, {len(new_follow_requests)} of which are new")
+    log(f"Got {len(follow_requests)} follow_requests, {len(new_follow_requests)} of \
+which are new")
 
     return new_follow_requests
 
@@ -190,7 +254,8 @@ def filter_known_users(users, known_users):
 
 def get_new_followers(server, user_id, max, known_followers):
     """Get any new followings for the specified user, up to the max number provided"""
-    followers = get_paginated_mastodon(f"https://{server}/api/v1/accounts/{user_id}/followers", max)
+    followers = get_paginated_mastodon(
+        f"https://{server}/api/v1/accounts/{user_id}/followers", max)
 
     # Remove any we already know about
     new_followers = filter_known_users(followers, known_followers)
@@ -201,7 +266,8 @@ def get_new_followers(server, user_id, max, known_followers):
 
 def get_new_followings(server, user_id, max, known_followings):
     """Get any new followings for the specified user, up to the max number provided"""
-    following = get_paginated_mastodon(f"https://{server}/api/v1/accounts/{user_id}/following", max)
+    following = get_paginated_mastodon(
+        f"https://{server}/api/v1/accounts/{user_id}/following", max)
 
     # Remove any we already know about
     new_followings = filter_known_users(following, known_followings)
@@ -224,13 +290,14 @@ def get_user_id(server, user = None, access_token = None):
             "Authorization": f"Bearer {access_token}",
         }
     else:
-        raise Exception('You must supply either a user name or an access token, to get an user ID')
+        raise Exception(
+            'You must supply either a user name or an access token, to get an user ID')
 
     response = get(url, headers=headers)
 
-    if response.status_code == 200:
+    if response.status_code == Response.OK:
         return response.json()['id']
-    elif response.status_code == 404:
+    elif response.status_code == Response.NOT_FOUND:
         raise Exception(
             f"User {user} was not found on server {server}."
         )
@@ -249,17 +316,17 @@ def get_timeline(server, access_token, max):
 
         response = get_toots(url, access_token)
 
-        if response.status_code == 200:
+        if response.status_code == Response.OK:
             toots = response.json()
-        elif response.status_code == 401:
+        elif response.status_code == Response.UNAUTHORIZED:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
                 "Ensure your access token is correct"
             )
-        elif response.status_code == 403:
+        elif response.status_code == Response.FORBIDDEN:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
-                "Make sure you have the read:statuses scope enabled for your access token."
+            "Make sure you have the read:statuses scope enabled for your access token."
             )
         else:
             raise Exception(
@@ -283,14 +350,14 @@ def get_toots(url, access_token):
         "Authorization": f"Bearer {access_token}",
     })
 
-    if response.status_code == 200:
+    if response.status_code == Response.OK:
         return response
-    elif response.status_code == 401:
+    elif response.status_code == Response.UNAUTHORIZED:
         raise Exception(
             f"Error getting URL {url}. Status code: {response.status_code}. "
             "It looks like your access token is incorrect."
         )
-    elif response.status_code == 403:
+    elif response.status_code == Response.FORBIDDEN:
         raise Exception(
             f"Error getting URL {url}. Status code: {response.status_code}. "
             "Make sure you have the read:statuses scope enabled for your access token."
@@ -301,14 +368,14 @@ def get_toots(url, access_token):
         )
 
 def get_active_user_ids(server, access_token, reply_interval_hours):
-    """get all user IDs on the server that have posted a toot in the given
-       time interval"""
+    """get all user IDs on the server that have posted a toot in the given \
+        time interval"""
     since = datetime.now() - timedelta(days=reply_interval_hours / 24 + 1)
     url = f"https://{server}/api/v1/admin/accounts"
     resp = get(url, headers={
         "Authorization": f"Bearer {access_token}",
     })
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         for user in resp.json():
             last_status_at = user["account"]["last_status_at"]
             if last_status_at:
@@ -316,19 +383,19 @@ def get_active_user_ids(server, access_token, reply_interval_hours):
                 if last_active > since:
                     log(f"Found active user: {user['username']}")
                     yield user["id"]
-    elif resp.status_code == 401:
+    elif resp.status_code == Response.UNAUTHORIZED:
         raise Exception(
-            f"Error getting user IDs on server {server}. Status code: {resp.status_code}. "
-            "Ensure your access token is correct"
+        f"Error getting user IDs on server {server}. Status code: {resp.status_code}. "
+        "Ensure your access token is correct"
         )
-    elif resp.status_code == 403:
+    elif resp.status_code == Response.FORBIDDEN:
         raise Exception(
-            f"Error getting user IDs on server {server}. Status code: {resp.status_code}. "
-            "Make sure you have the admin:read:accounts scope enabled for your access token."
+        f"Error getting user IDs on server {server}. Status code: {resp.status_code}. "
+    "Make sure you have the admin:read:accounts scope enabled for your access token."
         )
     else:
         raise Exception(
-            f"Error getting user IDs on server {server}. Status code: {resp.status_code}"
+        f"Error getting user IDs on server {server}. Status code: {resp.status_code}"
         )
 
 
@@ -363,7 +430,7 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
         )
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         toots = [
             toot
             for toot in resp.json()
@@ -375,14 +442,16 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
         for toot in toots:
             log(f"Found reply toot: {toot['url']}")
         return toots
-    elif resp.status_code == 403:
+    elif resp.status_code == Response.FORBIDDEN:
         raise Exception(
-            f"Error getting replies for user {user_id} on server {server}. Status code: {resp.status_code}. "
+            f"Error getting replies for user {user_id} on server {server}. \
+Status code: {resp.status_code}. "
             "Make sure you have the read:statuses scope enabled for your access token."
         )
 
     raise Exception(
-        f"Error getting replies for user {user_id} on server {server}. Status code: {resp.status_code}"
+        f"Error getting replies for user {user_id} on server {server}. \
+Status code: {resp.status_code}"
     )
 
 
@@ -401,14 +470,16 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
             else:
                 log(f"Error getting context for toot {url}")
 
-    known_context_urls = set(filter(lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
+    known_context_urls = set(filter(
+        lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
     log(f"Found {len(known_context_urls)} known context toots")
 
     return known_context_urls
 
 
 def toot_has_parseable_url(toot,parsed_urls):
-    parsed = parse_url(toot["url"] if toot["reblog"] is None else toot["reblog"]["url"],parsed_urls)
+    parsed = parse_url(
+        toot["url"] if toot["reblog"] is None else toot["reblog"]["url"], parsed_urls)
     if(parsed is None) :
         return False
     return True
@@ -421,8 +492,8 @@ def get_all_replied_toot_server_ids(
     return filter(
         lambda x: x is not None,
         (
-            get_replied_toot_server_id(server, toot, replied_toot_server_ids, parsed_urls)
-            for toot in reply_toots
+        get_replied_toot_server_id(server, toot, replied_toot_server_ids, parsed_urls)
+        for toot in reply_toots
         ),
     )
 
@@ -591,9 +662,9 @@ def get_redirect_url(url):
         log(f"Error getting redirect URL for URL {url}. Exception: {ex}")
         return None
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         return url
-    elif resp.status_code == 302:
+    elif resp.status_code == Response.FOUND:
         redirect_url = resp.headers["Location"]
         log(f"Discovered redirect for URL {url}")
         return redirect_url
@@ -628,7 +699,7 @@ def get_toot_context(server, toot_id, toot_url):
         log(f"Error getting context for toot {toot_url}. Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             log(f"Got context for toot {toot_url}")
@@ -636,9 +707,14 @@ def get_toot_context(server, toot_id, toot_url):
         except Exception as ex:
             log(f"Error parsing context for toot {toot_url}. Exception: {ex}")
         return []
-    elif resp.status_code == 429:
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+    elif resp.status_code == 429:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
+            '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at \
+            {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_toot_context(server, toot_id, toot_url)
 
@@ -656,7 +732,7 @@ def get_comment_context(server, toot_id, toot_url):
         log(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             post_id = res['comment_view']['comment']['post_id']
@@ -664,9 +740,14 @@ def get_comment_context(server, toot_id, toot_url):
         except Exception as ex:
             log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
         return []
-    elif resp.status_code == 429:
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+    elif resp.status_code == 429:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
+            '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at \
+            {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_comment_context(server, toot_id, toot_url)
 
@@ -680,7 +761,7 @@ def get_comments_urls(server, post_id, toot_url):
         log(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
             if res['post_view']['counts']['comments'] == 0:
@@ -693,21 +774,28 @@ def get_comments_urls(server, post_id, toot_url):
     try:
         resp = get(url)
     except Exception as ex:
-        log(f"Error getting comments for post {post_id} from {toot_url}. Exception: {ex}")
+        log(f"Error getting comments for post {post_id} from {toot_url}. \
+Exception: {ex}")
         return []
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         try:
             res = resp.json()
-            list_of_urls = [comment_info['comment']['ap_id'] for comment_info in res['comments']]
+            list_of_urls = \
+                [comment_info['comment']['ap_id'] for comment_info in res['comments']]
             log(f"Got {len(list_of_urls)} comments for post {toot_url}")
             urls.extend(list_of_urls)
             return urls
         except Exception as ex:
             log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
-    elif resp.status_code == 429:
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+    elif resp.status_code == 429:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
+            '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at \
+{resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_comments_urls(server, post_id, toot_url)
 
@@ -744,23 +832,30 @@ def add_context_url(url, server, access_token):
         )
         return False
 
-    if resp.status_code == 200:
+    if resp.status_code == Response.OK:
         log(f"Added context url {url}")
         return True
-    elif resp.status_code == 403:
+    elif resp.status_code == Response.FORBIDDEN:
         log(
-            f"Error adding url {search_url} to server {server}. Status code: {resp.status_code}. "
+            f"Error adding url {search_url} to server {server}. \
+Status code: {resp.status_code}. "
             "Make sure you have the read:search scope enabled for your access token."
         )
         return False
-    elif resp.status_code == 429:
+    elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'], '%Y-%m-%dT%H:%M:%S.%fZ')
         log(f"Rate Limit hit when adding url {search_url}. Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+    elif resp.status_code == 429:
+        reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
+            '%Y-%m-%dT%H:%M:%S.%fZ')
+        log(f"Rate Limit hit when adding url {search_url}. Waiting to retry at \
+{resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return add_context_url(url, server, access_token)
     else:
         log(
-            f"Error adding url {search_url} to server {server}. Status code: {resp.status_code}"
+            f"Error adding url {search_url} to server {server}. \
+Status code: {resp.status_code}"
         )
         return False
 
@@ -774,12 +869,12 @@ def get_paginated_mastodon(url, max, headers = {}, timeout = 0, max_tries = 5):
     response = get(furl, headers, timeout, max_tries)
 
     if response.status_code != 200:
-        if response.status_code == 401:
+        if response.status_code == Response.UNAUTHORIZED:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
                 "Ensure your access token is correct"
             )
-        elif response.status_code == 403:
+        elif response.status_code == Response.FORBIDDEN:
             raise Exception(
                 f"Error getting URL {url}. Status code: {response.status_code}. "
                 "Make sure you have the correct scopes enabled for your access token."
@@ -796,7 +891,8 @@ def get_paginated_mastodon(url, max, headers = {}, timeout = 0, max_tries = 5):
             response = get(response.links['next']['url'], headers, timeout, max_tries)
             result = result + response.json()
     else:
-        while parser.parse(result[-1]['created_at']) >= max and 'next' in response.links:
+        while parser.parse(result[-1]['created_at']) >= max \
+                and 'next' in response.links:
             response = get(response.links['next']['url'], headers, timeout, max_tries)
             result = result + response.json()
 
@@ -804,7 +900,8 @@ def get_paginated_mastodon(url, max, headers = {}, timeout = 0, max_tries = 5):
 
 
 def get(url, headers = {}, timeout = 0, max_tries = 5):
-    """A simple wrapper to make a get request while providing our user agent, and respecting rate limits"""
+    """A simple wrapper to make a get request while providing our user agent, \
+        and respecting rate limits"""
     h = headers.copy()
     if 'User-Agent' not in h:
         h['User-Agent'] = 'FediFetcher (https://go.thms.uk/mgr)'
@@ -813,16 +910,18 @@ def get(url, headers = {}, timeout = 0, max_tries = 5):
         timeout = arguments.http_timeout
 
     response = requests.get( url, headers= h, timeout=timeout)
-    if response.status_code == 429:
+    if response.status_code == Response.TOO_MANY_REQUESTS:
         if max_tries > 0:
             reset = parser.parse(response.headers['x-ratelimit-reset'])
             now = datetime.now(datetime.now().astimezone().tzinfo)
             wait = (reset - now).total_seconds() + 1
-            log(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at {response.headers['x-ratelimit-reset']}")
+            log(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
+{response.headers['x-ratelimit-reset']}")
             time.sleep(wait)
             return get(url, headers, timeout, max_tries - 1)
 
-        raise Exception(f"Maximum number of retries exceeded for rate limited request {url}")
+        raise Exception(f"Maximum number of retries exceeded for rate limited request \
+{url}")
     return response
 
 def log(text):
@@ -897,7 +996,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # in case someone provided the server name as url instead,
-    setattr(arguments, 'server', re.sub(r"^(https://)?([^/]*)/?$", "\\2", arguments.server))
+    setattr(arguments, 'server', re.sub(r"^(https://)?([^/]*)/?$", "\\2",
+        arguments.server))
 
 
     runId = uuid.uuid4()
@@ -919,11 +1019,13 @@ if __name__ == "__main__":
             with open(LOCK_FILE, "r", encoding="utf-8") as f:
                 lock_time = parser.parse(f.read())
 
-            if (datetime.now() - lock_time).total_seconds() >= arguments.lock_hours * 60 * 60:
+            if (datetime.now() - lock_time).total_seconds() >= \
+                    arguments.lock_hours * 60 * 60:
                 os.remove(LOCK_FILE)
                 log("Lock file has expired. Removed lock file.")
             else:
-                log(f"Lock file age is {datetime.now() - lock_time} - below --lock-hours={arguments.lock_hours} provided.")
+                log(f"Lock file age is {datetime.now() - lock_time} - \
+below --lock-hours={arguments.lock_hours} provided.")
                 if(arguments.on_fail):
                     try:
                         get(f"{arguments.on_fail}?rid={runId}")
@@ -946,9 +1048,11 @@ if __name__ == "__main__":
     try:
 
         SEEN_URLS_FILE = os.path.join(arguments.state_dir, "seen_urls")
-        REPLIED_TOOT_SERVER_IDS_FILE = os.path.join(arguments.state_dir, "replied_toot_server_ids")
+        REPLIED_TOOT_SERVER_IDS_FILE = os.path.join(
+            arguments.state_dir, "replied_toot_server_ids")
         KNOWN_FOLLOWINGS_FILE = os.path.join(arguments.state_dir, "known_followings")
-        RECENTLY_CHECKED_USERS_FILE = os.path.join(arguments.state_dir, "recently_checked_users")
+        RECENTLY_CHECKED_USERS_FILE = os.path.join(
+            arguments.state_dir, "recently_checked_users")
 
 
         seen_urls = OrderedSet([])
@@ -980,7 +1084,8 @@ if __name__ == "__main__":
 
         parsed_urls = {}
 
-        all_known_users = OrderedSet(list(known_followings) + list(recently_checked_users))
+        all_known_users = OrderedSet(
+            list(known_followings) + list(recently_checked_users))
 
         if(isinstance(arguments.access_token, str)):
             setattr(arguments, 'access_token', [arguments.access_token])
@@ -990,11 +1095,14 @@ if __name__ == "__main__":
             if arguments.reply_interval_in_hours > 0:
                 """pull the context toots of toots user replied to, from their
                 original server, and add them to the local server."""
-                user_ids = get_active_user_ids(arguments.server, token, arguments.reply_interval_in_hours)
+                user_ids = get_active_user_ids(
+                    arguments.server, token, arguments.reply_interval_in_hours)
                 reply_toots = get_all_reply_toots(
-                    arguments.server, user_ids, token, seen_urls, arguments.reply_interval_in_hours
+                    arguments.server, user_ids, token,
+                    seen_urls, arguments.reply_interval_in_hours
                 )
-                known_context_urls = get_all_known_context_urls(arguments.server, reply_toots,parsed_urls)
+                known_context_urls = get_all_known_context_urls(
+                    arguments.server, reply_toots,parsed_urls)
                 seen_urls.update(known_context_urls)
                 replied_toot_ids = get_all_replied_toot_server_ids(
                     arguments.server, reply_toots, replied_toot_server_ids, parsed_urls
@@ -1005,18 +1113,23 @@ if __name__ == "__main__":
 
             if arguments.home_timeline_length > 0:
                 """Do the same with any toots on the key owner's home timeline """
-                timeline_toots = get_timeline(arguments.server, token, arguments.home_timeline_length)
-                known_context_urls = get_all_known_context_urls(arguments.server, timeline_toots,parsed_urls)
+                timeline_toots = get_timeline(
+                    arguments.server, token, arguments.home_timeline_length)
+                known_context_urls = get_all_known_context_urls(
+                    arguments.server, timeline_toots,parsed_urls)
                 add_context_urls(arguments.server, token, known_context_urls, seen_urls)
 
                 # Backfill any post authors, and any mentioned users
                 if arguments.backfill_mentioned_users > 0:
                     mentioned_users = []
-                    cut_off = datetime.now(datetime.now().astimezone().tzinfo) - timedelta(minutes=60)
+                    cut_off = datetime.now(
+                        datetime.now().astimezone().tzinfo) - timedelta(minutes=60)
                     for toot in timeline_toots:
                         these_users = []
                         toot_created_at = parser.parse(toot['created_at'])
-                        if len(mentioned_users) < 10 or (toot_created_at > cut_off and len(mentioned_users) < 30):
+                        if len(mentioned_users) < 10 or (
+                                toot_created_at > cut_off and \
+                                    len(mentioned_users) < 30):
                             these_users.append(toot['account'])
                             if(len(toot['mentions'])):
                                 these_users += toot['mentions']
@@ -1025,43 +1138,61 @@ if __name__ == "__main__":
                                 if(len(toot['reblog']['mentions'])):
                                     these_users += toot['reblog']['mentions']
                         for user in these_users:
-                            if user not in mentioned_users and user['acct'] not in all_known_users:
+                            if user not in mentioned_users and \
+                                    user['acct'] not in all_known_users:
                                 mentioned_users.append(user)
 
-                    add_user_posts(arguments.server, token, filter_known_users(mentioned_users, all_known_users), recently_checked_users, all_known_users, seen_urls)
+                    add_user_posts(arguments.server, token, filter_known_users(
+                        mentioned_users, all_known_users), recently_checked_users,
+                        all_known_users, seen_urls)
 
             if arguments.max_followings > 0:
                 log(f"Getting posts from last {arguments.max_followings} followings")
                 user_id = get_user_id(arguments.server, arguments.user, token)
-                followings = get_new_followings(arguments.server, user_id, arguments.max_followings, all_known_users)
-                add_user_posts(arguments.server, token, followings, known_followings, all_known_users, seen_urls)
+                followings = get_new_followings(arguments.server, user_id,
+                                            arguments.max_followings, all_known_users)
+                add_user_posts(arguments.server, token, followings, known_followings,
+                                            all_known_users, seen_urls)
 
             if arguments.max_followers > 0:
                 log(f"Getting posts from last {arguments.max_followers} followers")
                 user_id = get_user_id(arguments.server, arguments.user, token)
-                followers = get_new_followers(arguments.server, user_id, arguments.max_followers, all_known_users)
-                add_user_posts(arguments.server, token, followers, recently_checked_users, all_known_users, seen_urls)
+                followers = get_new_followers(arguments.server, user_id,
+                                            arguments.max_followers, all_known_users)
+                add_user_posts(arguments.server, token, followers,
+                            recently_checked_users, all_known_users, seen_urls)
 
             if arguments.max_follow_requests > 0:
-                log(f"Getting posts from last {arguments.max_follow_requests} follow requests")
-                follow_requests = get_new_follow_requests(arguments.server, token, arguments.max_follow_requests, all_known_users)
-                add_user_posts(arguments.server, token, follow_requests, recently_checked_users, all_known_users, seen_urls)
+                log(f"Getting posts from last {arguments.max_follow_requests} \
+follow requests")
+                follow_requests = get_new_follow_requests(arguments.server, token,
+                                        arguments.max_follow_requests, all_known_users)
+                add_user_posts(arguments.server, token, follow_requests,
+                                recently_checked_users, all_known_users, seen_urls)
 
             if arguments.from_notifications > 0:
-                log(f"Getting notifications for last {arguments.from_notifications} hours")
-                notification_users = get_notification_users(arguments.server, token, all_known_users, arguments.from_notifications)
-                add_user_posts(arguments.server, token, notification_users, recently_checked_users, all_known_users, seen_urls)
+                log(f"Getting notifications for last {arguments.from_notifications} \
+hours")
+                notification_users = get_notification_users(arguments.server, token,
+                                        all_known_users, arguments.from_notifications)
+                add_user_posts(arguments.server, token, notification_users,
+                            recently_checked_users, all_known_users, seen_urls)
 
             if arguments.max_bookmarks > 0:
                 log(f"Pulling replies to the last {arguments.max_bookmarks} bookmarks")
-                bookmarks = get_bookmarks(arguments.server, token, arguments.max_bookmarks)
-                known_context_urls = get_all_known_context_urls(arguments.server, bookmarks,parsed_urls)
+                bookmarks = get_bookmarks(
+                    arguments.server, token, arguments.max_bookmarks)
+                known_context_urls = get_all_known_context_urls(
+                    arguments.server, bookmarks,parsed_urls)
                 add_context_urls(arguments.server, token, known_context_urls, seen_urls)
 
             if arguments.max_favourites > 0:
-                log(f"Pulling replies to the last {arguments.max_favourites} favourites")
-                favourites = get_favourites(arguments.server, token, arguments.max_favourites)
-                known_context_urls = get_all_known_context_urls(arguments.server, favourites,parsed_urls)
+                log(f"Pulling replies to the last {arguments.max_favourites} \
+favourites")
+                favourites = get_favourites(
+                    arguments.server, token, arguments.max_favourites)
+                known_context_urls = get_all_known_context_urls(
+                    arguments.server, favourites,parsed_urls)
                 add_context_urls(arguments.server, token, known_context_urls, seen_urls)
 
         with open(KNOWN_FOLLOWINGS_FILE, "w", encoding="utf-8") as f:
