@@ -1,16 +1,19 @@
-import helpers as helper
 import re
-from typing import Optional, Tuple
+
+import helpers as helper
+
 
 def user():
-    def parse_profile(url: str, pattern: str) -> Optional[Tuple[str, str]]:
+    def parse_profile(url: str, pattern: str) -> tuple[str, str] | None:
         """Parse a profile URL using the provided regex pattern.
 
         Args:
+        ----
             url (str): The URL of the profile.
             pattern (str): The regex pattern to match the URL.
 
         Returns:
+        -------
             Optional[Tuple[str, str]]: A tuple containing the server and username,
             or None if no match is found.
         """
@@ -19,18 +22,20 @@ def user():
             return match.group("server"), match.group("username")
         return None
 
-    def url(url: str, profiles: dict) -> Optional[Tuple[str, str]]:
+    def url(url: str, profiles: dict) -> tuple[str, str] | None:
         """Parse a profile URL and return the server and username.
 
         Args:
+        ----
             url (str): The URL of the profile.
             profiles (dict): The dictionary of profiles and their regex patterns.
 
         Returns:
+        -------
             Optional[Tuple[str, str]]: A tuple containing the server and username,
             or None if no match is found.
         """
-        for profile, pattern in profiles.items():
+        for _profile, pattern in profiles.items():
             match = parse_profile(url, pattern)
             if match:
                 return match
@@ -52,7 +57,7 @@ def user():
 
 def post():
     def url(url, parsed_urls):
-        for profile, pattern in profiles.items():
+        for _profile, pattern in profiles.items():
             if url not in parsed_urls:
                 match = re.match(pattern, url)
                 if match:

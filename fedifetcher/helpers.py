@@ -1,8 +1,9 @@
-from datetime import datetime
-from dateutil import parser
 import time
+from datetime import datetime
+
 import requests
 from argparser import arguments
+from dateutil import parser
 
 
 class Response:
@@ -20,10 +21,11 @@ class Response:
 
 def get(url, headers = {}, timeout = 0, max_tries = 5):
     """A simple wrapper to make a get request while providing our user agent, \
-        and respecting rate limits"""
+    and respecting rate limits.
+    """
     h = headers.copy()
-    if 'User-Agent' not in h:
-        h['User-Agent'] = 'FediFetcher (https://go.thms.uk/mgr)'
+    if "User-Agent" not in h:
+        h["User-Agent"] = "FediFetcher (https://go.thms.uk/mgr)"
 
     if timeout == 0:
         timeout = arguments.http_timeout
@@ -31,7 +33,7 @@ def get(url, headers = {}, timeout = 0, max_tries = 5):
     response = requests.get( url, headers= h, timeout=timeout)
     if response.status_code == Response.TOO_MANY_REQUESTS:
         if max_tries > 0:
-            reset = parser.parse(response.headers['x-ratelimit-reset'])
+            reset = parser.parse(response.headers["x-ratelimit-reset"])
             now = datetime.now(datetime.now().astimezone().tzinfo)
             wait = (reset - now).total_seconds() + 1
             log(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
@@ -39,8 +41,8 @@ def get(url, headers = {}, timeout = 0, max_tries = 5):
             time.sleep(wait)
             return get(url, headers, timeout, max_tries - 1)
 
-        raise Exception(f"Maximum number of retries exceeded for rate limited request \
-{url}")
+        msg = f"Maximum number of retries exceeded for rate limited request {url}"
+        raise Exception(msg)
     return response
 
 def log(text):

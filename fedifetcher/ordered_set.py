@@ -1,11 +1,13 @@
-from datetime import datetime
-from dateutil import parser
 import json
+from datetime import datetime
+
+from dateutil import parser
+
 
 class OrderedSet:
-    """An ordered set implementation over a dict"""
+    """An ordered set implementation over a dict."""
 
-    def __init__(self, iterable):
+    def __init__(self, iterable) -> None:
         self._dict = {}
         if isinstance(iterable, dict):
             for item in iterable:
@@ -34,13 +36,13 @@ class OrderedSet:
         for item in iterable:
             self.add(item)
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         return item in self._dict
 
     def __iter__(self):
         return iter(self._dict)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._dict)
 
     def toJSON(self):

@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, timedelta
-from dateutil import parser
 import json
 import os
 import re
 import sys
 import uuid
+from datetime import datetime, timedelta
+
+from dateutil import parser
 
 import fedifetcher.helpers as helper
 from fedifetcher.ordered_set import OrderedSet
-from fedifetcher.parsers import post, parse_url_user
-import fedifetcher.add_context
-import fedifetcher.getters
-
 
 if __name__ == "__main__":
     start = datetime.now()
@@ -22,11 +19,11 @@ if __name__ == "__main__":
 
     if(helper.arguments.config):
         if os.path.exists(helper.arguments.config):
-            with open(helper.arguments.config, "r", encoding="utf-8") as f:
+            with open(helper.arguments.config, encoding="utf-8") as f:
                 config = json.load(f)
 
             for key in config:
-                setattr(helper.arguments, key.lower().replace('-','_'), config[key])
+                setattr(helper.arguments, key.lower().replace("-","_"), config[key])
 
         else:
             helper.log(f"Config file {helper.arguments.config} doesn't exist")
@@ -37,8 +34,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # in case someone provided the server name as url instead,
-    setattr(helper.arguments, 'server', re.sub(r"^(https://)?([^/]*)/?$", "\\2",
-        helper.arguments.server))
+    helper.arguments.server = re.sub("^(https://)?([^/]*)/?$", "\\2", helper.arguments.server)
 
 
     runId = uuid.uuid4()
@@ -50,14 +46,14 @@ if __name__ == "__main__":
             helper.log(f"Error getting callback url: {ex}")
 
     if helper.arguments.lock_file is None:
-        helper.arguments.lock_file = os.path.join(helper.arguments.state_dir, 'lock.lock')
+        helper.arguments.lock_file = os.path.join(helper.arguments.state_dir, "lock.lock")
     LOCK_FILE = helper.arguments.lock_file
 
     if( os.path.exists(LOCK_FILE)):
         helper.log(f"Lock file exists at {LOCK_FILE}")
 
         try:
-            with open(LOCK_FILE, "r", encoding="utf-8") as f:
+            with open(LOCK_FILE, encoding="utf-8") as f:
                 lock_time = parser.parse(f.read())
 
             if (datetime.now() - lock_time).total_seconds() >= \
@@ -98,22 +94,22 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
 
         seen_urls = OrderedSet([])
         if os.path.exists(SEEN_URLS_FILE):
-            with open(SEEN_URLS_FILE, "r", encoding="utf-8") as f:
+            with open(SEEN_URLS_FILE, encoding="utf-8") as f:
                 seen_urls = OrderedSet(f.read().splitlines())
 
         replied_toot_server_ids = {}
         if os.path.exists(REPLIED_TOOT_SERVER_IDS_FILE):
-            with open(REPLIED_TOOT_SERVER_IDS_FILE, "r", encoding="utf-8") as f:
+            with open(REPLIED_TOOT_SERVER_IDS_FILE, encoding="utf-8") as f:
                 replied_toot_server_ids = json.load(f)
 
         known_followings = OrderedSet([])
         if os.path.exists(KNOWN_FOLLOWINGS_FILE):
-            with open(KNOWN_FOLLOWINGS_FILE, "r", encoding="utf-8") as f:
+            with open(KNOWN_FOLLOWINGS_FILE, encoding="utf-8") as f:
                 known_followings = OrderedSet(f.read().splitlines())
 
         recently_checked_users = OrderedSet({})
         if os.path.exists(RECENTLY_CHECKED_USERS_FILE):
-            with open(RECENTLY_CHECKED_USERS_FILE, "r", encoding="utf-8") as f:
+            with open(RECENTLY_CHECKED_USERS_FILE, encoding="utf-8") as f:
                 recently_checked_users = OrderedSet(json.load(f))
 
         # Remove any users whose last check is too long in the past from the list
@@ -129,7 +125,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             list(known_followings) + list(recently_checked_users))
 
         if(isinstance(helper.arguments.access_token, str)):
-            setattr(helper.arguments, 'access_token', [helper.arguments.access_token])
+            helper.arguments.access_token = [helper.arguments.access_token]
 
         for token in helper.arguments.access_token:
 
@@ -140,13 +136,13 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     helper.arguments.server, token, helper.arguments.reply_interval_in_hours)
                 reply_toots = get_all_reply_toots(
                     helper.arguments.server, user_ids, token,
-                    seen_urls, helper.arguments.reply_interval_in_hours
+                    seen_urls, helper.arguments.reply_interval_in_hours,
                 )
                 known_context_urls = get_all_known_context_urls(
                     helper.arguments.server, reply_toots,parsed_urls)
                 seen_urls.update(known_context_urls)
                 replied_toot_ids = get_all_replied_toot_server_ids(
-                    helper.arguments.server, reply_toots, replied_toot_server_ids, parsed_urls
+                    helper.arguments.server, reply_toots, replied_toot_server_ids, parsed_urls,
                 )
                 context_urls = get_all_context_urls(helper.arguments.server, replied_toot_ids)
                 add_context_urls(helper.arguments.server, token, context_urls, seen_urls)
@@ -167,20 +163,20 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                         datetime.now().astimezone().tzinfo) - timedelta(minutes=60)
                     for toot in timeline_toots:
                         these_users = []
-                        toot_created_at = parser.parse(toot['created_at'])
+                        toot_created_at = parser.parse(toot["created_at"])
                         if len(mentioned_users) < 10 or (
                                 toot_created_at > cut_off and \
                                     len(mentioned_users) < 30):
-                            these_users.append(toot['account'])
-                            if(len(toot['mentions'])):
-                                these_users += toot['mentions']
-                            if(toot['reblog']):
-                                these_users.append(toot['reblog']['account'])
-                                if(len(toot['reblog']['mentions'])):
-                                    these_users += toot['reblog']['mentions']
+                            these_users.append(toot["account"])
+                            if(len(toot["mentions"])):
+                                these_users += toot["mentions"]
+                            if(toot["reblog"]):
+                                these_users.append(toot["reblog"]["account"])
+                                if(len(toot["reblog"]["mentions"])):
+                                    these_users += toot["reblog"]["mentions"]
                         for user in these_users:
                             if user not in mentioned_users and \
-                                    user['acct'] not in all_known_users:
+                                    user["acct"] not in all_known_users:
                                 mentioned_users.append(user)
 
                     add_user_posts(helper.arguments.server, token, filter_known_users(
