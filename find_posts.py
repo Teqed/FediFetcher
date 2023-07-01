@@ -131,7 +131,7 @@ def add_user_posts(server, access_token, followings, know_followings, all_known_
                 count = 0
                 failed = 0
                 for post in posts:
-                    if post.get('reblog') is None and post.get('url') is not None and \
+                    if post.get('reblog') is None and post.get('url') and \
                             post.get('url') not in seen_urls:
                         added = add_post_with_context(
                             post, server, access_token, seen_urls)
@@ -282,9 +282,9 @@ def get_user_id(server, user = None, access_token = None):
 
     headers = {}
 
-    if user is not None and user != '':
+    if user:
         url = f"https://{server}/api/v1/accounts/lookup?acct={user}"
-    elif access_token is not None:
+    elif access_token:
         url = f"https://{server}/api/v1/accounts/verify_credentials"
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -378,7 +378,7 @@ def get_active_user_ids(server, access_token, reply_interval_hours):
     if resp.status_code == Response.OK:
         for user in resp.json():
             last_status_at = user["account"]["last_status_at"]
-            if last_status_at is not None:
+            if last_status_at:
                 last_active = datetime.strptime(last_status_at, "%Y-%m-%d")
                 if last_active > since:
                     log(f"Found active user: {user['username']}")
@@ -434,7 +434,7 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
         toots = [
             toot
             for toot in resp.json()
-            if toot["in_reply_to_id"] is not None
+            if toot["in_reply_to_id"]
             and toot["url"] not in seen_urls
             and datetime.strptime(toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
             > reply_since
@@ -464,7 +464,7 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
             url = toot["url"] if toot["reblog"] is None else toot["reblog"]["url"]
             parsed_url = parse_url(url, parsed_urls)
             context = get_toot_context(parsed_url[0], parsed_url[1], url)
-            if context is not None:
+            if context:
                 for item in context:
                     known_context_urls.add(item)
             else:
@@ -522,7 +522,7 @@ def get_replied_toot_server_id(server, toot, replied_toot_server_ids,parsed_urls
         return None
 
     match = parse_url(url,parsed_urls)
-    if match is not None:
+    if match:
         replied_toot_server_ids[o_url] = (url, match)
         return (url, match)
 
@@ -532,20 +532,20 @@ def get_replied_toot_server_id(server, toot, replied_toot_server_ids,parsed_urls
 
 def parse_user_url(url):
     match = parse_mastodon_profile_url(url)
-    if match is not None:
+    if match:
         return match
 
     match = parse_pleroma_profile_url(url)
-    if match is not None:
+    if match:
         return match
 
     match = parse_lemmy_profile_url(url)
-    if match is not None:
+    if match:
         return match
 
 # Pixelfed profile paths do not use a subdirectory, so we need to match for them last.
     match = parse_pixelfed_profile_url(url)
-    if match is not None:
+    if match:
         return match
 
     log(f"Error parsing Profile URL {url}")
@@ -555,22 +555,22 @@ def parse_user_url(url):
 def parse_url(url, parsed_urls):
     if url not in parsed_urls:
         match = parse_mastodon_url(url)
-        if match is not None:
+        if match:
             parsed_urls[url] = match
 
     if url not in parsed_urls:
         match = parse_pleroma_url(url)
-        if match is not None:
+        if match:
             parsed_urls[url] = match
 
     if url not in parsed_urls:
         match = parse_lemmy_url(url)
-        if match is not None:
+        if match:
             parsed_urls[url] = match
 
     if url not in parsed_urls:
         match = parse_pixelfed_url(url)
-        if match is not None:
+        if match:
             parsed_urls[url] = match
 
     if url not in parsed_urls:
@@ -584,7 +584,7 @@ def parse_mastodon_profile_url(url):
     match = re.match(
         r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)", url
     )
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("username"))
     return None
 
@@ -593,7 +593,7 @@ def parse_mastodon_url(url):
     match = re.match(
         r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)", url
     )
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("toot_id"))
     return None
 
@@ -601,14 +601,14 @@ def parse_mastodon_url(url):
 def parse_pleroma_url(url):
     """parse a Pleroma URL and return the server and ID"""
     match = re.match(r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)", url)
-    if match is not None:
+    if match:
         server = match.group("server")
         url = get_redirect_url(url)
         if url is None:
             return None
 
         match = re.match(r"/notice/(?P<toot_id>[^/]+)", url)
-        if match is not None:
+        if match:
             return (server, match.group("toot_id"))
         return None
     return None
@@ -616,7 +616,7 @@ def parse_pleroma_url(url):
 def parse_pleroma_profile_url(url):
     """parse a Pleroma Profile URL and return the server and username"""
     match = re.match(r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)", url)
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("username"))
     return None
 
@@ -625,14 +625,14 @@ def parse_pixelfed_url(url):
     match = re.match(
         r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)", url
     )
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("toot_id"))
     return None
 
 def parse_pixelfed_profile_url(url):
     """parse a Pixelfed Profile URL and return the server and username"""
     match = re.match(r"https://(?P<server>[^/]+)/(?P<username>[^/]+)", url)
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("username"))
     return None
 
@@ -641,14 +641,14 @@ def parse_lemmy_url(url):
     match = re.match(
         r"https://(?P<server>[^/]+)/(?:comment|post)/(?P<toot_id>[^/]+)", url
     )
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("toot_id"))
     return None
 
 def parse_lemmy_profile_url(url):
     """parse a Lemmy Profile URL and return the server and username"""
     match = re.match(r"https://(?P<server>[^/]+)/(?:u|c)/(?P<username>[^/]+)", url)
-    if match is not None:
+    if match:
         return (match.group("server"), match.group("username"))
     return None
 
@@ -967,7 +967,7 @@ if __name__ == "__main__":
 
     arguments = argparser.parse_args()
 
-    if(arguments.config is not None):
+    if(arguments.config):
         if os.path.exists(arguments.config):
             with open(arguments.config, "r", encoding="utf-8") as f:
                 config = json.load(f)
@@ -990,7 +990,7 @@ if __name__ == "__main__":
 
     runId = uuid.uuid4()
 
-    if(arguments.on_start is not None and arguments.on_start != ''):
+    if(arguments.on_start):
         try:
             get(f"{arguments.on_start}?rid={runId}")
         except Exception as ex:
@@ -1014,7 +1014,7 @@ if __name__ == "__main__":
             else:
                 log(f"Lock file age is {datetime.now() - lock_time} - \
 below --lock-hours={arguments.lock_hours} provided.")
-                if(arguments.on_fail is not None and arguments.on_fail != ''):
+                if(arguments.on_fail):
                     try:
                         get(f"{arguments.on_fail}?rid={runId}")
                     except Exception as ex:
@@ -1023,7 +1023,7 @@ below --lock-hours={arguments.lock_hours} provided.")
 
         except Exception:
             log("Cannot read logfile age - aborting.")
-            if(arguments.on_fail is not None and arguments.on_fail != ''):
+            if(arguments.on_fail):
                 try:
                     get(f"{arguments.on_fail}?rid={runId}")
                 except Exception as ex:
@@ -1121,7 +1121,7 @@ below --lock-hours={arguments.lock_hours} provided.")
                             these_users.append(toot['account'])
                             if(len(toot['mentions'])):
                                 these_users += toot['mentions']
-                            if(toot['reblog'] is not None):
+                            if(toot['reblog']):
                                 these_users.append(toot['reblog']['account'])
                                 if(len(toot['reblog']['mentions'])):
                                     these_users += toot['reblog']['mentions']
@@ -1197,7 +1197,7 @@ favourites")
 
         os.remove(LOCK_FILE)
 
-        if(arguments.on_done is not None and arguments.on_done != ''):
+        if(arguments.on_done):
             try:
                 get(f"{arguments.on_done}?rid={runId}")
             except Exception as ex:
@@ -1208,7 +1208,7 @@ favourites")
     except Exception:
         os.remove(LOCK_FILE)
         log(f"Job failed after {datetime.now() - start}.")
-        if(arguments.on_fail is not None and arguments.on_fail != ''):
+        if(arguments.on_fail):
             try:
                 get(f"{arguments.on_fail}?rid={runId}")
             except Exception as ex:
