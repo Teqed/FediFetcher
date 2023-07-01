@@ -12,6 +12,7 @@ import time
 import uuid
 
 from fedifetcher import argparser
+import fedifetcher.helpers as helper
 from fedifetcher.ordered_set import OrderedSet
 
 argparser.add_arguments()
@@ -44,7 +45,7 @@ def get_notification_users(server, access_token, known_users, max_age):
 
     new_notification_users = filter_known_users(notification_users, known_users)
 
-    log(f"Found {len(notification_users)} users in notifications, \
+    helper.log(f"Found {len(notification_users)} users in notifications, \
         {len(new_notification_users)} of which are new")
 
     return new_notification_users
@@ -78,7 +79,8 @@ def add_user_posts(server, access_token, followings, know_followings, all_known_
                             count += 1
                         else:
                             failed += 1
-                log(f"Added {count} posts for user {user['acct']} with {failed} errors")
+                helper.log(f"Added {count} posts for user {user['acct']} with {failed} \
+errors")
                 if failed == 0:
                     know_followings.add(user['acct'])
                     all_known_users.add(user['acct'])
@@ -108,13 +110,13 @@ def get_user_posts(user, know_followings, server):
         return None
 
     if(parsed_url[0] == server):
-        log(f"{user['acct']} is a local user. Skip")
+        helper.log(f"{user['acct']} is a local user. Skip")
         know_followings.add(user['acct'])
         return None
     if re.match(r"^https:\/\/[^\/]+\/c\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
-            response = get(url)
+            response = helper.get(url)
 
             if(response.status_code == Response.OK):
                 posts = [post['post'] for post in response.json()['posts']]
@@ -123,13 +125,14 @@ def get_user_posts(user, know_followings, server):
                 return posts
 
         except Exception as ex:
-            log(f"Error getting community posts for community {parsed_url[1]}: {ex}")
+            helper.log(f"Error getting community posts for community {parsed_url[1]}: \
+{ex}")
         return None
 
     if re.match(r"^https:\/\/[^\/]+\/u\/", user['url']):
         try:
             url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
-            response = get(url)
+            response = helper.get(url)
 
             if(response.status_code == Response.OK):
                 comments = [post['post'] for post in response.json()['comments']]
@@ -140,18 +143,18 @@ def get_user_posts(user, know_followings, server):
                 return all_posts
 
         except Exception as ex:
-            log(f"Error getting user posts for user {parsed_url[1]}: {ex}")
+            helper.log(f"Error getting user posts for user {parsed_url[1]}: {ex}")
         return None
 
     try:
         user_id = get_user_id(parsed_url[0], parsed_url[1])
     except Exception as ex:
-        log(f"Error getting user ID for user {user['acct']}: {ex}")
+        helper.log(f"Error getting user ID for user {user['acct']}: {ex}")
         return None
 
     try:
         url = f"https://{parsed_url[0]}/api/v1/accounts/{user_id}/statuses?limit=40"
-        response = get(url)
+        response = helper.get(url)
 
         if(response.status_code == Response.OK):
             return response.json()
@@ -164,7 +167,7 @@ def get_user_posts(user, know_followings, server):
                 f"Error getting URL {url}. Status code: {response.status_code}"
             )
     except Exception as ex:
-        log(f"Error getting posts for user {user['acct']}: {ex}")
+        helper.log(f"Error getting posts for user {user['acct']}: {ex}")
         return None
 
 def get_new_follow_requests(server, access_token, limit, known_followings):
@@ -179,8 +182,8 @@ def get_new_follow_requests(server, access_token, limit, known_followings):
     # Remove any we already know about
     new_follow_requests = filter_known_users(follow_requests, known_followings)
 
-    log(f"Got {len(follow_requests)} follow_requests, {len(new_follow_requests)} of \
-which are new")
+    helper.log(f"Got {len(follow_requests)} follow_requests, \
+{len(new_follow_requests)} of which are new")
 
     return new_follow_requests
 
@@ -198,7 +201,7 @@ def get_new_followers(server, user_id, limit, known_followers):
     # Remove any we already know about
     new_followers = filter_known_users(followers, known_followers)
 
-    log(f"Got {len(followers)} followers, {len(new_followers)} of which are new")
+    helper.log(f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
     return new_followers
 
@@ -210,7 +213,7 @@ def get_new_followings(server, user_id, limit, known_followings):
     # Remove any we already know about
     new_followings = filter_known_users(following, known_followings)
 
-    log(f"Got {len(following)} followings, {len(new_followings)} of which are new")
+    helper.log(f"Got {len(following)} followings, {len(new_followings)} of which are new")
 
     return new_followings
 
@@ -231,7 +234,7 @@ def get_user_id(server, user = None, access_token = None):
         raise Exception(
             'You must supply either a user name or an access token, to get an user ID')
 
-    response = get(url, headers=headers)
+    response = helper.get(url, headers=headers)
 
     if response.status_code == Response.OK:
         return response.json()['id']
@@ -276,15 +279,15 @@ def get_timeline(server, access_token, limit):
             response = get_toots(response.links['next']['url'], access_token)
             toots = toots + response.json()
     except Exception as ex:
-        log(f"Error getting timeline toots: {ex}")
+        helper.log(f"Error getting timeline toots: {ex}")
         raise
 
-    log(f"Found {len(toots)} toots in timeline")
+    helper.log(f"Found {len(toots)} toots in timeline")
 
     return toots
 
 def get_toots(url, access_token):
-    response = get( url, headers={
+    response = helper.get( url, headers={
         "Authorization": f"Bearer {access_token}",
     })
 
@@ -310,7 +313,7 @@ def get_active_user_ids(server, access_token, reply_interval_hours):
         time interval"""
     since = datetime.now() - timedelta(days=reply_interval_hours / 24 + 1)
     url = f"https://{server}/api/v1/admin/accounts"
-    resp = get(url, headers={
+    resp = helper.get(url, headers={
         "Authorization": f"Bearer {access_token}",
     })
     if resp.status_code == Response.OK:
@@ -350,7 +353,7 @@ def get_all_reply_toots(
             for user_id in user_ids
         )
     )
-    log(f"Found {len(reply_toots)} reply toots")
+    helper.log(f"Found {len(reply_toots)} reply toots")
     return reply_toots
 
 
@@ -359,11 +362,11 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
     url = f"https://{server}/api/v1/accounts/{user_id}/statuses?exclude_replies=false&limit=40"
 
     try:
-        resp = get(url, headers={
+        resp = helper.get(url, headers={
             "Authorization": f"Bearer {access_token}",
         })
     except Exception as ex:
-        log(
+        helper.log(
             f"Error getting replies for user {user_id} on server {server}: {ex}"
         )
         return []
@@ -378,7 +381,7 @@ def get_reply_toots(user_id, server, access_token, seen_urls, reply_since):
             > reply_since
         ]
         for toot in toots:
-            log(f"Found reply toot: {toot['url']}")
+            helper.log(f"Found reply toot: {toot['url']}")
         return toots
     elif resp.status_code == Response.FORBIDDEN:
         raise Exception(
@@ -406,11 +409,11 @@ def get_all_known_context_urls(server, reply_toots, parsed_urls):
                 for item in context:
                     known_context_urls.add(item)
             else:
-                log(f"Error getting context for toot {url}")
+                helper.log(f"Error getting context for toot {url}")
 
     known_context_urls = set(filter(
         lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
-    log(f"Found {len(known_context_urls)} known context toots")
+    helper.log(f"Found {len(known_context_urls)} known context toots")
 
     return known_context_urls
 
@@ -464,7 +467,7 @@ def get_replied_toot_server_id(server, toot, replied_toot_server_ids,parsed_urls
         replied_toot_server_ids[o_url] = (url, match)
         return (url, match)
 
-    log(f"Error parsing toot URL {url}")
+    helper.log(f"Error parsing toot URL {url}")
     replied_toot_server_ids[o_url] = None
     return None
 
@@ -486,7 +489,7 @@ def parse_user_url(url):
     if match:
         return match
 
-    log(f"Error parsing Profile URL {url}")
+    helper.log(f"Error parsing Profile URL {url}")
 
     return None
 
@@ -512,7 +515,7 @@ def parse_url(url, parsed_urls):
             parsed_urls[url] = match
 
     if url not in parsed_urls:
-        log(f"Error parsing toot URL {url}")
+        helper.log(f"Error parsing toot URL {url}")
         parsed_urls[url] = None
 
     return parsed_urls[url]
@@ -597,17 +600,17 @@ def get_redirect_url(url):
             'User-Agent': 'FediFetcher (https://go.thms.uk/mgr)'
         })
     except Exception as ex:
-        log(f"Error getting redirect URL for URL {url}. Exception: {ex}")
+        helper.log(f"Error getting redirect URL for URL {url}. Exception: {ex}")
         return None
 
     if resp.status_code == Response.OK:
         return url
     elif resp.status_code == Response.FOUND:
         redirect_url = resp.headers["Location"]
-        log(f"Discovered redirect for URL {url}")
+        helper.log(f"Discovered redirect for URL {url}")
         return redirect_url
     else:
-        log(
+        helper.log(
             f"Error getting redirect URL for URL {url}. Status code: {resp.status_code}"
         )
         return None
@@ -632,7 +635,7 @@ def get_toot_context(server, toot_id, toot_url):
         return get_comments_urls(server, toot_id, toot_url)
     url = f"https://{server}/api/v1/statuses/{toot_id}/context"
     try:
-        resp = get(url)
+        resp = helper.get(url)
     except Exception as ex:
         log(f"Error getting context for toot {toot_url}. Exception: {ex}")
         return []
@@ -640,20 +643,20 @@ def get_toot_context(server, toot_id, toot_url):
     if resp.status_code == Response.OK:
         try:
             res = resp.json()
-            log(f"Got context for toot {toot_url}")
+            helper.log(f"Got context for toot {toot_url}")
             return (toot["url"] for toot in (res["ancestors"] + res["descendants"]))
         except Exception as ex:
-            log(f"Error parsing context for toot {toot_url}. Exception: {ex}")
+            helper.log(f"Error parsing context for toot {toot_url}. Exception: {ex}")
         return []
     elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
-        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at \
+        helper.log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at \
             {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_toot_context(server, toot_id, toot_url)
 
-    log(
+    helper.log(
         f"Error getting context for toot {toot_url}. Status code: {resp.status_code}"
     )
     return []
@@ -662,9 +665,9 @@ def get_comment_context(server, toot_id, toot_url):
     """get the URLs of the context toots of the given toot"""
     comment = f"https://{server}/api/v3/comment?id={toot_id}"
     try:
-        resp = get(comment)
+        resp = helper.get(comment)
     except Exception as ex:
-        log(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
+        helper.log(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
 
     if resp.status_code == Response.OK:
@@ -673,12 +676,12 @@ def get_comment_context(server, toot_id, toot_url):
             post_id = res['comment_view']['comment']['post_id']
             return get_comments_urls(server, post_id, toot_url)
         except Exception as ex:
-            log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
+            helper.log(f"Error parsing context for comment {toot_url}. Exception: {ex}")
         return []
     elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
-        log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at \
+        helper.log(f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at \
             {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_comment_context(server, toot_id, toot_url)
@@ -688,9 +691,9 @@ def get_comments_urls(server, post_id, toot_url):
     urls = []
     url = f"https://{server}/api/v3/post?id={post_id}"
     try:
-        resp = get(url)
+        resp = helper.get(url)
     except Exception as ex:
-        log(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
+        helper.log(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
         return []
 
     if resp.status_code == Response.OK:
@@ -700,13 +703,13 @@ def get_comments_urls(server, post_id, toot_url):
                 return []
             urls.append(res['post_view']['post']['ap_id'])
         except Exception as ex:
-            log(f"Error parsing post {post_id} from {toot_url}. Exception: {ex}")
+            helper.log(f"Error parsing post {post_id} from {toot_url}. Exception: {ex}")
 
     url = f"https://{server}/api/v3/comment/list?post_id={post_id}&sort=New&limit=50"
     try:
-        resp = get(url)
+        resp = helper.get(url)
     except Exception as ex:
-        log(f"Error getting comments for post {post_id} from {toot_url}. \
+        helper.log(f"Error getting comments for post {post_id} from {toot_url}. \
 Exception: {ex}")
         return []
 
@@ -715,20 +718,20 @@ Exception: {ex}")
             res = resp.json()
             list_of_urls = \
                 [comment_info['comment']['ap_id'] for comment_info in res['comments']]
-            log(f"Got {len(list_of_urls)} comments for post {toot_url}")
+            helper.log(f"Got {len(list_of_urls)} comments for post {toot_url}")
             urls.extend(list_of_urls)
             return urls
         except Exception as ex:
-            log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
+            helper.log(f"Error parsing comments for post {toot_url}. Exception: {ex}")
     elif resp.status_code == Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
             '%Y-%m-%dT%H:%M:%S.%fZ')
-        log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at \
+        helper.log(f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at \
 {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now()).total_seconds() + 1)
         return get_comments_urls(server, post_id, toot_url)
 
-    log(f"Error getting comments for post {toot_url}. Status code: {resp.status_code}")
+    helper.log(f"Error getting comments for post {toot_url}. Status code: {resp.status_code}")
     return []
 
 def add_context_urls(server, access_token, context_urls, seen_urls):
@@ -744,46 +747,7 @@ def add_context_urls(server, access_token, context_urls, seen_urls):
             else:
                 failed += 1
 
-    log(f"Added {count} new context toots (with {failed} failures)")
-
-
-def add_context_url(url, server, access_token):
-    """add the given toot URL to the server"""
-    search_url = f"https://{server}/api/v2/search?q={url}&resolve=true&limit=1"
-
-    try:
-        resp = get(search_url, headers={
-            "Authorization": f"Bearer {access_token}",
-        })
-    except Exception as ex:
-        log(
-            f"Error adding url {search_url} to server {server}. Exception: {ex}"
-        )
-        return False
-
-    if resp.status_code == Response.OK:
-        log(f"Added context url {url}")
-        return True
-    elif resp.status_code == Response.FORBIDDEN:
-        log(
-            f"Error adding url {search_url} to server {server}. \
-Status code: {resp.status_code}. "
-            "Make sure you have the read:search scope enabled for your access token."
-        )
-        return False
-    elif resp.status_code == Response.TOO_MANY_REQUESTS:
-        reset = datetime.strptime(resp.headers['x-ratelimit-reset'],
-            '%Y-%m-%dT%H:%M:%S.%fZ')
-        log(f"Rate Limit hit when adding url {search_url}. Waiting to retry at \
-{resp.headers['x-ratelimit-reset']}")
-        time.sleep((reset - datetime.now()).total_seconds() + 1)
-        return add_context_url(url, server, access_token)
-    else:
-        log(
-            f"Error adding url {search_url} to server {server}. \
-Status code: {resp.status_code}"
-        )
-        return False
+    helper.log(f"Added {count} new context toots (with {failed} failures)")
 
 def get_paginated_mastodon(url, limit, headers = {}, timeout = 0, max_tries = 5):
     """Make a paginated request to mastodon"""
@@ -792,7 +756,7 @@ def get_paginated_mastodon(url, limit, headers = {}, timeout = 0, max_tries = 5)
     else:
         furl = url
 
-    response = get(furl, headers, timeout, max_tries)
+    response = helper.get(furl, headers, timeout, max_tries)
 
     if response.status_code != Response.OK:
         if response.status_code == Response.UNAUTHORIZED:
@@ -814,49 +778,20 @@ def get_paginated_mastodon(url, limit, headers = {}, timeout = 0, max_tries = 5)
 
     if(isinstance(limit, int)):
         while len(result) < limit and 'next' in response.links:
-            response = get(response.links['next']['url'], headers, timeout, max_tries)
+            response = helper.get(response.links['next']['url'], headers, timeout, max_tries)
             result = result + response.json()
     else:
         while parser.parse(result[-1]['created_at']) >= limit \
                 and 'next' in response.links:
-            response = get(response.links['next']['url'], headers, timeout, max_tries)
+            response = helper.get(response.links['next']['url'], headers, timeout, max_tries)
             result = result + response.json()
 
     return result
 
-
-def get(url, headers = {}, timeout = 0, max_tries = 5):
-    """A simple wrapper to make a get request while providing our user agent, \
-        and respecting rate limits"""
-    h = headers.copy()
-    if 'User-Agent' not in h:
-        h['User-Agent'] = 'FediFetcher (https://go.thms.uk/mgr)'
-
-    if timeout == 0:
-        timeout = arguments.http_timeout
-
-    response = requests.get( url, headers= h, timeout=timeout)
-    if response.status_code == Response.TOO_MANY_REQUESTS:
-        if max_tries > 0:
-            reset = parser.parse(response.headers['x-ratelimit-reset'])
-            now = datetime.now(datetime.now().astimezone().tzinfo)
-            wait = (reset - now).total_seconds() + 1
-            log(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
-{response.headers['x-ratelimit-reset']}")
-            time.sleep(wait)
-            return get(url, headers, timeout, max_tries - 1)
-
-        raise Exception(f"Maximum number of retries exceeded for rate limited request \
-{url}")
-    return response
-
-def log(text):
-    print(f"{datetime.now()} {datetime.now().astimezone().tzinfo}: {text}")
-
 if __name__ == "__main__":
     start = datetime.now()
 
-    log("Starting FediFetcher")
+    helper.log("Starting FediFetcher")
 
     arguments = argparser.parse_args()
 
@@ -869,11 +804,11 @@ if __name__ == "__main__":
                 setattr(arguments, key.lower().replace('-','_'), config[key])
 
         else:
-            log(f"Config file {arguments.config} doesn't exist")
+            helper.log(f"Config file {arguments.config} doesn't exist")
             sys.exit(1)
 
     if(arguments.server is None or arguments.access_token is None):
-        log("You must supply at least a server name and an access token")
+        helper.log("You must supply at least a server name and an access token")
         sys.exit(1)
 
     # in case someone provided the server name as url instead,
@@ -885,16 +820,16 @@ if __name__ == "__main__":
 
     if(arguments.on_start):
         try:
-            get(f"{arguments.on_start}?rid={runId}")
+            helper.get(f"{arguments.on_start}?rid={runId}")
         except Exception as ex:
-            log(f"Error getting callback url: {ex}")
+            helper.log(f"Error getting callback url: {ex}")
 
     if arguments.lock_file is None:
         arguments.lock_file = os.path.join(arguments.state_dir, 'lock.lock')
     LOCK_FILE = arguments.lock_file
 
     if( os.path.exists(LOCK_FILE)):
-        log(f"Lock file exists at {LOCK_FILE}")
+        helper.log(f"Lock file exists at {LOCK_FILE}")
 
         try:
             with open(LOCK_FILE, "r", encoding="utf-8") as f:
@@ -903,24 +838,24 @@ if __name__ == "__main__":
             if (datetime.now() - lock_time).total_seconds() >= \
                     arguments.lock_hours * 60 * 60:
                 os.remove(LOCK_FILE)
-                log("Lock file has expired. Removed lock file.")
+                helper.log("Lock file has expired. Removed lock file.")
             else:
-                log(f"Lock file age is {datetime.now() - lock_time} - \
+                helper.log(f"Lock file age is {datetime.now() - lock_time} - \
 below --lock-hours={arguments.lock_hours} provided.")
                 if(arguments.on_fail):
                     try:
-                        get(f"{arguments.on_fail}?rid={runId}")
+                        helper.get(f"{arguments.on_fail}?rid={runId}")
                     except Exception as ex:
-                        log(f"Error getting callback url: {ex}")
+                        helper.log(f"Error getting callback url: {ex}")
                 sys.exit(1)
 
         except Exception:
-            log("Cannot read logfile age - aborting.")
+            helper.log("Cannot read logfile age - aborting.")
             if(arguments.on_fail):
                 try:
-                    get(f"{arguments.on_fail}?rid={runId}")
+                    helper.get(f"{arguments.on_fail}?rid={runId}")
                 except Exception as ex:
-                    log(f"Error getting callback url: {ex}")
+                    helper.log(f"Error getting callback url: {ex}")
             sys.exit(1)
 
     with open(LOCK_FILE, "w", encoding="utf-8") as f:
@@ -1028,7 +963,7 @@ below --lock-hours={arguments.lock_hours} provided.")
                         all_known_users, seen_urls)
 
             if arguments.max_followings > 0:
-                log(f"Getting posts from last {arguments.max_followings} followings")
+                helper.log(f"Getting posts from last {arguments.max_followings} followings")
                 user_id = get_user_id(arguments.server, arguments.user, token)
                 followings = get_new_followings(arguments.server, user_id,
                                             arguments.max_followings, all_known_users)
@@ -1036,7 +971,7 @@ below --lock-hours={arguments.lock_hours} provided.")
                                             all_known_users, seen_urls)
 
             if arguments.max_followers > 0:
-                log(f"Getting posts from last {arguments.max_followers} followers")
+                helper.log(f"Getting posts from last {arguments.max_followers} followers")
                 user_id = get_user_id(arguments.server, arguments.user, token)
                 followers = get_new_followers(arguments.server, user_id,
                                             arguments.max_followers, all_known_users)
@@ -1044,7 +979,7 @@ below --lock-hours={arguments.lock_hours} provided.")
                             recently_checked_users, all_known_users, seen_urls)
 
             if arguments.max_follow_requests > 0:
-                log(f"Getting posts from last {arguments.max_follow_requests} \
+                helper.log(f"Getting posts from last {arguments.max_follow_requests} \
 follow requests")
                 follow_requests = get_new_follow_requests(arguments.server, token,
                                         arguments.max_follow_requests, all_known_users)
@@ -1052,7 +987,7 @@ follow requests")
                                 recently_checked_users, all_known_users, seen_urls)
 
             if arguments.from_notifications > 0:
-                log(f"Getting notifications for last {arguments.from_notifications} \
+                helper.log(f"Getting notifications for last {arguments.from_notifications} \
 hours")
                 notification_users = get_notification_users(arguments.server, token,
                                         all_known_users, arguments.from_notifications)
@@ -1060,7 +995,7 @@ hours")
                             recently_checked_users, all_known_users, seen_urls)
 
             if arguments.max_bookmarks > 0:
-                log(f"Pulling replies to the last {arguments.max_bookmarks} bookmarks")
+                helper.log(f"Pulling replies to the last {arguments.max_bookmarks} bookmarks")
                 bookmarks = get_bookmarks(
                     arguments.server, token, arguments.max_bookmarks)
                 known_context_urls = get_all_known_context_urls(
@@ -1068,7 +1003,7 @@ hours")
                 add_context_urls(arguments.server, token, known_context_urls, seen_urls)
 
             if arguments.max_favourites > 0:
-                log(f"Pulling replies to the last {arguments.max_favourites} \
+                helper.log(f"Pulling replies to the last {arguments.max_favourites} \
 favourites")
                 favourites = get_favourites(
                     arguments.server, token, arguments.max_favourites)
@@ -1092,18 +1027,18 @@ favourites")
 
         if(arguments.on_done):
             try:
-                get(f"{arguments.on_done}?rid={runId}")
+                helper.get(f"{arguments.on_done}?rid={runId}")
             except Exception as ex:
-                log(f"Error getting callback url: {ex}")
+                helper.log(f"Error getting callback url: {ex}")
 
-        log(f"Processing finished in {datetime.now() - start}.")
+        helper.log(f"Processing finished in {datetime.now() - start}.")
 
     except Exception:
         os.remove(LOCK_FILE)
-        log(f"Job failed after {datetime.now() - start}.")
+        helper.log(f"Job failed after {datetime.now() - start}.")
         if(arguments.on_fail):
             try:
-                get(f"{arguments.on_fail}?rid={runId}")
+                helper.get(f"{arguments.on_fail}?rid={runId}")
             except Exception as ex:
-                log(f"Error getting callback url: {ex}")
+                helper.log(f"Error getting callback url: {ex}")
         raise
