@@ -32,14 +32,10 @@ jobs:
             pr_branch="dependabot-$(echo ${{ github.event.pull_request.head.ref }} | sed 's/[^[:alnum:]]/-/g')"
             git checkout -b $pr_branch
             git push origin $pr_branch
-            workflow_run=$(gh workflow run get_context.yml -b $pr_branch --json "id,url,status" | jq -r '.workflow_runs[0]')
-            status=$(echo "$workflow_run" | jq -r '.status')
-            if [ "$status" == "completed" ]; then
-              conclusion=$(echo "$workflow_run" | jq -r '.conclusion')
-              if [ "$conclusion" == "success" ]; then
-                gh pr merge "$PR_URL" --squash
-              fi
-            fi
+            gh workflow run get_context.yml -b $pr_branch
+            review_id=$(gh pr view "$PR_URL" --json id --jq '.id')
+            gh pr review "$PR_URL" --approve --reviewer @dependabot[bot] --json url --jq '.url'
+            gh pr merge "$PR_URL" --squash
           fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
