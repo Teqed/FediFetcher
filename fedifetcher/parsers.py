@@ -19,22 +19,17 @@ def user():
             return match.group("server"), match.group("username")
         return None
 
-    def url(url: str) -> Optional[Tuple[str, str]]:
+    def url(url: str, profiles: dict) -> Optional[Tuple[str, str]]:
         """Parse a profile URL and return the server and username.
 
         Args:
             url (str): The URL of the profile.
+            profiles (dict): The dictionary of profiles and their regex patterns.
 
         Returns:
             Optional[Tuple[str, str]]: A tuple containing the server and username,
             or None if no match is found.
         """
-        profiles = {
-            "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)",
-            "pleroma": r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)",
-            "lemmy": r"https://(?P<server>[^/]+)/(?:u|c)/(?P<username>[^/]+)",
-            "pixelfed": r"https://(?P<server>[^/]+)/(?P<username>[^/]+)",  # Match Pixelfed last
-        }
         for profile, pattern in profiles.items():
             match = parse_profile(url, pattern)
             if match:
@@ -43,77 +38,35 @@ def user():
         helper.log(f"Error parsing Profile URL {url}")
         return None
 
-    # Assign the url function to each profile-specific function dynamically
-    globals().update({f"{profile}_profile": url for profile in profiles})
+    profiles = {
+        "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)",
+        "pleroma": r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)",
+        "lemmy": r"https://(?P<server>[^/]+)/(?:u|c)/(?P<username>[^/]+)",
+        "pixelfed": r"https://(?P<server>[^/]+)/(?P<username>[^/]+)",  # Pixelfed last
+    }
 
-
+    profile_functions = \
+        {profile: lambda url: url(url, profiles) for profile in profiles}
+    globals().update(profile_functions)
 
 
 def post():
     def url(url, parsed_urls):
-        if url not in parsed_urls:
-            match = mastodon(url)
-            if match:
-                parsed_urls[url] = match
-
-        if url not in parsed_urls:
-            match = pleroma(url)
-            if match:
-                parsed_urls[url] = match
-
-        if url not in parsed_urls:
-            match = lemmy(url)
-            if match:
-                parsed_urls[url] = match
-
-        if url not in parsed_urls:
-            match = pixelfed(url)
-            if match:
-                parsed_urls[url] = match
+        for profile, pattern in profiles.items():
+            if url not in parsed_urls:
+                match = re.match(pattern, url)
+                if match:
+                    parsed_urls[url] = (match.group("server"), match.group("toot_id"))
 
         if url not in parsed_urls:
             helper.log(f"Error parsing toot URL {url}")
             parsed_urls[url] = None
+
         return parsed_urls[url]
 
-    def mastodon(url):
-        """parse a Mastodon URL and return the server and ID"""
-        match = re.match(
-            r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)", url
-        )
-        if match:
-            return (match.group("server"), match.group("toot_id"))
-        return None
-
-    def pixelfed(url):
-        """parse a Pixelfed URL and return the server and ID"""
-        match = re.match(
-            r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)", url
-        )
-        if match:
-            return (match.group("server"), match.group("toot_id"))
-        return None
-
-    def pleroma(url):
-        """parse a Pleroma URL and return the server and ID"""
-        match = re.match(r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)", url)
-        if match:
-            server = match.group("server")
-            url = get_redirect_url(url)
-            if url is None:
-                return None
-
-            match = re.match(r"/notice/(?P<toot_id>[^/]+)", url)
-            if match:
-                return (server, match.group("toot_id"))
-            return None
-        return None
-
-    def lemmy(url):
-        """parse a Lemmy URL and return the server, and ID"""
-        match = re.match(
-            r"https://(?P<server>[^/]+)/(?:comment|post)/(?P<toot_id>[^/]+)", url
-        )
-        if match:
-            return (match.group("server"), match.group("toot_id"))
-        return None
+    profiles = {
+        "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
+        "pixelfed": r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
+        "pleroma": r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)",
+        "lemmy": r"https://(?P<server>[^/]+)/(?:comment|post)/(?P<toot_id>[^/]+)",
+    }
