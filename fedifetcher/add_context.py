@@ -2,6 +2,8 @@
 import time
 from datetime import UTC, datetime
 
+from fedifetcher import parsers
+
 from . import getters, helpers
 
 
@@ -124,10 +126,11 @@ def add_post_with_context(
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
             parsed_urls = {}
-            parsed = parse_url(post["url"], parsed_urls)
+            parsed = parsers.post(post["url"], parsed_urls)
             if parsed is None:
                 return True
-            known_context_urls = getters.get_all_known_context_urls(server, [post],parsed_urls)
+            known_context_urls = getters.get_all_known_context_urls(
+                server, [post], parsed_urls)
             add_context_urls(server, access_token, known_context_urls, seen_urls)
         return True
 
