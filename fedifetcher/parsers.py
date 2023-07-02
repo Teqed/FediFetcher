@@ -41,14 +41,14 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
             return match.group("server"), match.group("username")
         return None
 
-    profiles: dict[str, str] = {
+    fediverse_profile_regex: dict[str, str] = {
         "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)",
         "pleroma": r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)",
         "lemmy": r"https://(?P<server>[^/]+)/(?:u|c)/(?P<username>[^/]+)",
         "pixelfed": r"https://(?P<server>[^/]+)/(?P<username>[^/]+)",  # Pixelfed last
     }
 
-    for _profile, pattern in profiles.items():
+    for _each, pattern in fediverse_profile_regex.items():
         match = parse_profile(unparsed_url, pattern)
         if match:
             return match
@@ -90,14 +90,14 @@ def post(
             return match.group("server"), match.group("toot_id")
         return None
 
-    profiles: dict[str, str] = {
+    fediverse_post_regex: dict[str, str] = {
         "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
         "pixelfed": r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
         "pleroma": r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)",
         "lemmy": r"https://(?P<server>[^/]+)/(?:comment|post)/(?P<toot_id>[^/]+)",
     }
 
-    for _profile, pattern in profiles.items():
+    for _each, pattern in fediverse_post_regex.items():
         if unparsed_url not in parsed_urls:
             match = parse_post(unparsed_url, pattern)
             if match:
