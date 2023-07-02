@@ -58,7 +58,7 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
 
 def post(
         unparsed_url: str,
-        parsed_urls: dict[str, tuple[str, str] | None],
+        parsed_urls: dict[str, tuple[str, str | None]],
         ) -> tuple[str, str] | None:
     """Parse a post URL and return the server and toot ID.
 

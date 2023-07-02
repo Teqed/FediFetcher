@@ -119,7 +119,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             if(userAge.total_seconds() > helper.arguments.remember_users_for_hours * 60 * 60):
                 recently_checked_users.pop(user)
 
-        parsed_urls = {}
+        parsed_urls : dict[str, tuple[str, str]] = {}
 
         all_known_users = OrderedSet(
             list(known_followings) + list(recently_checked_users))

@@ -2,6 +2,8 @@
 import time
 from datetime import UTC, datetime
 
+import requests
+
 from fedifetcher import parsers
 
 from . import getters, helpers
@@ -30,7 +32,7 @@ def add_context_url(
         resp = helpers.get(search_url, headers={
             "Authorization": f"Bearer {access_token}",
         })
-    except Exception as ex:
+    except requests.HTTPError as ex:
         helpers.log(
             f"Error adding url {search_url} to server {server}. Exception: {ex}",
         )
@@ -59,7 +61,7 @@ Status code: {resp.status_code}",
     )
     return False
 
-def add_user_posts(
+def add_user_posts(  # noqa: PLR0913
         server : str,
         access_token : str,
         followings : list,
@@ -125,7 +127,7 @@ def add_post_with_context(
         seen_urls.add(post["url"])
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
-            parsed_urls = {}
+            parsed_urls : dict[str, tuple[str, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is None:
                 return True
@@ -139,7 +141,7 @@ def add_post_with_context(
 def add_context_urls(
         server : str,
         access_token : str,
-        context_urls : list,
+        context_urls : set[str],
         seen_urls : set,
         ) -> None:
     """Add the given toot URLs to the server.

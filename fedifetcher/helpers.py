@@ -39,7 +39,7 @@ class Response:
 
 def get(
         url : str,
-        headers : dict = {},
+        headers : dict | None = None,
         timeout : int = 0,
         max_tries : int = 5,
         ) -> requests.Response:
@@ -48,6 +48,8 @@ def get(
     A simple wrapper to make a get request while providing our user agent, \
         and respecting rate limits.
     """
+    if headers is None:
+        headers = {}
     h = headers.copy()
     if "User-Agent" not in h:
         h["User-Agent"] = "FediFetcher (https://go.thms.uk/mgr)"
@@ -67,5 +69,5 @@ def get(
             return get(url, headers, timeout, max_tries - 1)
 
         msg = f"Maximum number of retries exceeded for rate limited request {url}"
-        raise Exception(msg)
+        raise requests.HTTPError(msg)
     return response

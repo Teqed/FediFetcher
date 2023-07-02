@@ -98,11 +98,11 @@ def get_favourites(
         "Authorization": f"Bearer {access_token}",
     })
 
-def get_user_posts(
-        user : dict,
+def get_user_posts(  # noqa: PLR0911, PLR0912, C901
+        user : dict[str, str],
         know_followings : set[str],
         server : str,
-        ) -> list[dict] | None:
+        ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user.
 
     Args:
@@ -601,8 +601,8 @@ def get_reply_toots(
 
 def get_all_known_context_urls(
         server : str,
-        reply_toots : list[dict[str, Any]],
-        parsed_url : list[dict[str, Any]],
+        reply_toots : list[dict[str, str | None]],
+        parsed_url : dict[str, tuple[str, str | None]],
         ) -> set[str]:
     """Get the context toots of the given toots from their original server.
 
@@ -1006,14 +1006,14 @@ def filter_known_users(
 
 def toot_has_parseable_url(
         toot : dict[str, Any],
-        parsed_urls : dict[str, tuple[str, str] | None],
+        parsed_urls : dict[str, tuple[str, str]],
         ) -> bool:
     """Check if the given toot has a parseable URL.
 
     Args:
     ----
     toot (dict[str, Any]): The toot to check.
-    parsed_urls (dict[str, tuple[str, str] | None]): The URLs that have already been \
+    parsed_urls (dict[str, tuple[str, str]]): The URLs that have already been \
 
     Returns:
     -------
