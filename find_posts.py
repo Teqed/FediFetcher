@@ -2,10 +2,11 @@
 
 import json
 import os
+from pathlib import Path
 import re
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from dateutil import parser
 
@@ -13,12 +14,12 @@ import fedifetcher.helpers as helper
 from fedifetcher.ordered_set import OrderedSet
 
 if __name__ == "__main__":
-    start = datetime.now()
+    start = datetime.now(UTC)
 
     helper.log("Starting FediFetcher")
 
     if(helper.arguments.config):
-        if os.path.exists(helper.arguments.config):
+        if Path.exists(helper.arguments.config):
             with open(helper.arguments.config, encoding="utf-8") as f:
                 config = json.load(f)
 
@@ -53,15 +54,15 @@ if __name__ == "__main__":
         helper.log(f"Lock file exists at {LOCK_FILE}")
 
         try:
-            with open(LOCK_FILE, encoding="utf-8") as f:
+            with Path.open(LOCK_FILE, encoding="utf-8") as f:
                 lock_time = parser.parse(f.read())
 
             if (datetime.now() - lock_time).total_seconds() >= \
                     helper.arguments.lock_hours * 60 * 60:
-                os.remove(LOCK_FILE)
+                Path.unlink(LOCK_FILE)
                 helper.log("Lock file has expired. Removed lock file.")
             else:
-                helper.log(f"Lock file age is {datetime.now() - lock_time} - \
+                helper.log(f"Lock file age is {datetime.now(UTC) - lock_time} - \
 below --lock-hours={helper.arguments.lock_hours} provided.")
                 if(helper.arguments.on_fail):
                     try:
@@ -244,7 +245,7 @@ favourites")
         with open(RECENTLY_CHECKED_USERS_FILE, "w", encoding="utf-8") as f:
             recently_checked_users.to_json()
 
-        os.remove(LOCK_FILE)
+        Path.unlink(LOCK_FILE)
 
         if(helper.arguments.on_done):
             try:
@@ -255,7 +256,7 @@ favourites")
         helper.log(f"Processing finished in {datetime.now() - start}.")
 
     except Exception:
-        os.remove(LOCK_FILE)
+        Path.unlink(LOCK_FILE)
         helper.log(f"Job failed after {datetime.now() - start}.")
         if(helper.arguments.on_fail):
             try:
