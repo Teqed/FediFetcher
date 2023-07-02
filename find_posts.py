@@ -242,7 +242,7 @@ favourites")
             json.dump(dict(list(replied_toot_server_ids.items())[-10000:]), f)
 
         with open(RECENTLY_CHECKED_USERS_FILE, "w", encoding="utf-8") as f:
-            recently_checked_users.toJSON()
+            recently_checked_users.to_json()
 
         os.remove(LOCK_FILE)
 
