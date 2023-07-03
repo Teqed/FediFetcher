@@ -2,6 +2,7 @@
 import json
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from pathlib import Path
 
 from dateutil import parser
 
@@ -139,19 +140,13 @@ class OrderedSet:
         """
         return len(self._dict)
 
-    def to_json(
-            self : "OrderedSet",
-            f : str,
-            ) -> None:
+    def to_json(self: "OrderedSet", filename: str) -> None:
         """Dump the ordered set to a JSON file.
 
         Args:
         ----
         self: The ordered set to dump.
-        f: The file to dump the ordered set to.
-
-        Returns:
-        -------
-        The JSON dump of the ordered set.
+        filename: The name of the file to dump the ordered set to.
         """
-        return json.dump(self._dict, f, default=str)
+        with Path(filename).open("w") as file:
+            json.dump(self._dict, file, default=str)
