@@ -1,0 +1,48 @@
+name: Deploy on Dependabot PR
+concurrency: get_context
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches:
+      - dependabot/**
+  workflow_dispatch:
+
+jobs:
+  test-deploy:
+    runs-on: ubuntu-latest
+    environment: mastodon
+    steps:
+      - name: Checkout original repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+         python-version: '3.11'
+         cache: 'pip' # caching pip dependencies
+      - run: pip install -r requirements.txt
+      - name: Download all workflow run artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          name: artifacts
+          workflow: get_context.yml
+          if_no_artifact_found: warn
+          path: artifacts
+      - name: Get Directory structure
+        run: ls -lR
+      - run: python find_posts.py --lock-hours=0 --access-token=${{ secrets.ACCESS_TOKEN }} -c="./config.json"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: |
+            artifacts
+      - name: Checkout user's forked repository for keeping workflow alive
+        uses: actions/checkout@v3
+      - name: Keep workflow alive
+        uses: gautamkrishnar/keepalive-workflow@v1
