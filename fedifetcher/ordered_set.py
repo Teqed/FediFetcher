@@ -77,7 +77,7 @@ class OrderedSet:
         """
         return self._dict[item]
 
-    def update(self, iterable: set[str] | list[str]) -> None:
+    def update(self, iterable: filter[str] | filter[str]) -> None:
         """Update the ordered set with the given iterable.
 
         Args:

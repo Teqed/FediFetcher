@@ -18,7 +18,7 @@ from . import helpers, parsers
 def get_notification_users(
         server : str,
         access_token : str,
-        known_users : list[str],
+        known_users : OrderedSet,
         max_age : int = 24,
         ) -> list[str]:
     """Get a list of users that have interacted with the user in last `max_age` hours.
@@ -196,7 +196,7 @@ def get_new_follow_requests(
         server : str,
         access_token : str,
         limit : int, # = 40,
-        known_followings : set[str],
+        known_followings : OrderedSet,
         ) -> list[dict]:
     """Get any new follow requests for the specified user.
 
@@ -219,7 +219,7 @@ def get_new_follow_requests(
 
     # Remove any we already know about
     new_follow_requests = filter_known_users(
-        list(follow_requests), list(known_followings))
+        list(follow_requests), known_followings)
 
     helpers.log(f"Got {len(follow_requests)} follow_requests, \
 {len(new_follow_requests)} of which are new")
@@ -230,7 +230,7 @@ def get_new_followers(
         server : str,
         user_id : str,
         limit : int, # = 40,
-        known_followers : set[str],
+        known_followers : OrderedSet,
         ) -> list[dict]:
     """Get any new followings for the specified user, up to the max number provided.
 
@@ -252,7 +252,7 @@ def get_new_followers(
 
     # Remove any we already know about
     new_followers = filter_known_users(
-        list(followers), list(known_followers))
+        list(followers), known_followers)
 
     helpers.log(f"Got {len(followers)} followers, \
                 {len(new_followers)} of which are new")
@@ -263,7 +263,7 @@ def get_new_followings(
         server : str,
         user_id : str,
         limit : int, # = 40,
-        known_followings : set[str],
+        known_followings : OrderedSet,
         ) -> list[dict]:
     """Get any new followings for the specified user, up to the max number provided.
 
@@ -284,7 +284,7 @@ def get_new_followings(
 
     # Remove any we already know about
     new_followings = filter_known_users(
-        list(following), list(known_followings))
+        list(following), known_followings)
 
     helpers.log(f"Got {len(following)} followings, \
                 {len(new_followings)} of which are new")
@@ -663,7 +663,7 @@ def get_all_known_context_urls(
 def get_all_replied_toot_server_ids(
     server: str,
     reply_toots: Iterator[dict[str, Any]],
-    replied_toot_server_ids: dict[str, str],
+    replied_toot_server_ids: dict[str, str | None],
     parsed_urls: dict[str, tuple[str | None, str | None]],
 ) -> filter[tuple[str | None, str | None]]:
     """Get the server and ID of the toots the given toots replied to.
@@ -694,7 +694,7 @@ def get_all_replied_toot_server_ids(
 def get_replied_toot_server_id(
     server: str,
     toot: dict[str, Any],
-    replied_toot_server_ids: dict[str, str],
+    replied_toot_server_ids: dict[str, str | None],
     parsed_urls: dict[str, tuple[str | None, str | None]],
 ) -> tuple[str | None, str | None]:
     """Get the server and ID of the toot the given toot replied to."""
@@ -715,12 +715,12 @@ def get_replied_toot_server_id(
         if replied_toot_server_ids[o_url] is None:
             return (None, None)
         if isinstance(replied_toot_server_ids[o_url], str):
-            replied_toot_server_ids[o_url]
-            replied_toot_server_ids[o_url] = replied_toot_server_ids[o_url].split(",")
-        return (
-                replied_toot_server_ids[o_url][0],
-                replied_toot_server_ids[o_url][1],
-                )
+            ## Missing code goes here
+            cast(str, replied_toot_server_ids[o_url]).split(",")
+            return (
+                    cast(str, replied_toot_server_ids[o_url])[0],
+                    cast(str, replied_toot_server_ids[o_url])[1],
+                    )
 
     url = get_redirect_url(o_url)
 

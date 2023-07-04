@@ -100,7 +100,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
                 seen_urls = OrderedSet(file.read().splitlines())
 
-        replied_toot_server_ids: dict[str, str] = {}
+        replied_toot_server_ids: dict[str, str | None] = {}
         if Path(REPLIED_TOOT_SERVER_IDS_FILE).exists():
             with Path(REPLIED_TOOT_SERVER_IDS_FILE).open(encoding="utf-8") as file:
                 replied_toot_server_ids = json.load(file)
@@ -321,7 +321,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                                 )
                 known_context_urls = getters.get_all_known_context_urls(
                                         helper.arguments.server,
-                                        bookmarks,
+                                        iter(bookmarks),
                                         parsed_urls,
                                         )
                 add_context.add_context_urls(
@@ -341,7 +341,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                                 )
                 known_context_urls = getters.get_all_known_context_urls(
                                         helper.arguments.server,
-                                        favourites,
+                                        iter(favourites),
                                         parsed_urls,
                                         )
                 add_context.add_context_urls(
@@ -361,7 +361,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             json.dump(dict(list(replied_toot_server_ids.items())[-10000:]), file)
 
         with Path(RECENTLY_CHECKED_USERS_FILE).open("w", encoding="utf-8") as file:
-            recently_checked_users.to_json(file)
+            recently_checked_users.to_json(file.name)
 
         Path.unlink(LOCK_FILE)
 
