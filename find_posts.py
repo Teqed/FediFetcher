@@ -48,7 +48,7 @@ if __name__ == "__main__":
         try:
             helper.get(f"{helper.arguments.on_start}?rid={run_id}")
         except Exception as ex:
-            logging.exception(f"Error getting callback url: {ex}")
+            logging.error(f"Error getting callback url: {ex}")
 
     if helper.arguments.lock_file is None:
         helper.arguments.lock_file = Path(helper.arguments.state_dir) / "lock.lock"
@@ -72,7 +72,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     try:
                         helper.get(f"{helper.arguments.on_fail}?rid={run_id}")
                     except Exception as ex:
-                        logging.exception(f"Error getting callback url: {ex}")
+                        logging.error(f"Error getting callback url: {ex}")
                 sys.exit(1)
 
         except Exception:
@@ -81,7 +81,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                 try:
                     helper.get(f"{helper.arguments.on_fail}?rid={run_id}")
                 except Exception as ex:
-                    logging.exception(f"Error getting callback url: {ex}")
+                    logging.error(f"Error getting callback url: {ex}")
             sys.exit(1)
 
     with Path(LOCK_FILE).open("w", encoding="utf-8") as file:
@@ -233,8 +233,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                         )
 
             if helper.arguments.max_followings > 0:
-                logging.info(f"Getting posts from last {helper.arguments.max_followings}\
-                            followings")
+                logging.info(f"Getting posts from last {helper.arguments.max_followings} followings")
                 user_id = getters.get_user_id(
                     helper.arguments.server,
                     helper.arguments.user,
@@ -255,8 +254,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_followers > 0:
-                logging.info(f"Getting posts from last {helper.arguments.max_followers}\
-                            followers")
+                logging.info(f"Getting posts from last {helper.arguments.max_followers} followers")
                 user_id = getters.get_user_id(
                     helper.arguments.server,
                     helper.arguments.user,
@@ -278,8 +276,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_follow_requests > 0:
-                logging.info(f"Getting posts from last \
-                            {helper.arguments.max_follow_requests} follow requests")
+                logging.info(f"Getting posts from last {helper.arguments.max_follow_requests} follow requests")
                 follow_requests = getters.get_new_follow_requests(
                                     helper.arguments.server,
                                     token,
@@ -296,8 +293,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.from_notifications > 0:
-                logging.info(f"Getting notifications for last \
-                        {helper.arguments.from_notifications} hours")
+                logging.info(f"Getting notifications for last {helper.arguments.from_notifications} hours")
                 notification_users = getters.get_notification_users(
                                         helper.arguments.server,
                                         token,
@@ -314,8 +310,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_bookmarks > 0:
-                logging.info(f"Pulling replies to the last \
-                        {helper.arguments.max_bookmarks} bookmarks")
+                logging.info(f"Pulling replies to the last {helper.arguments.max_bookmarks} bookmarks")
                 bookmarks = getters.get_bookmarks(
                                 helper.arguments.server,
                                 token,
@@ -334,8 +329,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_favourites > 0:
-                logging.info(f"Pulling replies to the last \
-                        {helper.arguments.max_favourites} favourites")
+                logging.info(f"Pulling replies to the last {helper.arguments.max_favourites} favourites")
                 favourites = getters.get_favourites(
                                 helper.arguments.server,
                                 token,
@@ -371,7 +365,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             try:
                 helper.get(f"{helper.arguments.on_done}?rid={run_id}")
             except Exception as ex:
-                logging.exception(f"Error getting callback url: {ex}")
+                logging.error(f"Error getting callback url: {ex}")
 
         logging.info(f"Processing finished in {datetime.now(UTC) - start}.")
 
@@ -382,5 +376,5 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             try:
                 helper.get(f"{helper.arguments.on_fail}?rid={run_id}")
             except Exception as ex:
-                logging.exception(f"Error getting callback url: {ex}")
+                logging.error(f"Error getting callback url: {ex}")
         raise

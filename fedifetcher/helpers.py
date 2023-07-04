@@ -56,11 +56,12 @@ def get(
 
     try:
         response = requests.get(url, headers=h, timeout=timeout)
-    except requests.exceptions.ReadTimeout as ex:
+    except requests.exceptions.ReadTimeout:
         if max_tries > 0:
             logging.warning(f"Timeout requesting {url}. Retrying...")
             return get(url, headers, timeout, max_tries - 1)
-        raise requests.exceptions.ReadTimeout from ex
+        logging.info(f"Timeout requesting {url}. Giving up.")
+        raise
     else:
         if response.status_code == Response.TOO_MANY_REQUESTS:
             if max_tries > 0:
@@ -71,7 +72,4 @@ def get(
     {response.headers['x-ratelimit-reset']}")
                 time.sleep(wait)
                 return get(url, headers, timeout, max_tries - 1)
-
-            msg = f"Maximum number of retries exceeded for rate limited request {url}"
-            raise requests.HTTPError(msg)
         return response

@@ -54,7 +54,7 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
         if match:
             return match
 
-    logging.exception(f"Error parsing user URL {unparsed_url}")
+    logging.error(f"Error parsing user URL {unparsed_url}")
     return None
 
 def post(

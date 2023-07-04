@@ -147,7 +147,7 @@ def get_user_posts(  # noqa: PLR0911, PLR0912, C901
                 return posts
 
         except Exception as ex:
-            logging.exception(f"Error getting community posts for community {parsed_url[1]}: \
+            logging.error(f"Error getting community posts for community {parsed_url[1]}: \
 {ex}")
         return None
 
@@ -165,13 +165,13 @@ def get_user_posts(  # noqa: PLR0911, PLR0912, C901
                 return all_posts
 
         except Exception as ex:
-            logging.exception(f"Error getting user posts for user {parsed_url[1]}: {ex}")
+            logging.error(f"Error getting user posts for user {parsed_url[1]}: {ex}")
         return None
 
     try:
         user_id = get_user_id(parsed_url[0], parsed_url[1])
     except Exception as ex:
-        logging.exception(f"Error getting user ID for user {user['acct']}: {ex}")
+        logging.error(f"Error getting user ID for user {user['acct']}: {ex}")
         return None
 
     try:
@@ -190,7 +190,7 @@ def get_user_posts(  # noqa: PLR0911, PLR0912, C901
             msg,
         )
     except Exception as ex:
-        logging.exception(f"Error getting posts for user {user['acct']}: {ex}")
+        logging.error(f"Error getting posts for user {user['acct']}: {ex}")
         return None
 
 def get_new_follow_requests(
@@ -255,8 +255,7 @@ def get_new_followers(
     new_followers = filter_known_users(
         list(followers), known_followers)
 
-    logging.info(f"Got {len(followers)} followers, \
-                {len(new_followers)} of which are new")
+    logging.info(f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
     return new_followers
 
@@ -287,8 +286,7 @@ def get_new_followings(
     new_followings = filter_known_users(
         list(following), known_followings)
 
-    logging.info(f"Got {len(following)} followings, \
-                {len(new_followings)} of which are new")
+    logging.info(f"Got {len(following)} followings, {len(new_followings)} of which are new")
 
     return new_followings
 
@@ -393,7 +391,7 @@ def get_timeline(
             toots = response.json()
             yield from toots
     except Exception as ex:
-        logging.exception(f"Error getting timeline toots: {ex}")
+        logging.error(f"Error getting timeline toots: {ex}")
         raise
 
     logging.info(f"Found {len(toots)} toots in timeline")
@@ -568,7 +566,7 @@ def get_reply_toots(
             "Authorization": f"Bearer {access_token}",
         })
     except Exception as ex:
-        logging.exception(
+        logging.error(
             f"Error getting replies for user {user_id} on server {server}: {ex}",
         )
         return iter([])
@@ -630,20 +628,20 @@ def get_all_known_context_urls(
                         reblog_dict = json.loads(reblog)
                         url = reblog_dict.get("url")
                         if url is None:
-                            logging.exception("Error accessing URL in the boosted toot")
+                            logging.error("Error accessing URL in the boosted toot")
                             continue
                     except json.JSONDecodeError:
-                        logging.exception("Error decoding JSON in the boosted toot")
+                        logging.error("Error decoding JSON in the boosted toot")
                         continue
                 elif isinstance(reblog, dict):
                     url = reblog.get("url")
                     if url is None:
-                        logging.exception("Error accessing URL in the boosted toot")
+                        logging.error("Error accessing URL in the boosted toot")
                         continue
                 elif toot.get("url") is not None:
                     url = str(toot["url"])
                 else:
-                    logging.exception("Error accessing URL in the toot")
+                    logging.error("Error accessing URL in the toot")
                     continue
 
                 parsed_url = parsers.post(url, parsed_urls)
@@ -651,7 +649,7 @@ def get_all_known_context_urls(
                     try:
                         context = get_toot_context(parsed_url[0], parsed_url[1], url)
                     except Exception as ex:
-                        logging.exception(f"Error getting context for toot {url} : {ex}")
+                        logging.error(f"Error getting context for toot {url} : {ex}")
                         logging.debug(f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                         continue
                     if context:
@@ -737,7 +735,7 @@ def get_replied_toot_server_id(
         replied_toot_server_ids[o_url] = None
         return (None, None)
 
-    logging.exception(f"Error parsing toot URL {url}")
+    logging.error(f"Error parsing toot URL {url}")
     replied_toot_server_ids[o_url] = None
     return (None, None)
 
@@ -759,7 +757,7 @@ def get_redirect_url(url : str) -> str | None:
             "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",
         })
     except Exception as ex:
-        logging.exception(f"Error getting redirect URL for URL {url}. Exception: {ex}")
+        logging.error(f"Error getting redirect URL for URL {url}. Exception: {ex}")
         return None
 
     if resp.status_code == helpers.Response.OK:
@@ -823,14 +821,14 @@ def get_toot_context(
         try:
             resp = helpers.get(url)
         except Exception as ex:
-            logging.exception(f"Error getting context for toot {toot_url}. Exception: {ex}")
+            logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
             return []
 
         if resp.status_code == helpers.Response.OK:
             try:
                 res = resp.json()
             except Exception as ex:
-                logging.exception(f"Error parsing context for toot {toot_url}. Exception: {ex}")
+                logging.error(f"Error parsing context for toot {toot_url}. Exception: {ex}")
             else:
                 logging.info(f"Got context for toot {toot_url}")
                 return [toot["url"] for toot in (res["ancestors"] + res["descendants"])]
@@ -843,7 +841,7 @@ def get_toot_context(
             time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
             return get_toot_context(server, toot_id, toot_url)
     except Exception as ex:
-        logging.exception(f"Error getting context for toot {toot_url}. Exception: {ex}")
+        logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
     return []
 
 def get_comment_context(
@@ -867,7 +865,7 @@ def get_comment_context(
     try:
         resp = helpers.get(comment)
     except Exception as ex:
-        logging.exception(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
+        logging.error(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
     if resp.status_code == helpers.Response.OK:
         try:
@@ -875,7 +873,7 @@ def get_comment_context(
             post_id = res["comment_view"]["comment"]["post_id"]
             return get_comments_urls(server, post_id, toot_url)
         except Exception as ex:
-            logging.exception(f"Error parsing context for comment {toot_url}. \
+            logging.error(f"Error parsing context for comment {toot_url}. \
                         Exception: {ex}")
         return []
     if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
@@ -910,7 +908,7 @@ def get_comments_urls(
     try:
         resp = helpers.get(url)
     except Exception as ex:
-        logging.exception(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
+        logging.error(f"Error getting post {post_id} from {toot_url}. Exception: {ex}")
         return []
 
     if resp.status_code == helpers.Response.OK:
@@ -920,14 +918,14 @@ def get_comments_urls(
                 return []
             urls.append(res["post_view"]["post"]["ap_id"])
         except Exception as ex:
-            logging.exception(f"Error parsing post {post_id} from {toot_url}. \
+            logging.error(f"Error parsing post {post_id} from {toot_url}. \
                         Exception: {ex}")
 
     url = f"https://{server}/api/v3/comment/list?post_id={post_id}&sort=New&limit=50"
     try:
         resp = helpers.get(url)
     except Exception as ex:
-        logging.exception(f"Error getting comments for post {post_id} from {toot_url}. \
+        logging.error(f"Error getting comments for post {post_id} from {toot_url}. \
 Exception: {ex}")
         return []
 
@@ -939,7 +937,7 @@ Exception: {ex}")
             logging.info(f"Got {len(list_of_urls)} comments for post {toot_url}")
             urls.extend(list_of_urls)
         except Exception as ex:
-            logging.exception(f"Error parsing comments for post {toot_url}. Exception: {ex}")
+            logging.error(f"Error parsing comments for post {toot_url}. Exception: {ex}")
         else:
             return urls
     elif resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
@@ -950,7 +948,7 @@ Exception: {ex}")
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return get_comments_urls(server, post_id, toot_url)
 
-    logging.exception(f"Error getting comments for post {toot_url}. \
+    logging.error(f"Error getting comments for post {toot_url}. \
                 Status code: {resp.status_code}")
     return []
 
