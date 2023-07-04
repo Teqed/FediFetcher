@@ -105,7 +105,7 @@ def get_favourites(
 
 def get_user_posts(  # noqa: PLR0911, PLR0912, C901
         user : dict[str, str],
-        know_followings : set[str],
+        know_followings : OrderedSet,
         server : str,
         ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user.
@@ -1015,7 +1015,7 @@ def get_paginated_mastodon(
 
 def filter_known_users(
         users : list[dict[str, str]],
-        known_users : list[str],
+        known_users : OrderedSet,
         ) -> list[dict[str, str]]:
     """Filter out users that are already known.
 
