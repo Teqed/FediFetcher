@@ -1,13 +1,17 @@
-name: getAllRepliesToKnownPosts
+name: Deploy on Dependabot PR
 concurrency: get_context
 
 on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches:
+      - dependabot/**
   workflow_dispatch:
-  schedule:
-     - cron: '3,13,23,33,43,53 * * * *'
-     
+
 jobs:
-  run:
+  test-deploy:
     runs-on: ubuntu-latest
     environment: mastodon
     steps:
@@ -15,6 +19,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
