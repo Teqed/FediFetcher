@@ -371,12 +371,14 @@ def get_timeline(
         response = get_toots(url, access_token)
         toots = response.json()
         if response.status_code == helpers.Response.UNAUTHORIZED:
-            msg = f"Error getting URL {url} Status code: {response.status_code}. \
-                Ensure your access token is correct"
+            msg = (
+f"Error getting URL {url} Status code: {response.status_code}. \
+Ensure your access token is correct")
             raise_exception(msg)
         elif response.status_code == helpers.Response.FORBIDDEN:
-            msg = f"Error getting URL {url} Status code: {response.status_code}. \
-            Make sure you have the read:statuses scope enabled for your access token."
+            msg = (
+f"Error getting URL {url} Status code: {response.status_code}. \
+Make sure you have the read:statuses scope enabled for your access token.")
             raise_exception(msg)
         elif response.status_code is not helpers.Response.OK:
             msg = f"Error getting URL {url} Status code: {response.status_code}"
@@ -850,8 +852,9 @@ f"Error parsing context for toot {toot_url}. Exception: {ex}")
         if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
             reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
                 "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
-            logging.warning(f"Rate Limit hit when getting context for {toot_url}. \
-                        Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+            logging.warning(
+f"Rate Limit hit when getting context for {toot_url}. \
+Waiting to retry at {resp.headers['x-ratelimit-reset']}")
             time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
             return get_toot_context(server, toot_id, toot_url)
     except Exception as ex:
@@ -888,14 +891,15 @@ f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
             post_id = res["comment_view"]["comment"]["post_id"]
             return get_comments_urls(server, post_id, toot_url)
         except Exception as ex:
-            logging.error(f"Error parsing context for comment {toot_url}. \
-                        Exception: {ex}")
+            logging.error(
+f"Error parsing context for comment {toot_url}. Exception: {ex}")
         return []
     if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
             "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
-        logging.warning(f"Rate Limit hit when getting context for {toot_url}. \
-                    Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+        logging.warning(
+f"Rate Limit hit when getting context for {toot_url}. \
+Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return get_comment_context(server, toot_id, toot_url)
 
@@ -964,8 +968,8 @@ f"Error parsing comments for post {toot_url}. Exception: {ex}")
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return get_comments_urls(server, post_id, toot_url)
 
-    logging.error(f"Error getting comments for post {toot_url}. \
-                Status code: {resp.status_code}")
+    logging.error(
+f"Error getting comments for post {toot_url}. Status code: {resp.status_code}")
     return []
 
 def get_paginated_mastodon(
@@ -999,18 +1003,20 @@ def get_paginated_mastodon(
 
     if response.status_code != helpers.Response.OK:
         if response.status_code == helpers.Response.UNAUTHORIZED:
-            msg = f"Error getting URL {url} Status code: {response.status_code}. \
-                Ensure your access token is correct"
+            msg = (
+f"Error getting URL {url} Status code: {response.status_code}. \
+Ensure your access token is correct")
             raise Exception(
                 msg,
             )
         if response.status_code == helpers.Response.FORBIDDEN:
-            msg = f"Error getting URL {url} Status code: {response.status_code}. \
-                Make sure you have the correct scopes enabled for your access token."
+            msg = (
+f"Error getting URL {url} Status code: {response.status_code}. \
+Make sure you have the correct scopes enabled for your access token.")
             raise Exception(
                 msg,
             )
-        msg = f"Error getting URL {url} Status code: {response.status_code}"
+        msg = (f"Error getting URL {url} Status code: {response.status_code}")
         raise Exception(
             msg,
         )
