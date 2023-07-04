@@ -62,7 +62,7 @@ def get(
         response = requests.get(url, headers=h, timeout=timeout)
     except requests.exceptions.ReadTimeout:
         if max_tries > 0:
-            logging.warning(f"Timeout requesting {url}. Retrying...")
+            logging.warning(f"Timeout requesting {url} Retrying...")
             return get(url, headers, timeout, max_tries - 1)
         raise
     else:
@@ -71,7 +71,7 @@ def get(
             now = datetime.now(datetime.now(UTC).astimezone().tzinfo)
             wait = (reset - now).total_seconds() + 1
             logging.warning(
-f"Rate Limit hit requesting {url}. \
+f"Rate Limit hit requesting {url} \
 Waiting {wait} sec to retry at {response.headers['x-ratelimit-reset']}")
             time.sleep(wait)
             return get(url, headers, timeout, max_tries - 1)

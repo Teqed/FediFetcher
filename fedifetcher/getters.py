@@ -53,8 +53,9 @@ def get_notification_users(
 
     new_notification_users = filter_known_users(notification_users, known_users)
 
-    logging.info(f"Found {len(notification_users)} users in notifications, \
-        {len(new_notification_users)} of which are new")
+    logging.info(
+f"Found {len(notification_users)} users in notifications, \
+{len(new_notification_users)} of which are new")
 
     return [user["account"] for user in filter_known_users(
                                             notification_users, known_users)]
@@ -187,7 +188,7 @@ def get_user_posts(
         logging.error(msg)
         raise Exception(msg)
 
-    msg = f"Error getting URL {url}. Status code: {response.status_code}"
+    msg = f"Error getting URL {url} Status code: {response.status_code}"
     logging.error(msg)
     raise Exception(msg)
 
@@ -335,7 +336,7 @@ def get_user_id(
         raise Exception(
             msg,
         )
-    msg = f"Error getting URL {url}. Status code: {response.status_code}"
+    msg = f"Error getting URL {url} Status code: {response.status_code}"
     raise Exception(
         msg,
     )
@@ -424,19 +425,19 @@ def get_toots(
         return response
     if response.status_code == helpers.Response.UNAUTHORIZED:
         msg = (
-f"Error getting URL {url}. Status code: {response.status_code}. \
+f"Error getting URL {url} Status code: {response.status_code}. \
 It looks like your access token is incorrect.")
         raise Exception(
             msg,
         )
     if response.status_code == helpers.Response.FORBIDDEN:
         msg = (
-f"Error getting URL {url}. Status code: {response.status_code}. \
+f"Error getting URL {url} Status code: {response.status_code}. \
 Make sure you have the read:statuses scope enabled for your access token.")
         raise Exception(
             msg,
         )
-    msg = f"Error getting URL {url}. Status code: {response.status_code}"
+    msg = f"Error getting URL {url} Status code: {response.status_code}"
     raise Exception(
         msg,
     )
@@ -769,7 +770,7 @@ def get_redirect_url(url : str) -> str | None:
             "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",
         })
     except Exception as ex:
-        logging.error(f"Error getting redirect URL for URL {url}. Exception: {ex}")
+        logging.error(f"Error getting redirect URL for URL {url} Exception: {ex}")
         return None
 
     if resp.status_code == helpers.Response.OK:
@@ -779,7 +780,7 @@ def get_redirect_url(url : str) -> str | None:
         logging.info(f"Discovered redirect for URL {url}")
         return redirect_url
     logging.info(
-        f"Error getting redirect URL for URL {url}. Status code: {resp.status_code}",
+        f"Error getting redirect URL for URL {url} Status code: {resp.status_code}",
     )
     return None
 
@@ -998,18 +999,18 @@ def get_paginated_mastodon(
 
     if response.status_code != helpers.Response.OK:
         if response.status_code == helpers.Response.UNAUTHORIZED:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}. \
+            msg = f"Error getting URL {url} Status code: {response.status_code}. \
                 Ensure your access token is correct"
             raise Exception(
                 msg,
             )
         if response.status_code == helpers.Response.FORBIDDEN:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}. \
+            msg = f"Error getting URL {url} Status code: {response.status_code}. \
                 Make sure you have the correct scopes enabled for your access token."
             raise Exception(
                 msg,
             )
-        msg = f"Error getting URL {url}. Status code: {response.status_code}"
+        msg = f"Error getting URL {url} Status code: {response.status_code}"
         raise Exception(
             msg,
         )
