@@ -369,15 +369,15 @@ def get_timeline(
         response = get_toots(url, access_token)
         toots = response.json()
         if response.status_code == helpers.Response.UNAUTHORIZED:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}. \
+            msg = f"Error getting URL {url} Status code: {response.status_code}. \
                 Ensure your access token is correct"
             raise_exception(msg)
         elif response.status_code == helpers.Response.FORBIDDEN:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}. \
+            msg = f"Error getting URL {url} Status code: {response.status_code}. \
             Make sure you have the read:statuses scope enabled for your access token."
             raise_exception(msg)
-        else:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}"
+        elif response.status_code is not helpers.Response.OK:
+            msg = f"Error getting URL {url} Status code: {response.status_code}"
             raise_exception(msg)
         # Yield each toot from the response
         yield from toots
