@@ -1,2 +1,3 @@
 .vscode/launch.json
 artifacts/*
+**\__pycache__
