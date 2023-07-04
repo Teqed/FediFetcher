@@ -648,13 +648,14 @@ def get_all_known_context_urls(
 
                 parsed_url = parsers.post(url, parsed_urls)
                 if parsed_url and parsed_url[0] and parsed_url[1]:
-                    context = get_toot_context(parsed_url[0], parsed_url[1], url)
+                    try:
+                        context = get_toot_context(parsed_url[0], parsed_url[1], url)
+                    except Exception as ex:
+                        logging.exception(f"Error getting context for toot {url} : {ex}")
+                        logging.debug(f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
+                        continue
                     if context:
                         known_context_urls.extend(context)
-                    else:
-                        logging.exception(f"Error getting context for toot {url}")
-                else:
-                    logging.exception(f"Error parsing URL for toot {url}")
 
     return filter(
         lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
@@ -788,11 +789,11 @@ def get_all_context_urls(
     -------
     filter[str]: The URLs of the context toots of the given toots.
     """
-    return cast(filter[str], filter(
+    return cast(Iterable[str], filter(
         lambda url: not str(url).startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
             get_toot_context(server, toot_id, url)
-            for (url, (s, toot_id)) in cast(filter[tuple[str, str]], replied_toot_ids)
+            for (url, (s, toot_id)) in cast(Iterable[tuple[str, str]], replied_toot_ids)
         ),
     ))
 
@@ -813,36 +814,36 @@ def get_toot_context(
     -------
     list[str]: The URLs of the context toots of the given toot.
     """
-    if toot_url.find("/comment/") != -1:
-        return get_comment_context(server, toot_id, toot_url)
-    if toot_url.find("/post/") != -1:
-        return get_comments_urls(server, toot_id, toot_url)
-    url = f"https://{server}/api/v1/statuses/{toot_id}/context"
     try:
-        resp = helpers.get(url)
+        if toot_url.find("/comment/") != -1:
+            return get_comment_context(server, toot_id, toot_url)
+        if toot_url.find("/post/") != -1:
+            return get_comments_urls(server, toot_id, toot_url)
+        url = f"https://{server}/api/v1/statuses/{toot_id}/context"
+        try:
+            resp = helpers.get(url)
+        except Exception as ex:
+            logging.exception(f"Error getting context for toot {toot_url}. Exception: {ex}")
+            return []
+
+        if resp.status_code == helpers.Response.OK:
+            try:
+                res = resp.json()
+            except Exception as ex:
+                logging.exception(f"Error parsing context for toot {toot_url}. Exception: {ex}")
+            else:
+                logging.info(f"Got context for toot {toot_url}")
+                return [toot["url"] for toot in (res["ancestors"] + res["descendants"])]
+            return []
+        if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
+            reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
+                "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
+            logging.warning(f"Rate Limit hit when getting context for {toot_url}. \
+                        Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+            time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
+            return get_toot_context(server, toot_id, toot_url)
     except Exception as ex:
         logging.exception(f"Error getting context for toot {toot_url}. Exception: {ex}")
-        return []
-
-    if resp.status_code == helpers.Response.OK:
-        try:
-            res = resp.json()
-            logging.info(f"Got context for toot {toot_url}")
-            return [toot["url"] for toot in (res["ancestors"] + res["descendants"])]
-        except Exception as ex:
-            logging.exception(f"Error parsing context for toot {toot_url}. Exception: {ex}")
-        return []
-    if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
-        reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
-            "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
-        logging.warning(f"Rate Limit hit when getting context for {toot_url}. \
-                    Waiting to retry at {resp.headers['x-ratelimit-reset']}")
-        time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
-        return get_toot_context(server, toot_id, toot_url)
-
-    logging.info(
-        f"Error getting context for toot {toot_url}. Status code: {resp.status_code}",
-    )
     return []
 
 def get_comment_context(
@@ -958,7 +959,7 @@ def get_paginated_mastodon(
         limit : int = 40,
         headers : dict[str, str] = {},
         timeout : int = 10,
-        max_tries : int = 3,
+        max_tries : int = 1,
         ) -> list[dict[str, Any]]:
     """Make a paginated request to mastodon.
 

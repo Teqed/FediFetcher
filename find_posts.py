@@ -19,6 +19,7 @@ if __name__ == "__main__":
     start = datetime.now(UTC)
 
     logging.info("Starting FediFetcher")
+    logging.debug(f"Arguments: {helper.arguments}")
 
     if(helper.arguments.config):
         if Path(helper.arguments.config).exists():

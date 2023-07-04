@@ -106,7 +106,7 @@ def post(
                 parsed_urls[unparsed_url] = match
 
     if unparsed_url not in parsed_urls:
-        logging.exception(f"Error parsing toot URL {unparsed_url}")
+        logging.warning(f"Error parsing toot URL {unparsed_url}")
         parsed_urls[unparsed_url] = (None, None)
 
     return parsed_urls[unparsed_url]
