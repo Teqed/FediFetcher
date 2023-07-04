@@ -391,6 +391,7 @@ f"Pulling replies to the last {helper.arguments.max_favourites} favourites")
                 known_followings,
                 recently_checked_users,
                 )
+            logging.info("Successfully wrote seen files.")
         except Exception as ex:
             logging.error(f"Error writing seen files: {ex}")
         Path.unlink(LOCK_FILE)
