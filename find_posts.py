@@ -2,6 +2,7 @@
 """FediFetcher - a tool to fetch posts from the fediverse."""
 
 import json
+import logging
 import re
 import sys
 import uuid
@@ -17,7 +18,7 @@ from fedifetcher.ordered_set import OrderedSet
 if __name__ == "__main__":
     start = datetime.now(UTC)
 
-    helper.log("Starting FediFetcher")
+    logging.info("Starting FediFetcher")
 
     if(helper.arguments.config):
         if Path(helper.arguments.config).exists():
@@ -28,11 +29,11 @@ if __name__ == "__main__":
                 setattr(helper.arguments, key.lower().replace("-","_"), config[key])
 
         else:
-            helper.log(f"Config file {helper.arguments.config} doesn't exist")
+            logging.critical(f"Config file {helper.arguments.config} doesn't exist")
             sys.exit(1)
 
     if(helper.arguments.server is None or helper.arguments.access_token is None):
-        helper.log("You must supply at least a server name and an access token")
+        logging.critical("You must supply at least a server name and an access token")
         sys.exit(1)
 
     # in case someone provided the server name as url instead,
@@ -46,14 +47,14 @@ if __name__ == "__main__":
         try:
             helper.get(f"{helper.arguments.on_start}?rid={run_id}")
         except Exception as ex:
-            helper.log(f"Error getting callback url: {ex}")
+            logging.exception(f"Error getting callback url: {ex}")
 
     if helper.arguments.lock_file is None:
         helper.arguments.lock_file = Path(helper.arguments.state_dir) / "lock.lock"
     LOCK_FILE = helper.arguments.lock_file
 
     if( Path(LOCK_FILE).exists()):
-        helper.log(f"Lock file exists at {LOCK_FILE}")
+        logging.info(f"Lock file exists at {LOCK_FILE}")
 
         try:
             with Path(LOCK_FILE).open(encoding="utf-8") as file:
@@ -62,24 +63,24 @@ if __name__ == "__main__":
             if (datetime.now(UTC) - lock_time).total_seconds() >= \
                     helper.arguments.lock_hours * 60 * 60:
                 Path.unlink(LOCK_FILE)
-                helper.log("Lock file has expired. Removed lock file.")
+                logging.info("Lock file has expired. Removed lock file.")
             else:
-                helper.log(f"Lock file age is {datetime.now(UTC) - lock_time} - \
+                logging.info(f"Lock file age is {datetime.now(UTC) - lock_time} - \
 below --lock-hours={helper.arguments.lock_hours} provided.")
                 if(helper.arguments.on_fail):
                     try:
                         helper.get(f"{helper.arguments.on_fail}?rid={run_id}")
                     except Exception as ex:
-                        helper.log(f"Error getting callback url: {ex}")
+                        logging.exception(f"Error getting callback url: {ex}")
                 sys.exit(1)
 
         except Exception:
-            helper.log("Cannot read logfile age - aborting.")
+            logging.warning("Cannot read logfile age - aborting.")
             if(helper.arguments.on_fail):
                 try:
                     helper.get(f"{helper.arguments.on_fail}?rid={run_id}")
                 except Exception as ex:
-                    helper.log(f"Error getting callback url: {ex}")
+                    logging.exception(f"Error getting callback url: {ex}")
             sys.exit(1)
 
     with Path(LOCK_FILE).open("w", encoding="utf-8") as file:
@@ -231,7 +232,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                         )
 
             if helper.arguments.max_followings > 0:
-                helper.log(f"Getting posts from last {helper.arguments.max_followings}\
+                logging.info(f"Getting posts from last {helper.arguments.max_followings}\
                             followings")
                 user_id = getters.get_user_id(
                     helper.arguments.server,
@@ -253,7 +254,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_followers > 0:
-                helper.log(f"Getting posts from last {helper.arguments.max_followers}\
+                logging.info(f"Getting posts from last {helper.arguments.max_followers}\
                             followers")
                 user_id = getters.get_user_id(
                     helper.arguments.server,
@@ -276,7 +277,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_follow_requests > 0:
-                helper.log(f"Getting posts from last \
+                logging.info(f"Getting posts from last \
                             {helper.arguments.max_follow_requests} follow requests")
                 follow_requests = getters.get_new_follow_requests(
                                     helper.arguments.server,
@@ -294,7 +295,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.from_notifications > 0:
-                helper.log(f"Getting notifications for last \
+                logging.info(f"Getting notifications for last \
                         {helper.arguments.from_notifications} hours")
                 notification_users = getters.get_notification_users(
                                         helper.arguments.server,
@@ -312,7 +313,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_bookmarks > 0:
-                helper.log(f"Pulling replies to the last \
+                logging.info(f"Pulling replies to the last \
                         {helper.arguments.max_bookmarks} bookmarks")
                 bookmarks = getters.get_bookmarks(
                                 helper.arguments.server,
@@ -332,7 +333,7 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_favourites > 0:
-                helper.log(f"Pulling replies to the last \
+                logging.info(f"Pulling replies to the last \
                         {helper.arguments.max_favourites} favourites")
                 favourites = getters.get_favourites(
                                 helper.arguments.server,
@@ -369,16 +370,16 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             try:
                 helper.get(f"{helper.arguments.on_done}?rid={run_id}")
             except Exception as ex:
-                helper.log(f"Error getting callback url: {ex}")
+                logging.exception(f"Error getting callback url: {ex}")
 
-        helper.log(f"Processing finished in {datetime.now(UTC) - start}.")
+        logging.info(f"Processing finished in {datetime.now(UTC) - start}.")
 
     except Exception:
         Path.unlink(LOCK_FILE)
-        helper.log(f"Job failed after {datetime.now(UTC) - start}.")
+        logging.warning(f"Job failed after {datetime.now(UTC) - start}.")
         if(helper.arguments.on_fail):
             try:
                 helper.get(f"{helper.arguments.on_fail}?rid={run_id}")
             except Exception as ex:
-                helper.log(f"Error getting callback url: {ex}")
+                logging.exception(f"Error getting callback url: {ex}")
         raise
