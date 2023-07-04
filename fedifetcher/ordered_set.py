@@ -3,6 +3,7 @@ import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Iterable
 
 
 class OrderedSet:
@@ -77,7 +78,7 @@ class OrderedSet:
         """
         return self._dict[item]
 
-    def update(self, iterable: filter[str] | filter[str]) -> None:
+    def update(self, iterable: Iterable[str]) -> None:
         """Update the ordered set with the given iterable.
 
         Args:

@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 
 import colorlog
 import requests
-from argparser import arguments
 from dateutil import parser
+
+from .argparser import arguments
 
 logger = logging.getLogger()
 stdout = colorlog.StreamHandler(stream=sys.stdout)
@@ -17,10 +18,6 @@ fmt = colorlog.ColoredFormatter(
 stdout.setFormatter(fmt)
 logger.addHandler(stdout)
 logger.setLevel(arguments.log_level)
-
-def log(text: str) -> None:
-    """Log an info message to the console."""
-    logging.info(text)
 
 class Response:
     """HTTP response codes."""
@@ -57,13 +54,21 @@ def get(
     if timeout == 0:
         timeout = arguments.http_timeout
 
-    response = requests.get( url, headers= h, timeout=timeout)
+    try:
+        response = requests.get(url, headers=h, timeout=timeout)
+    except requests.exceptions.ReadTimeout:
+        if max_tries > 0:
+            logging.warning(f"Timeout requesting {url}. Retrying...")
+            return get(url, headers, timeout, max_tries - 1)
+        msg = f"Maximum number of retries exceeded for rate limited request {url}"
+        raise requests.HTTPError(msg) from requests.exceptions.ReadTimeout
+
     if response.status_code == Response.TOO_MANY_REQUESTS:
         if max_tries > 0:
             reset = parser.parse(response.headers["x-ratelimit-reset"])
             now = datetime.now(datetime.now(UTC).astimezone().tzinfo)
             wait = (reset - now).total_seconds() + 1
-            log(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
+            logging.warning(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
 {response.headers['x-ratelimit-reset']}")
             time.sleep(wait)
             return get(url, headers, timeout, max_tries - 1)

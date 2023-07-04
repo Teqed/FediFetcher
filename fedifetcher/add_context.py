@@ -1,6 +1,8 @@
 """Add context toots to the server."""
+import logging
 import time
 from datetime import UTC, datetime
+from typing import Iterable
 
 import requests
 
@@ -34,16 +36,16 @@ def add_context_url(
             "Authorization": f"Bearer {access_token}",
         })
     except requests.HTTPError as ex:
-        helpers.log(
+        logging.exception(
             f"Error adding url {search_url} to server {server}. Exception: {ex}",
         )
         return False
 
     if resp.status_code == helpers.Response.OK:
-        helpers.log(f"Added context url {url}")
+        logging.info(f"Added context url {url}")
         return True
     if resp.status_code == helpers.Response.FORBIDDEN:
-        helpers.log(
+        logging.exception(
             f"Error adding url {search_url} to server {server}. \
 Status code: {resp.status_code}. "
             "Make sure you have the read:search scope enabled for your access token.",
@@ -52,11 +54,11 @@ Status code: {resp.status_code}. "
     if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
             "%Y-%m-%dT%H:%M:%S.%fZ").astimezone()
-        helpers.log(f"Rate Limit hit when adding url {search_url}. Waiting to retry at \
+        logging.warning(f"Rate Limit hit when adding url {search_url}. Waiting to retry at \
 {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return add_context_url(url, server, access_token)
-    helpers.log(
+    logging.exception(
         f"Error adding url {search_url} to server {server}. \
 Status code: {resp.status_code}",
     )
@@ -98,7 +100,7 @@ def add_user_posts( # noqa: PLR0913
                             count += 1
                         else:
                             failed += 1
-                helpers.log(
+                logging.info(
                     f"Added {count} posts for user {user['acct']} with {failed} errors"
                 )
                 if failed == 0:
@@ -143,7 +145,7 @@ def add_post_with_context(
 def add_context_urls(
         server : str,
         access_token : str,
-        context_urls : filter[str],
+        context_urls : Iterable[str],
         seen_urls : OrderedSet,
         ) -> None:
     """Add the given toot URLs to the server.
@@ -166,4 +168,4 @@ def add_context_urls(
             else:
                 failed += 1
 
-    helpers.log(f"Added {count} new context toots (with {failed} failures)")
+    logging.info(f"Added {count} new context toots (with {failed} failures)")

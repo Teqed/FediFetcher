@@ -5,6 +5,7 @@ Submodules:
 - user: Provides parsing utilities for user URLs.
 - post: Provides parsing utilities for post URLs.
 """
+import logging
 import re
 
 from . import helpers
@@ -53,7 +54,7 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
         if match:
             return match
 
-    helpers.log(f"Error parsing user URL {unparsed_url}")
+    logging.exception(f"Error parsing user URL {unparsed_url}")
     return None
 
 def post(
@@ -105,7 +106,7 @@ def post(
                 parsed_urls[unparsed_url] = match
 
     if unparsed_url not in parsed_urls:
-        helpers.log(f"Error parsing toot URL {unparsed_url}")
+        logging.exception(f"Error parsing toot URL {unparsed_url}")
         parsed_urls[unparsed_url] = (None, None)
 
     return parsed_urls[unparsed_url]
