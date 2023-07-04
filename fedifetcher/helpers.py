@@ -64,7 +64,6 @@ def get(
         if max_tries > 0:
             logging.warning(f"Timeout requesting {url}. Retrying...")
             return get(url, headers, timeout, max_tries - 1)
-        logging.info(f"Timeout requesting {url}. Giving up.")
         raise
     else:
         if response.status_code == Response.TOO_MANY_REQUESTS and max_tries > 0:
