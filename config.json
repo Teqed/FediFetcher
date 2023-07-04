@@ -1,6 +1,6 @@
 {
     "server": "mastodon.shatteredsky.net",
-    "home-timeline-length": 50,
+    "home-timeline-length": 10,
     "max-bookmarks": 80,
     "max-favourites": 40,
     "max-followings": 80,
