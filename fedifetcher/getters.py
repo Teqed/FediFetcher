@@ -959,7 +959,7 @@ def get_paginated_mastodon(
         limit : int = 40,
         headers : dict[str, str] = {},
         timeout : int = 10,
-        max_tries : int = 1,
+        max_tries : int = 3,
         ) -> list[dict[str, Any]]:
     """Make a paginated request to mastodon.
 

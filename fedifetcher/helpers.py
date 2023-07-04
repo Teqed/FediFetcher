@@ -38,7 +38,7 @@ def get(
         url : str,
         headers : dict | None = None,
         timeout : int = 0,
-        max_tries : int = 5,
+        max_tries : int = 2,
         ) -> requests.Response:
     """Get a URL.
 
@@ -56,23 +56,22 @@ def get(
 
     try:
         response = requests.get(url, headers=h, timeout=timeout)
-    except requests.exceptions.ReadTimeout:
+    except requests.exceptions.ReadTimeout as ex:
         if max_tries > 0:
             logging.warning(f"Timeout requesting {url}. Retrying...")
             return get(url, headers, timeout, max_tries - 1)
-        msg = f"Maximum number of retries exceeded for rate limited request {url}"
-        raise requests.HTTPError(msg) from requests.exceptions.ReadTimeout
+        raise requests.exceptions.ReadTimeout from ex
+    else:
+        if response.status_code == Response.TOO_MANY_REQUESTS:
+            if max_tries > 0:
+                reset = parser.parse(response.headers["x-ratelimit-reset"])
+                now = datetime.now(datetime.now(UTC).astimezone().tzinfo)
+                wait = (reset - now).total_seconds() + 1
+                logging.warning(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
+    {response.headers['x-ratelimit-reset']}")
+                time.sleep(wait)
+                return get(url, headers, timeout, max_tries - 1)
 
-    if response.status_code == Response.TOO_MANY_REQUESTS:
-        if max_tries > 0:
-            reset = parser.parse(response.headers["x-ratelimit-reset"])
-            now = datetime.now(datetime.now(UTC).astimezone().tzinfo)
-            wait = (reset - now).total_seconds() + 1
-            logging.warning(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
-{response.headers['x-ratelimit-reset']}")
-            time.sleep(wait)
-            return get(url, headers, timeout, max_tries - 1)
-
-        msg = f"Maximum number of retries exceeded for rate limited request {url}"
-        raise requests.HTTPError(msg)
-    return response
+            msg = f"Maximum number of retries exceeded for rate limited request {url}"
+            raise requests.HTTPError(msg)
+        return response

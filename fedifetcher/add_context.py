@@ -41,6 +41,12 @@ def add_context_url(
         )
         return False
 
+    except requests.exceptions.ReadTimeout as ex:
+        logging.exception(
+            f"Error adding url {search_url} to server {server}. Exception: {ex}",
+        )
+        return False
+
     if resp.status_code == helpers.Response.OK:
         logging.info(f"Added context url {url}")
         return True
