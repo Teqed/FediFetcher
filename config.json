@@ -1,0 +1,13 @@
+{
+    "server": "mastodon.shatteredsky.net",
+    "home-timeline-length": 1,
+    "max-bookmarks": 80,
+    "max-favourites": 40,
+    "max-followings": 80,
+    "max-followers": 80,
+    "max-follow-requests": 80,
+    "from-notifications": 1,
+    "reply-interval-in-hours": 1,
+    "remember-users-for-hours": 24,
+    "log-level": "10"
+}
