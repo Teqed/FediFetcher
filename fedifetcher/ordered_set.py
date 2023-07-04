@@ -1,152 +1,130 @@
 """An ordered set implementation over a dict."""
 import json
-from collections.abc import Iterable
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
-from dateutil import parser
-
 
 class OrderedSet:
-    """An ordered set implementation over a dict."""
+    """An ordered set implementation over a dict.
 
-    def __init__(
-            self : "OrderedSet",
-            iterable: list,
-            ) -> None:
+    Attributes
+    ----------
+    _dict (dict[str, datetime]): The dict that stores the ordered set.
+    """
+
+    def __init__(self,
+        iterable: set[str] | list[str] | dict[str, datetime] | None = None) -> None:
         """Initialize the ordered set.
 
         Args:
         ----
-        self: The ordered set to initialize.
-        iterable: The iterable to initialize the ordered set with.
+        iterable (set[str] | list[str] | dict[str, datetime] | None, optional): \
+            The iterable to initialize the ordered set with. \
+            Defaults to None.
         """
         self._dict = {}
-        if isinstance(iterable, dict):
-            for item in iterable:
-                if isinstance(iterable[item], str):
-                    self.add(item, parser.parse(iterable[item]))
-                else:
-                    self.add(item, iterable[item])
-        else:
-            for item in iterable:
-                self.add(item)
+        if iterable is not None:
+            if isinstance(iterable, set | list):
+                for item in iterable:
+                    self.add(item)
+            elif isinstance(iterable, dict):
+                for item, time in iterable.items():
+                    self.add(item, time)
+            else:
+                msg = "Invalid type for iterable. Expected set, list, dict, or None."
+                raise TypeError(msg)
 
-    def add(
-            self : "OrderedSet",
-            item : str,
-            time : datetime | None = None,
-            ) -> None:
+    def add(self, item: str, time: datetime | None = None) -> None:
         """Add the given item to the ordered set.
 
         Args:
         ----
-        self: The ordered set to add the item to.
-        item: The item to add.
-        time: The time to add the item at.
+        item (str): The item to add.
+        time (datetime | None): The time to add the item at. \
+            If None, the current time will be used.
         """
         if item not in self._dict:
-            if(time is None):
-                self._dict[item] = datetime.now(datetime.now(UTC).astimezone().tzinfo)
-            else:
-                self._dict[item] = time
+            self._dict[item] = time or datetime.now(UTC)
 
-    def pop(
-            self : "OrderedSet",
-            item : str,
-            ) -> None:
+    def remove(self, item: str) -> None:
         """Remove the given item from the ordered set.
 
         Args:
         ----
-        self: The ordered set to remove the item from.
-        item: The item to remove.
+        item (str): The item to remove.
+
+        Raises:
+        ------
+        KeyError: If the item does not exist in the ordered set.
         """
         self._dict.pop(item)
 
-    def get(
-            self : "OrderedSet",
-            item : str,
-            ) -> datetime:
+    def get_time(self, item: str) -> datetime:
         """Get the time the given item was added to the ordered set.
 
         Args:
         ----
-        self: The ordered set to get the item from.
-        item: The item to get.
+        item (str): The item to get.
 
         Returns:
         -------
-        The time the item was added to the ordered set.
+        datetime: The time the item was added to the ordered set.
+
+        Raises:
+        ------
+        KeyError: If the item does not exist in the ordered set.
         """
         return self._dict[item]
 
-    def update(
-            self : "OrderedSet",
-            iterable : list,
-            ) -> None:
+    def update(self, iterable: set[str] | list[str]) -> None:
         """Update the ordered set with the given iterable.
 
         Args:
         ----
-        self: The ordered set to update.
-        iterable: The iterable to update the ordered set with.
+        iterable (Union[set[str], list[str]]): \
+            The iterable to update the ordered set with.
         """
         for item in iterable:
             self.add(item)
 
-    def __contains__(
-            self : "OrderedSet",
-            item : str,
-            ) -> bool:
+    def __contains__(self, item: str) -> bool:
         """Check if the given item is in the ordered set.
 
         Args:
         ----
-        self: The ordered set to check.
-        item: The item to check.
+        item (str): The item to check.
 
         Returns:
         -------
-        Whether the item is in the ordered set.
+        bool: Whether the item is in the ordered set.
         """
         return item in self._dict
 
-    def __iter__(
-            self : "OrderedSet",
-            ) -> Iterable:
+    def __iter__(self) -> Iterator[str]:
         """Get an iterator over the ordered set.
 
-        Args:
-        ----
-        self: The ordered set to iterate over.
-
-        Returns:
+        Returns
         -------
-        An iterator over the ordered set.
+        Iterator[str]: An iterator over the ordered set.
         """
         return iter(self._dict)
 
-    def __len__(self : "OrderedSet") -> int:
+    def __len__(self) -> int:
         """Get the length of the ordered set.
 
-        Args:
-        ----
-        self: The ordered set to get the length of.
-
-        Returns:
+        Returns
         -------
-        The length of the ordered set.
+        int: The length of the ordered set.
         """
         return len(self._dict)
 
-    def to_json(self: "OrderedSet", filename: str) -> None:
+    def to_json(self, filename: str) -> None:
         """Dump the ordered set to a JSON file.
 
         Args:
         ----
-        self: The ordered set to dump.
-        filename: The name of the file to dump the ordered set to.
+        filename (str): The name of the file to dump the ordered set to.
         """
         with Path(filename).open("w") as file:
             json.dump(self._dict, file, default=str)

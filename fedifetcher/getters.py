@@ -1,12 +1,16 @@
 """Functions to get data from Fediverse servers."""
 import itertools
+import json
 import re
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import requests
 from dateutil import parser
+
+from fedifetcher.ordered_set import OrderedSet
 
 from . import helpers, parsers
 
@@ -36,7 +40,7 @@ def get_notification_users(
     since = datetime.now(
         datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
     notifications = get_paginated_mastodon(f"https://{server}/api/v1/notifications",
-        since, headers={
+        int(since.timestamp()), headers={
         "Authorization": f"Bearer {access_token}",
     })
     notification_users = []
@@ -51,7 +55,8 @@ def get_notification_users(
     helpers.log(f"Found {len(notification_users)} users in notifications, \
         {len(new_notification_users)} of which are new")
 
-    return new_notification_users
+    return [user["account"] for user in filter_known_users(
+                                            notification_users, known_users)]
 
 def get_bookmarks(
         server : str,
@@ -213,7 +218,8 @@ def get_new_follow_requests(
     })
 
     # Remove any we already know about
-    new_follow_requests = filter_known_users(follow_requests, known_followings)
+    new_follow_requests = filter_known_users(
+        list(follow_requests), list(known_followings))
 
     helpers.log(f"Got {len(follow_requests)} follow_requests, \
 {len(new_follow_requests)} of which are new")
@@ -245,7 +251,8 @@ def get_new_followers(
         f"https://{server}/api/v1/accounts/{user_id}/followers", limit)
 
     # Remove any we already know about
-    new_followers = filter_known_users(followers, known_followers)
+    new_followers = filter_known_users(
+        list(followers), list(known_followers))
 
     helpers.log(f"Got {len(followers)} followers, \
                 {len(new_followers)} of which are new")
@@ -276,7 +283,8 @@ def get_new_followings(
         f"https://{server}/api/v1/accounts/{user_id}/following", limit)
 
     # Remove any we already know about
-    new_followings = filter_known_users(following, known_followings)
+    new_followings = filter_known_users(
+        list(following), list(known_followings))
 
     helpers.log(f"Got {len(following)} followings, \
                 {len(new_followings)} of which are new")
@@ -334,11 +342,11 @@ def get_user_id(
     )
 
 def get_timeline(
-        server : str,
-        access_token : str,
-        limit : int, # = 40,
-        ) -> list[dict]:
-    """Get all post in the user's home timeline.
+    server: str,
+    access_token: str,
+    limit: int, # = 40,
+) -> Iterator[dict]:
+    """Get all posts in the user's home timeline.
 
     Args:
     ----
@@ -346,11 +354,9 @@ def get_timeline(
     access_token (str): The access token to use for authentication.
     limit (int): The maximum number of posts to get.
 
-
-    Returns:
-    -------
-    list[dict]: A list of posts.
-
+    Yields:
+    ------
+    dict: A post from the timeline.
 
     Raises:
     ------
@@ -361,38 +367,35 @@ def get_timeline(
     url = f"https://{server}/api/v1/timelines/home"
 
     try:
-
         response = get_toots(url, access_token)
 
         if response.status_code == helpers.Response.OK:
             toots = response.json()
         elif response.status_code == helpers.Response.UNAUTHORIZED:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}. Ensure your access token is correct"
-            raise Exception(
-                msg,
-            )
+            msg = f"Error getting URL {url}. Status code: {response.status_code}. \
+                Ensure your access token is correct"
+            raise Exception(msg)
         elif response.status_code == helpers.Response.FORBIDDEN:
-            msg = f"Error getting URL {url}. Status code: {response.status_code}. Make sure you have the read:statuses scope enabled for your access token."
-            raise Exception(
-                msg,
-            )
+            msg = f"Error getting URL {url}. Status code: {response.status_code}. \
+            Make sure you have the read:statuses scope enabled for your access token."
+            raise Exception(msg)
         else:
             msg = f"Error getting URL {url}. Status code: {response.status_code}"
-            raise Exception(
-                msg,
-            )
+            raise Exception(msg)
+
+        # Yield each toot from the response
+        yield from toots
 
         # Paginate as needed
         while len(toots) < limit and "next" in response.links:
             response = get_toots(response.links["next"]["url"], access_token)
-            toots = toots + response.json()
+            toots = response.json()
+            yield from toots
     except Exception as ex:
         helpers.log(f"Error getting timeline toots: {ex}")
         raise
 
     helpers.log(f"Found {len(toots)} toots in timeline")
-
-    return toots
 
 def get_toots(
         url : str,
@@ -494,29 +497,25 @@ def get_active_user_ids(
         )
 
 def get_all_reply_toots(
-    server : str,
-    user_ids : list[str],
-    access_token : str,
-    seen_urls : set[str],
-    reply_interval_hours : int,
-):
+    server: str,
+    user_ids: Iterable[str],
+    access_token: str,
+    seen_urls: OrderedSet,
+    reply_interval_hours: int,
+) -> Iterator[dict[str, Any]]:
     """Get all replies to other users by the given users in the last day.
 
     Args:
     ----
     server (str): The server to get the toots from.
-    user_ids (list[str]): The user IDs to get the toots from.
+    user_ids (Iterable[str]): The user IDs to get the toots from.
     access_token (str): The access token to use for authentication.
-    seen_urls (set[str]): The URLs that have already been seen.
+    seen_urls (OrderedSet[str]): The URLs that have already been seen.
     reply_interval_hours (int): The number of hours to look back for replies.
 
-
-
-    Returns:
-    -------
-    list[dict[str, Any]]: A list of toots.
-
-
+    Yields:
+    ------
+    dict[str, Any]: A toot.
 
     Raises:
     ------
@@ -525,24 +524,22 @@ def get_all_reply_toots(
     Exception: If the server returns an unexpected status code.
     """
     replies_since = datetime.now(UTC) - timedelta(hours=reply_interval_hours)
-    reply_toots = list(
-        itertools.chain.from_iterable(
-            get_reply_toots(
-                user_id, server, access_token, seen_urls, replies_since,
-            )
-            for user_id in user_ids
-        ),
-    )
-    helpers.log(f"Found {len(reply_toots)} reply toots")
-    return reply_toots
+    for user_id in user_ids:
+        yield from get_reply_toots(
+            user_id,
+            server,
+            access_token,
+            seen_urls,
+            replies_since,
+        )
 
 def get_reply_toots(
         user_id : str,
         server : str,
         access_token : str,
-        seen_urls : set[str],
+        seen_urls : OrderedSet,
         reply_since : datetime,
-        ):
+        ) -> Iterator[dict[str, Any]]:
     """Get replies by the user to other users since the given date.
 
     Args:
@@ -573,7 +570,7 @@ def get_reply_toots(
         helpers.log(
             f"Error getting replies for user {user_id} on server {server}: {ex}",
         )
-        return []
+        return iter([])
 
     if resp.status_code == helpers.Response.OK:
         toots = [
@@ -582,12 +579,11 @@ def get_reply_toots(
             if toot["in_reply_to_id"]
             and toot["url"] not in seen_urls
             and datetime.strptime(
-                toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
-            > reply_since
+        toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC) > reply_since
         ]
         for toot in toots:
             helpers.log(f"Found reply toot: {toot['url']}")
-        return toots
+        return iter(toots)
     if resp.status_code == helpers.Response.FORBIDDEN:
         msg = f"Error getting replies for user {user_id} on server {server}. Status code: {resp.status_code}. Make sure you have the read:statuses scope enabled for your access token."
         raise Exception(
@@ -600,63 +596,85 @@ def get_reply_toots(
     )
 
 def get_all_known_context_urls(
-        server : str,
-        reply_toots : list[dict[str, str | None]],
-        parsed_url : dict[str, tuple[str, str | None]],
-        ) -> set[str]:
+    server: str,
+    reply_toots: Iterator[dict[str, str]],
+    parsed_urls: dict[str, tuple[str | None, str | None]],
+) -> filter[str]:
     """Get the context toots of the given toots from their original server.
 
     Args:
     ----
     server (str): The server to get the context toots from.
-    reply_toots (list[dict[str, Any]]): The toots to get the context toots for.
-    parsed_url (list[dict[str, Any]]): The parsed URL of the toots.
+    reply_toots (Iterator[Optional[Dict[str, Optional[str]]]]): \
+        The toots to get the context toots for.
+    parsed_urls (Dict[str, Optional[Tuple[str, str]]]): \
+        The parsed URL of the toots.
 
     Returns:
     -------
-    set[str]: The URLs of the context toots.
+    filter[str]: The URLs of the context toots.
 
     Raises:
     ------
     Exception: If the server returns an unexpected status code.
     """
-    known_context_urls = set()
+    known_context_urls = []
 
-    for toot in reply_toots:
-        if toot_has_parseable_url(toot, parsed_urls):
-            url = toot["url"] if toot["reblog"] is None else toot["reblog"]["url"]
-            parsed_url = parsers.post(url, parsed_urls)
-            if parsed_url:
-                context = get_toot_context(parsed_url[0], parsed_url[1], url)
-                if context:
-                    for item in context:
-                        known_context_urls.add(item)
+    if reply_toots is not None:
+        for toot in reply_toots:
+            if toot is not None and toot_has_parseable_url(toot, parsed_urls):
+                reblog = toot.get("reblog")
+                if isinstance(reblog, str):
+                    try:
+                        reblog_dict = json.loads(reblog)
+                        url = reblog_dict.get("url")
+                        if url is None:
+                            helpers.log("Error accessing URL in the boosted toot")
+                            continue
+                    except json.JSONDecodeError:
+                        helpers.log("Error decoding JSON in the boosted toot")
+                        continue
+                elif isinstance(reblog, dict):
+                    url = reblog.get("url")
+                    if url is None:
+                        helpers.log("Error accessing URL in the boosted toot")
+                        continue
+                elif toot.get("url") is not None:
+                    url = str(toot["url"])
                 else:
-                    helpers.log(f"Error getting context for toot {url}")
-            else:
-                helpers.log(f"Error parsing URL for toot {url}")
+                    helpers.log("Error accessing URL in the toot")
+                    continue
 
-    known_context_urls = set(filter(
-        lambda url: not url.startswith(f"https://{server}/"), known_context_urls))
-    helpers.log(f"Found {len(known_context_urls)} known context toots")
+                parsed_url = parsers.post(url, parsed_urls)
+                if parsed_url and parsed_url[0] and parsed_url[1]:
+                    context = get_toot_context(parsed_url[0], parsed_url[1], url)
+                    if context:
+                        known_context_urls.extend(context)
+                    else:
+                        helpers.log(f"Error getting context for toot {url}")
+                else:
+                    helpers.log(f"Error parsing URL for toot {url}")
 
-    return known_context_urls
+    return filter(
+        lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
+
+
 
 def get_all_replied_toot_server_ids(
-    server : str,
-    reply_toots : list[dict[str, Any]],
-    replied_toot_server_ids : dict[str, str],
-    parsed_urls : dict[str, dict[str, Any]],
-) -> filter[str | tuple[str, tuple[str, str]] | None]:
+    server: str,
+    reply_toots: Iterator[dict[str, Any]],
+    replied_toot_server_ids: dict[str, str],
+    parsed_urls: dict[str, tuple[str | None, str | None]],
+) -> filter[tuple[str | None, str | None]]:
     """Get the server and ID of the toots the given toots replied to.
 
     Args:
     ----
     server (str): The server to get the replied toots from.
-    reply_toots (list[dict[str, Any]]): The toots to get the replied toots for.
-    replied_toot_server_ids (dict[str, str]): The server and ID of the toots that have \
-        already been replied to.
-    parsed_urls (dict[str, dict[str, Any]]): The parsed URLs of the toots.
+    reply_toots (Iterator[dict[str, Any]]): The toots to get the replied toots for.
+    replied_toot_server_ids (dict[str, str | None]): The server and ID of the toots \
+        that have already been replied to.
+    parsed_urls (dict[str, dict[str, str] | None]): The parsed URLs of the toots.
 
     Returns:
     -------
@@ -664,19 +682,21 @@ def get_all_replied_toot_server_ids(
         the given toots replied to.
     """
     return filter(
-        lambda x: x is not None,
-        (
-        get_replied_toot_server_id(server, toot, replied_toot_server_ids, parsed_urls)
-        for toot in reply_toots
-        ),
+        lambda replied_to: replied_to is not None,
+        (get_replied_toot_server_id(
+                server,
+                toot,
+                replied_toot_server_ids,
+                parsed_urls,
+            ) for toot in reply_toots),
     )
 
 def get_replied_toot_server_id(
-        server : str,
-        toot : dict[str, Any],
-        replied_toot_server_ids : dict[str, str],
-        parsed_urls : dict[str, dict[str, Any]],
-        ) -> str | tuple[str, tuple[str, str]] | None:
+    server: str,
+    toot: dict[str, Any],
+    replied_toot_server_ids: dict[str, str],
+    parsed_urls: dict[str, tuple[str | None, str | None]],
+) -> tuple[str | None, str | None]:
     """Get the server and ID of the toot the given toot replied to."""
     in_reply_to_id = toot["in_reply_to_id"]
     in_reply_to_account_id = toot["in_reply_to_account_id"]
@@ -685,28 +705,39 @@ def get_replied_toot_server_id(
         for mention in toot["mentions"]
         if mention["id"] == in_reply_to_account_id
     ]
-    if len(mentions) == 0:
-        return None
+    if len(mentions) < 1:
+        return (None, None)
 
     mention = mentions[0]
 
     o_url = f"https://{server}/@{mention['acct']}/{in_reply_to_id}"
     if o_url in replied_toot_server_ids:
-        return replied_toot_server_ids[o_url]
+        if replied_toot_server_ids[o_url] is None:
+            return (None, None)
+        if isinstance(replied_toot_server_ids[o_url], str):
+            replied_toot_server_ids[o_url]
+            replied_toot_server_ids[o_url] = replied_toot_server_ids[o_url].split(",")
+        return (
+                replied_toot_server_ids[o_url][0],
+                replied_toot_server_ids[o_url][1],
+                )
 
     url = get_redirect_url(o_url)
 
     if url is None:
-        return None
+        return (None, None)
 
-    match = parsers.post(url,parsed_urls)
+    match = parsers.post(url, parsed_urls)
     if match:
-        replied_toot_server_ids[o_url] = (url, match)
-        return (url, match)
+        if match[0] is not None and match[1] is not None:
+            replied_toot_server_ids[o_url] = f"{url},{match[0]},{match[1]}"
+            return (match[0], match[1])
+        replied_toot_server_ids[o_url] = None
+        return (None, None)
 
     helpers.log(f"Error parsing toot URL {url}")
     replied_toot_server_ids[o_url] = None
-    return None
+    return (None, None)
 
 
 def get_redirect_url(url : str) -> str | None:
@@ -740,31 +771,29 @@ def get_redirect_url(url : str) -> str | None:
     )
     return None
 
-
 def get_all_context_urls(
-        server : str,
-        replied_toot_ids : list[tuple[str, tuple[str, str]]],
-        ):
+    server: str,
+    replied_toot_ids: filter[tuple[str | None, str | None]],
+) -> filter[str]:
     """Get the URLs of the context toots of the given toots.
 
     Args:
     ----
     server (str): The server to get the context toots from.
-    replied_toot_ids (list[tuple[str, tuple[str, str]]]): The server and ID of the \
+    replied_toot_ids (filter[tuple[str | None, str | None]]): The server and ID of the \
         toots to get the context toots for.
 
     Returns:
     -------
-    list[str]: The URLs of the context toots of the given toots.
+    filter[str]: The URLs of the context toots of the given toots.
     """
-    return filter(
-        lambda url: not url.startswith(f"https://{server}/"),
+    return cast(filter[str], filter(
+        lambda url: not str(url).startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
             get_toot_context(server, toot_id, url)
-            for (url, (server, toot_id)) in replied_toot_ids
+            for (url, (s, toot_id)) in cast(filter[tuple[str, str]], replied_toot_ids)
         ),
-    )
-
+    ))
 
 def get_toot_context(
         server : str,
@@ -798,7 +827,7 @@ def get_toot_context(
         try:
             res = resp.json()
             helpers.log(f"Got context for toot {toot_url}")
-            return (toot["url"] for toot in (res["ancestors"] + res["descendants"]))
+            return [toot["url"] for toot in (res["ancestors"] + res["descendants"])]
         except Exception as ex:
             helpers.log(f"Error parsing context for toot {toot_url}. Exception: {ex}")
         return []
@@ -816,10 +845,10 @@ def get_toot_context(
     return []
 
 def get_comment_context(
-        server : str,
-        toot_id : str,
-        toot_url : str,
-        ) -> list[str] | None:
+    server: str,
+    toot_id: str,
+    toot_url: str,
+) -> list[str]:
     """Get the URLs of the context toots of the given toot.
 
     Args:
@@ -830,7 +859,7 @@ def get_comment_context(
 
     Returns:
     -------
-    list[str] | None: The URLs of the context toots of the given toot.
+    list[str]: The URLs of the context toots of the given toot.
     """
     comment = f"https://{server}/api/v3/comment?id={toot_id}"
     try:
@@ -838,7 +867,6 @@ def get_comment_context(
     except Exception as ex:
         helpers.log(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
-
     if resp.status_code == helpers.Response.OK:
         try:
             res = resp.json()
@@ -855,7 +883,8 @@ def get_comment_context(
                     Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return get_comment_context(server, toot_id, toot_url)
-    return None
+
+    return []
 
 def get_comments_urls(
         server : str,
@@ -925,11 +954,11 @@ Exception: {ex}")
 
 def get_paginated_mastodon(
         url : str,
-        limit : int | str = 40,
+        limit : int = 40,
         headers : dict[str, str] = {},
         timeout : int = 10,
         max_tries : int = 3,
-        ):
+        ) -> list[dict[str, Any]]:
     """Make a paginated request to mastodon.
 
     Args:
@@ -1005,22 +1034,21 @@ def filter_known_users(
     ))
 
 def toot_has_parseable_url(
-        toot : dict[str, Any],
-        parsed_urls : dict[str, tuple[str, str]],
-        ) -> bool:
+    toot: dict[str, Any],
+    parsed_urls: dict[str, tuple[str | None, str | None]],
+) -> bool:
     """Check if the given toot has a parseable URL.
 
     Args:
     ----
     toot (dict[str, Any]): The toot to check.
-    parsed_urls (dict[str, tuple[str, str]]): The URLs that have already been \
+    parsed_urls (dict[str, tuple[str, str] | None]): \
+        The URLs that have already been parsed.
 
     Returns:
     -------
     bool: True if the toot has a parseable URL, False otherwise.
     """
-    parsed = parsers.post(
-        toot["url"] if toot["reblog"] is None else toot["reblog"]["url"], parsed_urls)
-    if(parsed is None) :
-        return False
-    return True
+    url = toot["url"] if toot["reblog"] is None else toot["reblog"]["url"]
+    parsed = parsers.post(url, parsed_urls)
+    return parsed is not None

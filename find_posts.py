@@ -95,12 +95,12 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
             helper.arguments.state_dir) / "recently_checked_users"
 
 
-        seen_urls = OrderedSet([])
+        seen_urls = OrderedSet()
         if Path(SEEN_URLS_FILE).exists():
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
                 seen_urls = OrderedSet(file.read().splitlines())
 
-        replied_toot_server_ids = {}
+        replied_toot_server_ids: dict[str, str] = {}
         if Path(REPLIED_TOOT_SERVER_IDS_FILE).exists():
             with Path(REPLIED_TOOT_SERVER_IDS_FILE).open(encoding="utf-8") as file:
                 replied_toot_server_ids = json.load(file)
@@ -113,17 +113,17 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
         recently_checked_users = OrderedSet({})
         if Path(RECENTLY_CHECKED_USERS_FILE).exists():
             with Path(RECENTLY_CHECKED_USERS_FILE).open(encoding="utf-8") as file:
-                recently_checked_users = OrderedSet(json.load(file))
+                recently_checked_users = OrderedSet(list(json.load(file)))
 
         # Remove any users whose last check is too long in the past from the list
         for user in list(recently_checked_users):
-            last_check = recently_checked_users.get(user)
+            last_check = recently_checked_users.get_time(user)
             user_age = datetime.now(last_check.tzinfo) - last_check
             if(user_age.total_seconds(
             ) > helper.arguments.remember_users_for_hours * 60 * 60):
-                recently_checked_users.pop(user)
+                recently_checked_users.remove(user)
 
-        parsed_urls : dict[str, tuple[str, str]] = {}
+        parsed_urls : dict[str, tuple[str | None, str | None]] = {}
 
         all_known_users = OrderedSet(
             list(known_followings) + list(recently_checked_users))

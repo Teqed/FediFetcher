@@ -57,19 +57,20 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
     return None
 
 def post(
-        unparsed_url: str,
-        parsed_urls: dict[str, tuple[str, str | None]],
-        ) -> tuple[str, str] | None:
+    unparsed_url: str,
+    parsed_urls: dict[str, tuple[str | None, str | None]],
+) -> tuple[str | None, str | None] | None:
     """Parse a post URL and return the server and toot ID.
 
     Args:
     ----
     unparsed_url (str): The URL of the post.
-    parsed_urls (dict): A dictionary to store parsed URLs and their results.
+    parsed_urls (dict[str, tuple[str, str | None] | None]): \
+        A dictionary to store parsed URLs and their results.
 
     Returns:
     -------
-    tuple[str, str] | None: A tuple containing the server and toot ID,
+    tuple[str, str | None] | None: A tuple containing the server and toot ID,
         or None if no match is found.
     """
     def parse_post(url: str, pattern: str) -> tuple[str, str] | None:
@@ -105,6 +106,6 @@ def post(
 
     if unparsed_url not in parsed_urls:
         helpers.log(f"Error parsing toot URL {unparsed_url}")
-        parsed_urls[unparsed_url] = None
+        parsed_urls[unparsed_url] = (None, None)
 
     return parsed_urls[unparsed_url]

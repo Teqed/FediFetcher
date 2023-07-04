@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import requests
 
 from fedifetcher import parsers
+from fedifetcher.ordered_set import OrderedSet
 
 from . import getters, helpers
 
@@ -141,8 +142,8 @@ def add_post_with_context(
 def add_context_urls(
         server : str,
         access_token : str,
-        context_urls : set[str],
-        seen_urls : set,
+        context_urls : filter[str],
+        seen_urls : OrderedSet,
         ) -> None:
     """Add the given toot URLs to the server.
 
