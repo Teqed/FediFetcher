@@ -1,8 +1,8 @@
 """Add context toots to the server."""
 import logging
 import time
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Iterable
 
 import requests
 
@@ -60,8 +60,9 @@ Status code: {resp.status_code}. "
     if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
         reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
             "%Y-%m-%dT%H:%M:%S.%fZ").astimezone()
-        logging.warning(f"Rate Limit hit when adding url {search_url}. Waiting to retry at \
-{resp.headers['x-ratelimit-reset']}")
+        logging.warning(
+f"Rate Limit hit when adding url {search_url}. \
+Waiting to retry at {resp.headers['x-ratelimit-reset']}")
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return add_context_url(url, server, access_token)
     logging.error(
@@ -107,7 +108,7 @@ def add_user_posts( # noqa: PLR0913
                         else:
                             failed += 1
                 logging.info(
-                    f"Added {count} posts for user {user['acct']} with {failed} errors"
+                    f"Added {count} posts for user {user['acct']} with {failed} errors",
                 )
                 if failed == 0:
                     know_followings.add(user["acct"])

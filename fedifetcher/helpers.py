@@ -1,12 +1,16 @@
 """Helper functions for fedifetcher."""
+import json
 import logging
 import sys
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import colorlog
 import requests
 from dateutil import parser
+
+from fedifetcher.ordered_set import OrderedSet
 
 from .argparser import arguments
 
@@ -63,13 +67,37 @@ def get(
         logging.info(f"Timeout requesting {url}. Giving up.")
         raise
     else:
-        if response.status_code == Response.TOO_MANY_REQUESTS:
-            if max_tries > 0:
-                reset = parser.parse(response.headers["x-ratelimit-reset"])
-                now = datetime.now(datetime.now(UTC).astimezone().tzinfo)
-                wait = (reset - now).total_seconds() + 1
-                logging.warning(f"Rate Limit hit requesting {url}. Waiting {wait} sec to retry at \
-    {response.headers['x-ratelimit-reset']}")
-                time.sleep(wait)
-                return get(url, headers, timeout, max_tries - 1)
+        if response.status_code == Response.TOO_MANY_REQUESTS and max_tries > 0:
+            reset = parser.parse(response.headers["x-ratelimit-reset"])
+            now = datetime.now(datetime.now(UTC).astimezone().tzinfo)
+            wait = (reset - now).total_seconds() + 1
+            logging.warning(
+f"Rate Limit hit requesting {url}. \
+Waiting {wait} sec to retry at {response.headers['x-ratelimit-reset']}")
+            time.sleep(wait)
+            return get(url, headers, timeout, max_tries - 1)
         return response
+
+def write_seen_files(  # noqa: PLR0913
+        SEEN_URLS_FILE : Path,  # noqa: N803
+        REPLIED_TOOT_SERVER_IDS_FILE : Path,  # noqa: N803
+        KNOWN_FOLLOWINGS_FILE : Path,  # noqa: N803
+        RECENTLY_CHECKED_USERS_FILE : Path,  # noqa: N803
+        seen_urls : OrderedSet | None,
+        replied_toot_server_ids : dict[str, str | None] | None,
+        known_followings : OrderedSet | None,
+        recently_checked_users : OrderedSet | None,
+        ) -> None:
+    """Write the seen files to disk."""
+    if known_followings is not None:
+        with Path(KNOWN_FOLLOWINGS_FILE).open("w", encoding="utf-8") as file:
+            file.write("\n".join(list(known_followings)[-10000:]))
+    if seen_urls is not None:
+        with Path(SEEN_URLS_FILE).open("w", encoding="utf-8") as file:
+            file.write("\n".join(list(seen_urls)[-10000:]))
+    if replied_toot_server_ids is not None:
+        with Path(REPLIED_TOOT_SERVER_IDS_FILE).open("w", encoding="utf-8") as file:
+            json.dump(dict(list(replied_toot_server_ids.items())[-10000:]), file)
+    if recently_checked_users is not None:
+        with Path(RECENTLY_CHECKED_USERS_FILE).open("w", encoding="utf-8") as file:
+            recently_checked_users.to_json(file.name)

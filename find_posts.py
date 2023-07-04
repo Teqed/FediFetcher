@@ -87,8 +87,11 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
     with Path(LOCK_FILE).open("w", encoding="utf-8") as file:
         file.write(f"{datetime.now(UTC)}")
 
+        seen_urls = OrderedSet()
+        replied_toot_server_ids: dict[str, str | None] = {}
+        known_followings = OrderedSet([])
+        recently_checked_users = OrderedSet({})
     try:
-
         SEEN_URLS_FILE = Path(helper.arguments.state_dir) / "seen_urls"
         REPLIED_TOOT_SERVER_IDS_FILE = Path(
             helper.arguments.state_dir) / "replied_toot_server_ids"
@@ -96,23 +99,18 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
         RECENTLY_CHECKED_USERS_FILE = Path(
             helper.arguments.state_dir) / "recently_checked_users"
 
-
-        seen_urls = OrderedSet()
         if Path(SEEN_URLS_FILE).exists():
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
                 seen_urls = OrderedSet(file.read().splitlines())
 
-        replied_toot_server_ids: dict[str, str | None] = {}
         if Path(REPLIED_TOOT_SERVER_IDS_FILE).exists():
             with Path(REPLIED_TOOT_SERVER_IDS_FILE).open(encoding="utf-8") as file:
                 replied_toot_server_ids = json.load(file)
 
-        known_followings = OrderedSet([])
         if Path(KNOWN_FOLLOWINGS_FILE).exists():
             with Path(KNOWN_FOLLOWINGS_FILE).open(encoding="utf-8") as file:
                 known_followings = OrderedSet(file.read().splitlines())
 
-        recently_checked_users = OrderedSet({})
         if Path(RECENTLY_CHECKED_USERS_FILE).exists():
             with Path(RECENTLY_CHECKED_USERS_FILE).open(encoding="utf-8") as file:
                 recently_checked_users = OrderedSet(list(json.load(file)))
@@ -233,7 +231,8 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                         )
 
             if helper.arguments.max_followings > 0:
-                logging.info(f"Getting posts from last {helper.arguments.max_followings} followings")
+                logging.info(
+f"Getting posts from last {helper.arguments.max_followings} followings")
                 user_id = getters.get_user_id(
                     helper.arguments.server,
                     helper.arguments.user,
@@ -254,7 +253,8 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_followers > 0:
-                logging.info(f"Getting posts from last {helper.arguments.max_followers} followers")
+                logging.info(
+f"Getting posts from last {helper.arguments.max_followers} followers")
                 user_id = getters.get_user_id(
                     helper.arguments.server,
                     helper.arguments.user,
@@ -276,7 +276,8 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_follow_requests > 0:
-                logging.info(f"Getting posts from last {helper.arguments.max_follow_requests} follow requests")
+                logging.info(
+f"Getting posts from last {helper.arguments.max_follow_requests} follow requests")
                 follow_requests = getters.get_new_follow_requests(
                                     helper.arguments.server,
                                     token,
@@ -293,7 +294,8 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.from_notifications > 0:
-                logging.info(f"Getting notifications for last {helper.arguments.from_notifications} hours")
+                logging.info(
+f"Getting notifications for last {helper.arguments.from_notifications} hours")
                 notification_users = getters.get_notification_users(
                                         helper.arguments.server,
                                         token,
@@ -310,7 +312,8 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_bookmarks > 0:
-                logging.info(f"Pulling replies to the last {helper.arguments.max_bookmarks} bookmarks")
+                logging.info(
+f"Pulling replies to the last {helper.arguments.max_bookmarks} bookmarks")
                 bookmarks = getters.get_bookmarks(
                                 helper.arguments.server,
                                 token,
@@ -329,7 +332,8 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     )
 
             if helper.arguments.max_favourites > 0:
-                logging.info(f"Pulling replies to the last {helper.arguments.max_favourites} favourites")
+                logging.info(
+f"Pulling replies to the last {helper.arguments.max_favourites} favourites")
                 favourites = getters.get_favourites(
                                 helper.arguments.server,
                                 token,
@@ -347,17 +351,16 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
                     seen_urls,
                     )
 
-        with Path(KNOWN_FOLLOWINGS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(known_followings)[-10000:]))
-
-        with Path(SEEN_URLS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(seen_urls)[-10000:]))
-
-        with Path(REPLIED_TOOT_SERVER_IDS_FILE).open("w", encoding="utf-8") as file:
-            json.dump(dict(list(replied_toot_server_ids.items())[-10000:]), file)
-
-        with Path(RECENTLY_CHECKED_USERS_FILE).open("w", encoding="utf-8") as file:
-            recently_checked_users.to_json(file.name)
+        helper.write_seen_files(
+            SEEN_URLS_FILE,
+            REPLIED_TOOT_SERVER_IDS_FILE,
+            KNOWN_FOLLOWINGS_FILE,
+            RECENTLY_CHECKED_USERS_FILE,
+            seen_urls,
+            replied_toot_server_ids,
+            known_followings,
+            recently_checked_users,
+            )
 
         Path.unlink(LOCK_FILE)
 
@@ -370,6 +373,26 @@ below --lock-hours={helper.arguments.lock_hours} provided.")
         logging.info(f"Processing finished in {datetime.now(UTC) - start}.")
 
     except Exception:
+        try: # Try to clean up
+            SEEN_URLS_FILE = Path(helper.arguments.state_dir) / "seen_urls"
+            REPLIED_TOOT_SERVER_IDS_FILE = Path(
+                helper.arguments.state_dir) / "replied_toot_server_ids"
+            KNOWN_FOLLOWINGS_FILE = Path(
+                helper.arguments.state_dir) / "known_followings"
+            RECENTLY_CHECKED_USERS_FILE = Path(
+                helper.arguments.state_dir) / "recently_checked_users"
+            helper.write_seen_files(
+                SEEN_URLS_FILE,
+                REPLIED_TOOT_SERVER_IDS_FILE,
+                KNOWN_FOLLOWINGS_FILE,
+                RECENTLY_CHECKED_USERS_FILE,
+                seen_urls,
+                replied_toot_server_ids,
+                known_followings,
+                recently_checked_users,
+                )
+        except Exception as ex:
+            logging.error(f"Error writing seen files: {ex}")
         Path.unlink(LOCK_FILE)
         logging.warning(f"Job failed after {datetime.now(UTC) - start}.")
         if(helper.arguments.on_fail):

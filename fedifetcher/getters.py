@@ -104,11 +104,44 @@ def get_favourites(
         "Authorization": f"Bearer {access_token}",
     })
 
-def get_user_posts(  # noqa: PLR0911, PLR0912, C901
-        user : dict[str, str],
-        know_followings : OrderedSet,
-        server : str,
-        ) -> list[dict[str, str]] | None:
+def get_user_posts_from_url(
+        parsed_url : tuple[str, str],
+) -> list[dict[str, str]] | None:
+    """Get a list of posts from a user."""
+    url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
+    response = helpers.get(url)
+
+    if response.status_code == helpers.Response.OK:
+        comments = [post["post"] for post in response.json()["comments"]]
+        posts = [post["post"] for post in response.json()["posts"]]
+        all_posts = comments + posts
+        for post in all_posts:
+            post["url"] = post["ap_id"]
+        return all_posts
+
+    logging.error(
+f"Error getting user posts for user {parsed_url[1]}: {response.text}")
+    return None
+
+def get_community_posts_from_url(
+        parsed_url : tuple[str, str]) -> list[dict[str, str]] | None:
+    """Get a list of posts from a community."""
+    url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
+    response = helpers.get(url)
+    if response.status_code == helpers.Response.OK:
+        posts = [post["post"] for post in response.json()["posts"]]
+        for post in posts:
+            post["url"] = post["ap_id"]
+        return posts
+    logging.error(
+f"Error getting community posts for community {parsed_url[1]}: {response.text}")
+    return None
+
+def get_user_posts(
+        user: dict[str, str],
+        know_followings: OrderedSet,
+        server: str,
+) -> list[dict[str, str]] | None:
     """Get a list of posts from a user.
 
     Args:
@@ -126,47 +159,15 @@ def get_user_posts(  # noqa: PLR0911, PLR0912, C901
     """
     parsed_url = parsers.user(user["url"])
 
-    if parsed_url is None:
-        # We are adding it as 'known' anyway, because we won't be able to fix this.
+    if (parsed_url is None) or (parsed_url[0] == server):
         know_followings.add(user["acct"])
         return None
 
-    if(parsed_url[0] == server):
-        logging.debug(f"{user['acct']} is a local user. Skip")
-        know_followings.add(user["acct"])
-        return None
     if re.match(r"^https:\/\/[^\/]+\/c\/", user["url"]):
-        try:
-            url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
-            response = helpers.get(url)
-
-            if(response.status_code == helpers.Response.OK):
-                posts = [post["post"] for post in response.json()["posts"]]
-                for post in posts:
-                    post["url"] = post["ap_id"]
-                return posts
-
-        except Exception as ex:
-            logging.error(f"Error getting community posts for community {parsed_url[1]}: \
-{ex}")
-        return None
+        return get_community_posts_from_url(parsed_url)
 
     if re.match(r"^https:\/\/[^\/]+\/u\/", user["url"]):
-        try:
-            url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
-            response = helpers.get(url)
-
-            if(response.status_code == helpers.Response.OK):
-                comments = [post["post"] for post in response.json()["comments"]]
-                posts = [post["post"] for post in response.json()["posts"]]
-                all_posts = comments + posts
-                for post in all_posts:
-                    post["url"] = post["ap_id"]
-                return all_posts
-
-        except Exception as ex:
-            logging.error(f"Error getting user posts for user {parsed_url[1]}: {ex}")
-        return None
+        return get_user_posts_from_url(parsed_url)
 
     try:
         user_id = get_user_id(parsed_url[0], parsed_url[1])
@@ -174,24 +175,20 @@ def get_user_posts(  # noqa: PLR0911, PLR0912, C901
         logging.error(f"Error getting user ID for user {user['acct']}: {ex}")
         return None
 
-    try:
-        url = f"https://{parsed_url[0]}/api/v1/accounts/{user_id}/statuses?limit=40"
-        response = helpers.get(url)
+    url = f"https://{parsed_url[0]}/api/v1/accounts/{user_id}/statuses?limit=40"
+    response = helpers.get(url)
 
-        if(response.status_code == helpers.Response.OK):
-            return response.json()
-        if response.status_code == helpers.Response.NOT_FOUND:
-            msg = f"User {user['acct']} was not found on server {parsed_url[0]}"
-            raise Exception(
-                msg,
-            )
-        msg = f"Error getting URL {url}. Status code: {response.status_code}"
-        raise Exception(
-            msg,
-        )
-    except Exception as ex:
-        logging.error(f"Error getting posts for user {user['acct']}: {ex}")
-        return None
+    if response.status_code == helpers.Response.OK:
+        return response.json()
+
+    if response.status_code == helpers.Response.NOT_FOUND:
+        msg = f"User {user['acct']} was not found on server {parsed_url[0]}"
+        logging.error(msg)
+        raise Exception(msg)
+
+    msg = f"Error getting URL {url}. Status code: {response.status_code}"
+    logging.error(msg)
+    raise Exception(msg)
 
 def get_new_follow_requests(
         server : str,
@@ -255,7 +252,8 @@ def get_new_followers(
     new_followers = filter_known_users(
         list(followers), known_followers)
 
-    logging.info(f"Got {len(followers)} followers, {len(new_followers)} of which are new")
+    logging.info(
+f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
     return new_followers
 
@@ -286,7 +284,8 @@ def get_new_followings(
     new_followings = filter_known_users(
         list(following), known_followings)
 
-    logging.info(f"Got {len(following)} followings, {len(new_followings)} of which are new")
+    logging.info(
+f"Got {len(following)} followings, {len(new_followings)} of which are new")
 
     return new_followings
 
@@ -363,28 +362,25 @@ def get_timeline(
     Exception: If the access token does not have the correct scope.
     Exception: If the server returns an unexpected status code.
     """
+    def raise_exception(message: str) -> None:
+        raise Exception(message)
     url = f"https://{server}/api/v1/timelines/home"
-
     try:
         response = get_toots(url, access_token)
-
-        if response.status_code == helpers.Response.OK:
-            toots = response.json()
-        elif response.status_code == helpers.Response.UNAUTHORIZED:
+        toots = response.json()
+        if response.status_code == helpers.Response.UNAUTHORIZED:
             msg = f"Error getting URL {url}. Status code: {response.status_code}. \
                 Ensure your access token is correct"
-            raise Exception(msg)
+            raise_exception(msg)
         elif response.status_code == helpers.Response.FORBIDDEN:
             msg = f"Error getting URL {url}. Status code: {response.status_code}. \
             Make sure you have the read:statuses scope enabled for your access token."
-            raise Exception(msg)
+            raise_exception(msg)
         else:
             msg = f"Error getting URL {url}. Status code: {response.status_code}"
-            raise Exception(msg)
-
+            raise_exception(msg)
         # Yield each toot from the response
         yield from toots
-
         # Paginate as needed
         while len(toots) < limit and "next" in response.links:
             response = get_toots(response.links["next"]["url"], access_token)
@@ -426,12 +422,16 @@ def get_toots(
     if response.status_code == helpers.Response.OK:
         return response
     if response.status_code == helpers.Response.UNAUTHORIZED:
-        msg = f"Error getting URL {url}. Status code: {response.status_code}. It looks like your access token is incorrect."
+        msg = (
+f"Error getting URL {url}. Status code: {response.status_code}. \
+It looks like your access token is incorrect.")
         raise Exception(
             msg,
         )
     if response.status_code == helpers.Response.FORBIDDEN:
-        msg = f"Error getting URL {url}. Status code: {response.status_code}. Make sure you have the read:statuses scope enabled for your access token."
+        msg = (
+f"Error getting URL {url}. Status code: {response.status_code}. \
+Make sure you have the read:statuses scope enabled for your access token.")
         raise Exception(
             msg,
         )
@@ -480,17 +480,22 @@ def get_active_user_ids(
                     logging.info(f"Found active user: {user['username']}")
                     yield user["id"]
     elif resp.status_code == helpers.Response.UNAUTHORIZED:
-        msg = f"Error getting user IDs on server {server}. Status code: {resp.status_code}. Ensure your access token is correct"
+        msg = (
+f"Error getting user IDs on server {server}. Status code: {resp.status_code}. \
+Ensure your access token is correct")
         raise Exception(
         msg,
         )
     elif resp.status_code == helpers.Response.FORBIDDEN:
-        msg = f"Error getting user IDs on server {server}. Status code: {resp.status_code}. Make sure you have the admin:read:accounts scope enabled for your access token."
+        msg = (
+f"Error getting user IDs on server {server}. Status code: {resp.status_code}. \
+Make sure you have the admin:read:accounts scope enabled for your access token.")
         raise Exception(
         msg,
         )
     else:
-        msg = f"Error getting user IDs on server {server}. Status code: {resp.status_code}"
+        msg = (
+f"Error getting user IDs on server {server}. Status code: {resp.status_code}")
         raise Exception(
         msg,
         )
@@ -584,17 +589,22 @@ def get_reply_toots(
             logging.info(f"Found reply toot: {toot['url']}")
         return iter(toots)
     if resp.status_code == helpers.Response.FORBIDDEN:
-        msg = f"Error getting replies for user {user_id} on server {server}. Status code: {resp.status_code}. Make sure you have the read:statuses scope enabled for your access token."
+        msg = (
+f"Error getting replies for user {user_id} on server {server}. \
+Status code: {resp.status_code}. \
+Make sure you have the read:statuses scope enabled for your access token.")
         raise Exception(
             msg,
         )
 
-    msg = f"Error getting replies for user {user_id} on server {server}. Status code: {resp.status_code}"
+    msg = (
+f"Error getting replies for user {user_id} on server {server}. \
+Status code: {resp.status_code}")
     raise Exception(
         msg,
     )
 
-def get_all_known_context_urls(
+def get_all_known_context_urls(  # noqa: C901, PLR0912
     server: str,
     reply_toots: Iterator[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
@@ -650,7 +660,8 @@ def get_all_known_context_urls(
                         context = get_toot_context(parsed_url[0], parsed_url[1], url)
                     except Exception as ex:
                         logging.error(f"Error getting context for toot {url} : {ex}")
-                        logging.debug(f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
+                        logging.debug(
+                            f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                         continue
                     if context:
                         known_context_urls.extend(context)
@@ -691,7 +702,7 @@ def get_all_replied_toot_server_ids(
             ) for toot in reply_toots),
     )
 
-def get_replied_toot_server_id(
+def get_replied_toot_server_id(  # noqa: PLR0911
     server: str,
     toot: dict[str, Any],
     replied_toot_server_ids: dict[str, str | None],
@@ -795,7 +806,7 @@ def get_all_context_urls(
         ),
     ))
 
-def get_toot_context(
+def get_toot_context(  # noqa: PLR0911
         server : str,
         toot_id : str,
         toot_url : str,
@@ -828,7 +839,8 @@ def get_toot_context(
             try:
                 res = resp.json()
             except Exception as ex:
-                logging.error(f"Error parsing context for toot {toot_url}. Exception: {ex}")
+                logging.error(
+f"Error parsing context for toot {toot_url}. Exception: {ex}")
             else:
                 logging.info(f"Got context for toot {toot_url}")
                 return [toot["url"] for toot in (res["ancestors"] + res["descendants"])]
@@ -865,7 +877,8 @@ def get_comment_context(
     try:
         resp = helpers.get(comment)
     except Exception as ex:
-        logging.error(f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
+        logging.error(
+f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
         return []
     if resp.status_code == helpers.Response.OK:
         try:
@@ -886,7 +899,7 @@ def get_comment_context(
 
     return []
 
-def get_comments_urls(
+def get_comments_urls(  # noqa: PLR0912
         server : str,
         post_id : str,
         toot_url : str,
@@ -937,7 +950,8 @@ Exception: {ex}")
             logging.info(f"Got {len(list_of_urls)} comments for post {toot_url}")
             urls.extend(list_of_urls)
         except Exception as ex:
-            logging.error(f"Error parsing comments for post {toot_url}. Exception: {ex}")
+            logging.error(
+f"Error parsing comments for post {toot_url}. Exception: {ex}")
         else:
             return urls
     elif resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
@@ -955,7 +969,7 @@ Exception: {ex}")
 def get_paginated_mastodon(
         url : str,
         limit : int = 40,
-        headers : dict[str, str] = {},
+        headers : dict[str, str] | None = None,
         timeout : int = 10,
         max_tries : int = 3,
         ) -> list[dict[str, Any]]:
@@ -975,6 +989,8 @@ def get_paginated_mastodon(
     ------
     Exception: If the request fails.
     """
+    if headers is None:
+        headers = {}
     furl = f"{url}?limit={limit}" if isinstance(limit, int) else url
 
     response = helpers.get(furl, headers, timeout, max_tries)

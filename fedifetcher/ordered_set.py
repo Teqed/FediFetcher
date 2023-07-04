@@ -1,9 +1,8 @@
 """An ordered set implementation over a dict."""
 import json
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
 
 
 class OrderedSet:
@@ -14,7 +13,7 @@ class OrderedSet:
     _dict (dict[str, datetime]): The dict that stores the ordered set.
     """
 
-    def __init__(self,
+    def __init__(self: "OrderedSet",
         iterable: set[str] | list[str] | dict[str, datetime] | None = None) -> None:
         """Initialize the ordered set.
 
@@ -36,7 +35,7 @@ class OrderedSet:
                 msg = "Invalid type for iterable. Expected set, list, dict, or None."
                 raise TypeError(msg)
 
-    def add(self, item: str, time: datetime | None = None) -> None:
+    def add(self: "OrderedSet", item: str, time: datetime | None = None) -> None:
         """Add the given item to the ordered set.
 
         Args:
@@ -48,7 +47,7 @@ class OrderedSet:
         if item not in self._dict:
             self._dict[item] = time or datetime.now(UTC)
 
-    def remove(self, item: str) -> None:
+    def remove(self: "OrderedSet", item: str) -> None:
         """Remove the given item from the ordered set.
 
         Args:
@@ -61,7 +60,7 @@ class OrderedSet:
         """
         self._dict.pop(item)
 
-    def get_time(self, item: str) -> datetime:
+    def get_time(self: "OrderedSet", item: str) -> datetime:
         """Get the time the given item was added to the ordered set.
 
         Args:
@@ -78,7 +77,7 @@ class OrderedSet:
         """
         return self._dict[item]
 
-    def update(self, iterable: Iterable[str]) -> None:
+    def update(self: "OrderedSet", iterable: Iterable[str]) -> None:
         """Update the ordered set with the given iterable.
 
         Args:
@@ -89,7 +88,7 @@ class OrderedSet:
         for item in iterable:
             self.add(item)
 
-    def __contains__(self, item: str) -> bool:
+    def __contains__(self: "OrderedSet", item: str) -> bool:
         """Check if the given item is in the ordered set.
 
         Args:
@@ -102,7 +101,7 @@ class OrderedSet:
         """
         return item in self._dict
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self: "OrderedSet") -> Iterator[str]:
         """Get an iterator over the ordered set.
 
         Returns
@@ -111,7 +110,7 @@ class OrderedSet:
         """
         return iter(self._dict)
 
-    def __len__(self) -> int:
+    def __len__(self: "OrderedSet") -> int:
         """Get the length of the ordered set.
 
         Returns
@@ -120,7 +119,7 @@ class OrderedSet:
         """
         return len(self._dict)
 
-    def to_json(self, filename: str) -> None:
+    def to_json(self: "OrderedSet", filename: str) -> None:
         """Dump the ordered set to a JSON file.
 
         Args:

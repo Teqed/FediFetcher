@@ -8,8 +8,6 @@ Submodules:
 import logging
 import re
 
-from . import helpers
-
 
 def user(unparsed_url: str) -> tuple[str, str] | None:
     """Parse a user URL and return the server and username.
