@@ -14,14 +14,17 @@ from fedifetcher.ordered_set import OrderedSet
 
 from .argparser import arguments
 
-logger = logging.getLogger()
-stdout = colorlog.StreamHandler(stream=sys.stdout)
-fmt = colorlog.ColoredFormatter(
-"%(white)s%(asctime)s%(reset)s | %(log_color)s%(levelname)s%(reset)s | \
+
+def setup_logging() -> None:
+    """Set logging."""
+    logger = logging.getLogger()
+    stdout = colorlog.StreamHandler(stream=sys.stdout)
+    fmt = colorlog.ColoredFormatter(
+    "%(white)s%(asctime)s%(reset)s | %(log_color)s%(levelname)s%(reset)s | \
 %(blue)s%(filename)s:%(lineno)s%(reset)s >>> %(log_color)s%(message)s%(reset)s")
-stdout.setFormatter(fmt)
-logger.addHandler(stdout)
-logger.setLevel(arguments.log_level)
+    stdout.setFormatter(fmt)
+    logger.addHandler(stdout)
+    logger.setLevel(arguments.log_level)
 
 class Response:
     """HTTP response codes."""

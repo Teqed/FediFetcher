@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import requests
 
-from fedifetcher import parsers
+from fedifetcher import getter_wrappers, parsers
 from fedifetcher.ordered_set import OrderedSet
 
 from . import getters, helpers
@@ -142,7 +142,7 @@ def add_post_with_context(
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is None:
                 return True
-            known_context_urls = getters.get_all_known_context_urls(
+            known_context_urls = getter_wrappers.get_all_known_context_urls(
                 server, iter((post,)), parsed_urls)
             add_context_urls(server, access_token, known_context_urls, seen_urls)
         return True

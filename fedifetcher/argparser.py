@@ -19,9 +19,6 @@ argparser.add_argument("--reply-interval-in-hours", required = False, type=int,
 argparser.add_argument("--home-timeline-length", required = False, type=int,
     default=0, help="Look for replies to posts in the API-Key owner's home \
     timeline, up to this many posts")
-argparser.add_argument("--user", required = False, default="", help="Use together \
-    with --max-followings or --max-followers to tell us which user's \
-    followings/followers we should backfill")
 argparser.add_argument("--max-followings", required = False, type=int, default=0,
     help="Backfill posts for new accounts followed by --user. We'll backfill at \
     most this many followings' posts")
@@ -66,7 +63,7 @@ argparser.add_argument("--on-start", required = False, default=None, help="Provi
 argparser.add_argument("--on-fail", required = False, default=None, help="Provide \
     a url that will be pinged when processing has failed. You can use this for \
     'dead man switch' monitoring of your task")
-argparser.add_argument("--log-level", required = False, default=20, help="Set the \
-    log level. 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL")
+argparser.add_argument("--log-level", required = False, type=int, default=20,
+    help="Set the log level. 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL")
 
 arguments = argparser.parse_args()

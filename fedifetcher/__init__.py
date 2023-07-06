@@ -9,11 +9,24 @@ Submodules:
 - ordered_set: Implements an ordered set data structure.
 - parsers: Provides parsing utilities for different data formats.
 """
-from . import add_context, argparser, getters, helpers, ordered_set, parsers
+from . import (
+    add_context,
+    api_lemmy,
+    api_mastodon,
+    argparser,
+    find_posts_by_token,
+    getters,
+    helpers,
+    ordered_set,
+    parsers,
+)
 
 __all__ = [
     "add_context",
+    "api_lemmy",
+    "api_mastodon",
     "argparser",
+    "find_posts_by_token",
     "getters",
     "helpers",
     "ordered_set",
