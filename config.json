@@ -9,8 +9,5 @@
     "from-notifications": 7,
     "reply-interval-in-hours": 72,
     "remember-users-for-hours": 1,
-    "log-level": 20,
-    "external-tokens": {
-        "infosec.exchange": ""
-    }
+    "log-level": 20
 }

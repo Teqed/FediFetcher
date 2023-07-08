@@ -64,7 +64,7 @@ def get(
 
     try:
         response = requests.get(url, headers=h, timeout=timeout)
-    except requests.exceptions.ReadTimeout:
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         if max_tries > 0:
             logging.warning(f"Timeout requesting {url} Retrying...")
             return get(url, headers, timeout, max_tries - 1)
