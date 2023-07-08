@@ -1,13 +1,16 @@
 {
     "server": "mastodon.shatteredsky.net",
     "home-timeline-length": 2,
-    "max-bookmarks": 80,
-    "max-favourites": 40,
-    "max-followings": 80,
-    "max-followers": 80,
-    "max-follow-requests": 80,
-    "from-notifications": 1,
-    "reply-interval-in-hours": 1,
-    "remember-users-for-hours": 24,
-    "log-level": 10
+    "max-bookmarks": 90,
+    "max-favourites": 90,
+    "max-followings": 90,
+    "max-followers": 90,
+    "max-follow-requests": 90,
+    "from-notifications": 7,
+    "reply-interval-in-hours": 72,
+    "remember-users-for-hours": 1,
+    "log-level": 20,
+    "external-tokens": {
+        "infosec.exchange": ""
+    }
 }

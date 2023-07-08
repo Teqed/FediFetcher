@@ -1,5 +1,6 @@
 """argparser.py - Parses command line arguments."""
 import argparse
+import json
 
 argparser=argparse.ArgumentParser()
 
@@ -65,5 +66,8 @@ argparser.add_argument("--on-fail", required = False, default=None, help="Provid
     'dead man switch' monitoring of your task")
 argparser.add_argument("--log-level", required = False, type=int, default=20,
     help="Set the log level. 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL")
+argparser.add_argument("--external-tokens", required = False, type=json.loads,
+    default=None, help="Provide a JSON-formatted dictionary of external tokens, \
+    keyed by server.")
 
 arguments = argparser.parse_args()

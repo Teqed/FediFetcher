@@ -52,6 +52,7 @@ def get(
     A simple wrapper to make a get request while providing our user agent, \
         and respecting rate limits.
     """
+    logging.warning(f"Getting {url}")
     if headers is None:
         headers = {}
     h = headers.copy()

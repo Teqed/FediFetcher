@@ -7,13 +7,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import requests
-from dateutil import parser
 
+from fedifetcher import api_mastodon
 from fedifetcher.getters import (
-    get_paginated_mastodon,
-    get_reply_toots,
-    get_toot_context,
-    get_toots,
+    get_post_context,
 )
 from fedifetcher.ordered_set import OrderedSet
 
@@ -44,13 +41,14 @@ def get_notification_users(
     """
     since = datetime.now(
         datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
-    notifications = get_paginated_mastodon(f"https://{server}/api/v1/notifications",
-        int(since.timestamp()), headers={
-        "Authorization": f"Bearer {access_token}",
-    })
+    notifications = api_mastodon.get_notifications(
+        server,
+        access_token,
+        int(since.timestamp()),
+    )
     notification_users = []
     for notification in notifications:
-        notification_date = parser.parse(notification["created_at"])
+        notification_date : datetime = cast(datetime, notification["created_at"])
         if(notification_date >= since and notification["account"] not in \
                 notification_users):
             notification_users.append(notification["account"])
@@ -63,51 +61,6 @@ f"Found {len(notification_users)} users in notifications, \
 
     return [user["account"] for user in filter_known_users(
                                             notification_users, known_users)]
-
-def get_bookmarks(
-        server : str,
-        access_token : str,
-        limit : int = 50,
-        ) -> list[dict]:
-    """Get a list of bookmarked posts.
-
-    Args:
-    ----
-    server (str): The server to get the bookmarks from.
-    access_token (str): The access token to use for authentication.
-    limit (int): The maximum number of posts to get.
-
-    Returns:
-    -------
-    list[dict]: A list of bookmarked posts.
-
-    """
-    return get_paginated_mastodon(f"https://{server}/api/v1/bookmarks", limit, {
-        "Authorization": f"Bearer {access_token}",
-    })
-
-def get_favourites(
-        server : str,
-        access_token : str,
-        limit : int = 50,
-        ) -> list[dict]:
-    """Get a list of favourited posts.
-
-    Args:
-    ----
-    server (str): The server to get the favourites from.
-    access_token (str): The access token to use for authentication.
-    limit (int): The maximum number of posts to get.
-
-
-    Returns:
-    -------
-    list[dict]: A list of favourited posts.
-
-    """
-    return get_paginated_mastodon(f"https://{server}/api/v1/favourites", limit, {
-        "Authorization": f"Bearer {access_token}",
-    })
 
 def get_new_follow_requests(
         server : str,
@@ -129,14 +82,15 @@ def get_new_follow_requests(
     -------
     list[dict]: A list of follow requests.
     """
-    follow_requests = get_paginated_mastodon(f"https://{server}/api/v1/follow_requests",
-        limit, {
-        "Authorization": f"Bearer {access_token}",
-    })
+    follow_requests = list(api_mastodon.get_follow_requests(
+        server,
+        access_token,
+        limit,
+    ))
 
     # Remove any we already know about
     new_follow_requests = filter_known_users(
-        list(follow_requests), known_followings)
+        follow_requests, known_followings)
 
     logging.info(f"Got {len(follow_requests)} follow_requests, \
 {len(new_follow_requests)} of which are new")
@@ -145,6 +99,7 @@ def get_new_follow_requests(
 
 def get_new_followers(
         server : str,
+        token: str | None,
         user_id : str,
         limit : int, # = 40,
         known_followers : OrderedSet,
@@ -154,6 +109,7 @@ def get_new_followers(
     Args:
     ----
     server (str): The server to get the followers from.
+    token (str): The access token to use for authentication.
     user_id (str): The ID of the user to get the followers for.
     limit (int): The maximum number of followers to get.
     known_followers (set[str]): A set of known followers.
@@ -164,12 +120,11 @@ def get_new_followers(
     -------
     list[dict]: A list of followers.
     """
-    followers = get_paginated_mastodon(
-        f"https://{server}/api/v1/accounts/{user_id}/followers", limit)
+    followers = list(api_mastodon.get_followers(server, token, user_id, limit))
 
     # Remove any we already know about
     new_followers = filter_known_users(
-        list(followers), known_followers)
+        followers, known_followers)
 
     logging.info(
 f"Got {len(followers)} followers, {len(new_followers)} of which are new")
@@ -178,6 +133,7 @@ f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
 def get_new_followings(
         server : str,
+        token: str | None,
         user_id : str,
         limit : int, # = 40,
         known_followings : OrderedSet,
@@ -187,6 +143,7 @@ def get_new_followings(
     Args:
     ----
     server (str): The server to get the followings from.
+    token (str): The access token to use for authentication.
     user_id (str): The ID of the user to get the followings for.
     limit (int): The maximum number of followings to get.
     known_followings (set[str]): A set of known followings.
@@ -196,8 +153,7 @@ def get_new_followings(
     -------
     list[dict]: A list of followings.
     """
-    following = get_paginated_mastodon(
-        f"https://{server}/api/v1/accounts/{user_id}/following", limit)
+    following = list(api_mastodon.get_following(server, token, user_id, limit))
 
     # Remove any we already know about
     new_followings = filter_known_users(
@@ -237,13 +193,15 @@ def get_all_reply_toots(
     """
     replies_since = datetime.now(UTC) - timedelta(hours=reply_interval_hours)
     for user_id in user_ids:
-        yield from get_reply_toots(
+        replies = api_mastodon.get_reply_posts_from_id(
             user_id,
             server,
             access_token,
             seen_urls,
             replies_since,
         )
+        if replies is not None:
+            yield from replies
 
 
 def get_all_known_context_urls(  # noqa: C901, PLR0912
@@ -299,7 +257,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                 parsed_url = parsers.post(url, parsed_urls)
                 if parsed_url and parsed_url[0] and parsed_url[1]:
                     try:
-                        context = get_toot_context(parsed_url[0], parsed_url[1], url)
+                        context = get_post_context(parsed_url[0], parsed_url[1], url)
                     except Exception as ex:
                         logging.error(f"Error getting context for toot {url} : {ex}")
                         logging.debug(
@@ -443,7 +401,7 @@ def get_all_context_urls(
     return cast(Iterable[str], filter(
         lambda url: not str(url).startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
-            get_toot_context(server, toot_id, url)
+            get_post_context(server, toot_id, url)
             for (url, (s, toot_id)) in cast(Iterable[tuple[str, str]], replied_toot_ids)
         ),
     ))

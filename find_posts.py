@@ -137,6 +137,14 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             helpers.arguments.access_token = [helpers.arguments.access_token]
 
         admin_token = helpers.arguments.access_token[0]
+        external_tokens = helpers.arguments.external_tokens \
+            if helpers.arguments.external_tokens else None
+        logging.warning(f"Found {len(helpers.arguments.access_token)} access tokens")
+        if external_tokens:
+            logging.warning(f"Found {len(external_tokens)} external tokens")
+        else:
+            logging.warning("No external tokens found")
+            logging.warning(helpers.arguments.external_tokens)
         try:
             user_ids = list(api_mastodon.get_active_user_ids(
                 helpers.arguments.server,
@@ -196,6 +204,7 @@ provided. Continuing without active user IDs.")
                 all_known_users,
                 recently_checked_users,
                 known_followings,
+                external_tokens,
             )
 
         helpers.write_seen_files(

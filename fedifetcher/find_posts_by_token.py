@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 
 from dateutil import parser
 
-from fedifetcher import add_context, api_mastodon, getter_wrappers, getters, helpers
+from fedifetcher import add_context, api_mastodon, getter_wrappers, helpers
 from fedifetcher.ordered_set import OrderedSet
 
 
-def find_posts_by_token(
+def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
         token: str,
         seen_urls: OrderedSet,
         parsed_urls : dict[str, tuple[str | None, str | None]],
@@ -17,6 +17,7 @@ def find_posts_by_token(
         all_known_users : OrderedSet,
         recently_checked_users : OrderedSet,
         known_followings : OrderedSet,
+        external_tokens: dict[str, str] | None,
         ) -> OrderedSet:
     """Pull posts from a Mastodon server, using a token."""
     if helpers.arguments.home_timeline_length > 0:
@@ -89,6 +90,7 @@ mentioned users")
                 recently_checked_users,
                 all_known_users,
                 seen_urls,
+                external_tokens,
                 )
     token_user_id = api_mastodon.get_me(helpers.arguments.server, token)
     if not token_user_id:
@@ -139,6 +141,7 @@ mentioned users")
         f"Getting posts from last {helpers.arguments.max_followings} followings")
             followings = getter_wrappers.get_new_followings(
                 helpers.arguments.server,
+                token,
                 token_user_id,
                 helpers.arguments.max_followings,
                 all_known_users,
@@ -149,12 +152,14 @@ mentioned users")
                 known_followings,
                 all_known_users,
                 seen_urls,
+                external_tokens,
                 )
         if helpers.arguments.max_followers > 0:
             logging.info(
         f"Getting posts from last {helpers.arguments.max_followers} followers")
             followers = getter_wrappers.get_new_followers(
                 helpers.arguments.server,
+                token,
                 token_user_id,
                 helpers.arguments.max_followers,
                 all_known_users,
@@ -166,6 +171,7 @@ mentioned users")
                 recently_checked_users,
                 all_known_users,
                 seen_urls,
+                external_tokens,
                 )
     if helpers.arguments.max_follow_requests > 0:
         logging.info(
@@ -183,6 +189,7 @@ mentioned users")
             recently_checked_users,
             all_known_users,
             seen_urls,
+                external_tokens,
             )
     if helpers.arguments.from_notifications > 0:
         logging.info(
@@ -200,11 +207,12 @@ mentioned users")
             recently_checked_users,
             all_known_users,
             seen_urls,
+            external_tokens,
             )
     if helpers.arguments.max_bookmarks > 0:
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_bookmarks} bookmarks")
-        bookmarks = getter_wrappers.get_bookmarks(
+        bookmarks = api_mastodon.get_bookmarks(
                         helpers.arguments.server,
                         token,
                         helpers.arguments.max_bookmarks,
@@ -223,7 +231,7 @@ mentioned users")
     if helpers.arguments.max_favourites > 0:
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_favourites} favourites")
-        favourites = getter_wrappers.get_favourites(
+        favourites = api_mastodon.get_favourites(
                         helpers.arguments.server,
                         token,
                         helpers.arguments.max_favourites,
