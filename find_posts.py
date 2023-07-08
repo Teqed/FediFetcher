@@ -12,6 +12,9 @@ from pathlib import Path
 from dateutil import parser
 
 from fedifetcher import (
+    add_context,
+    api_mastodon,
+    getter_wrappers,
     helpers,
 )
 from fedifetcher.find_posts_by_token import find_posts_by_token
@@ -132,6 +135,57 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
 
         if(isinstance(helpers.arguments.access_token, str)):
             helpers.arguments.access_token = [helpers.arguments.access_token]
+
+        admin_token = helpers.arguments.access_token[0]
+        try:
+            user_ids = list(api_mastodon.get_active_user_ids(
+                helpers.arguments.server,
+                admin_token,
+                helpers.arguments.reply_interval_in_hours,
+                ))
+            logging.debug(f"Found user IDs: {user_ids}")
+            """pull the context toots of toots user replied to, from their
+            original server, and add them to the local server."""
+            logging.info("Pulling context toots for replies")
+            logging.debug("Found user ID")
+            reply_toots = getter_wrappers.get_all_reply_toots(
+                helpers.arguments.server,
+                user_ids,
+                admin_token,
+                seen_urls,
+                helpers.arguments.reply_interval_in_hours,
+            )
+            logging.debug("Found reply toots")
+            known_context_urls = getter_wrappers.get_all_known_context_urls(
+                helpers.arguments.server,
+                reply_toots,
+                parsed_urls,
+                )
+            logging.debug("Found known context URLs")
+            seen_urls.update(known_context_urls)
+            replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
+                helpers.arguments.server,
+                reply_toots,
+                replied_toot_server_ids,
+                parsed_urls,
+            )
+            logging.debug("Found replied toot IDs")
+            context_urls = getter_wrappers.get_all_context_urls(
+                helpers.arguments.server,
+                replied_toot_ids,
+                )
+            logging.debug("Found context URLs")
+            add_context.add_context_urls(
+                helpers.arguments.server,
+                admin_token,
+                context_urls,
+                seen_urls,
+                )
+            logging.debug("Added context URLs")
+        except Exception:
+            logging.warning("Error getting active user IDs. This optional feature \
+requires the admin:read:accounts scope to be enabled on the first access token \
+provided. Continuing without active user IDs.")
 
         for _token in helpers.arguments.access_token:
             find_posts_by_token(

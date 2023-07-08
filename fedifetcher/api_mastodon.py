@@ -3,6 +3,7 @@ import logging
 from collections.abc import Generator, Iterator
 from datetime import UTC, datetime, timedelta
 
+import requests
 from mastodon import (
     Mastodon,
     MastodonAPIError,
@@ -15,22 +16,31 @@ from mastodon import (
 from . import helpers
 
 
-def mastodon(server: str | None = None, token: str | None = None) -> Mastodon:
+def mastodon(server: str, token: str | None = None) -> Mastodon:
     """Get a Mastodon instance."""
-    logging.debug(f"Getting Mastodon instance for {server} with token {token}")
-    return Mastodon(
-        access_token=token if token else None,
-        api_base_url=server if server else helpers.arguments.server,
-        debug_requests=False,
-        ratelimit_method="wait",
-        ratelimit_pacefactor=1.1,
-        request_timeout=300,
-        user_agent="FediFetcher (https://go.thms.uk/mgr)",
-    )
+    if not hasattr(mastodon, "sessions"):
+        mastodon.sessions = {}
+
+    if server not in mastodon.sessions:
+        logging.warning(f"Creating Mastodon session for {server}")
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",
+        })
+        mastodon.sessions[server] = Mastodon(
+            access_token=token if token else None,
+            api_base_url=server if server else helpers.arguments.server,
+            session=session,
+            debug_requests=False,
+            ratelimit_method="wait",
+            ratelimit_pacefactor=1.1,
+            request_timeout=300,
+        )
+    return mastodon.sessions[server]
 
 def get_user_id(
         user : str,
-        server: str | None = None,
+        server: str,
         token : str | None = None,
         ) -> str | None:
     """Get the user id from the server using a username.
@@ -50,7 +60,7 @@ def get_user_id(
     """
     try:
         if server == helpers.arguments.server or not server:
-            return mastodon(token=token).account_search(
+            return mastodon(server,token).account_search(
                 q = user,
                 limit = 1,
                 following = False,
@@ -79,9 +89,9 @@ f"Error getting ID for user {user}")
         return None
 
 def get_timeline(
-    timeline: str = "local",
-    server: str | None = None,
+    server: str,
     token: str | None = None,
+    timeline: str = "local",
     limit: int = 40,
 ) -> Iterator[dict]:
     """Get all posts in the user's home timeline.
@@ -167,23 +177,23 @@ def get_active_user_ids(
     logging.debug(f"Reply interval: {reply_interval_hours} hours")
     since = datetime.now(UTC) - timedelta(days=reply_interval_hours / 24 + 1)
     logging.debug(f"Since: {since}")
-    active_accounts = mastodon(server, access_token).admin_accounts_v2(
+    local_accounts = mastodon(server, access_token).admin_accounts_v2(
         origin="local",
         status="active",
         )
-    logging.debug(f"Found {len(active_accounts)} active accounts")
-    if active_accounts:
+    logging.debug(f"Found {len(local_accounts)} accounts")
+    if local_accounts:
         try:
-            logging.debug(f"Getting user IDs for {len(active_accounts)} \
-                        active accounts")
-            for user in active_accounts:
-                logging.debug(f"User: {user}")
+            logging.debug(
+f"Getting user IDs for {len(local_accounts)} local accounts")
+            for user in local_accounts:
+                logging.debug(f"User: {user.username}")
                 last_status_at = user["account"]["last_status_at"]
                 logging.debug(f"Last status at: {last_status_at}")
                 if last_status_at:
                     last_active = last_status_at.astimezone(UTC)
                     logging.debug(f"Last active: {last_active}")
-                    if last_active < since:
+                    if last_active > since:
                         logging.info(f"Found active user: {user['username']}")
                         yield user["id"]
         except MastodonRatelimitError:
@@ -207,3 +217,46 @@ Make sure you have the read:statuses scope enabled for your access token.")
         except Exception:
             logging.exception("Error getting user IDs.")
             raise
+
+def get_me(server : str, token : str) -> str | None:
+    """Get the user ID of the authenticated user.
+
+    Args:
+    ----
+    token (str): The access token to use for authentication.
+    server (str): The server to get the user ID from. Defaults to the server \
+        specified in the arguments.
+
+    Returns:
+    -------
+    str: The user ID of the authenticated user.
+
+    Raises:
+    ------
+    Exception: If the access token is invalid.
+    Exception: If the access token does not have the correct scope.
+    Exception: If the server returns an unexpected status code.
+    """
+    try:
+        return mastodon(server, token).account_verify_credentials()["id"]
+    except MastodonRatelimitError:
+        logging.error(
+"Error getting timeline. Status code: 429. \
+You are being rate limited. Try again later.")
+        return None
+    except MastodonUnauthorizedError:
+        logging.error(
+"Error getting user IDs. Status code: 401. \
+Ensure your access token is correct.")
+        return None
+    except MastodonAPIError:
+        logging.exception(
+"Error getting user IDs. \
+Make sure you have the read:statuses scope enabled for your access token.")
+        return None
+    except MastodonError:
+        logging.exception("Error getting user IDs.")
+        return None
+    except Exception:
+        logging.exception("Error getting user IDs.")
+        raise

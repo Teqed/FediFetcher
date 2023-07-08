@@ -19,59 +19,13 @@ def find_posts_by_token(
         known_followings : OrderedSet,
         ) -> OrderedSet:
     """Pull posts from a Mastodon server, using a token."""
-    user_ids = []
-    user_ids = list(api_mastodon.get_active_user_ids(
-        helpers.arguments.server,
-        token,
-        helpers.arguments.reply_interval_in_hours,
-        ))
-    logging.debug(f"Found user IDs: {user_ids}")
-    if helpers.arguments.reply_interval_in_hours > 0:
-        """pull the context toots of toots user replied to, from their
-        original server, and add them to the local server."""
-        logging.info("Pulling context toots for replies")
-        logging.debug("Found user ID")
-        reply_toots = getter_wrappers.get_all_reply_toots(
-            helpers.arguments.server,
-            user_ids,
-            token,
-            seen_urls,
-            helpers.arguments.reply_interval_in_hours,
-        )
-        logging.debug("Found reply toots")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
-            helpers.arguments.server,
-            reply_toots,
-            parsed_urls,
-            )
-        logging.debug("Found known context URLs")
-        seen_urls.update(known_context_urls)
-        replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
-            helpers.arguments.server,
-            reply_toots,
-            replied_toot_server_ids,
-            parsed_urls,
-        )
-        logging.debug("Found replied toot IDs")
-        context_urls = getter_wrappers.get_all_context_urls(
-            helpers.arguments.server,
-            replied_toot_ids,
-            )
-        logging.debug("Found context URLs")
-        add_context.add_context_urls(
-            helpers.arguments.server,
-            token,
-            context_urls,
-            seen_urls,
-            )
-        logging.debug("Added context URLs")
     if helpers.arguments.home_timeline_length > 0:
         """Do the same with any toots on the key owner's home timeline """
         logging.info("Pulling context toots for home timeline")
         timeline_toots = api_mastodon.get_timeline(
-            "home",
             helpers.arguments.server,
             token,
+            "home",
             helpers.arguments.home_timeline_length,
             )
         logging.debug("Found home timeline toots")
@@ -136,18 +90,56 @@ mentioned users")
                 all_known_users,
                 seen_urls,
                 )
-    logging.debug(f"Getting user ID from {user_ids}")
-    user_id = user_ids[0] # TODO: This is a hack
-    if not user_id:
-        logging.debug("Could not get User ID, skipping followings/followers")
+    token_user_id = api_mastodon.get_me(helpers.arguments.server, token)
+    if not token_user_id:
+        logging.debug("Could not get User ID, skipping replies/followings/followers")
     else:
-        logging.debug(f"Got User ID: {user_id}")
+        logging.debug(f"Got User ID: {token_user_id}")
+        if helpers.arguments.reply_interval_in_hours > 0:
+            """pull the context toots of toots user replied to, from their
+            original server, and add them to the local server."""
+            logging.info("Pulling context toots for replies")
+            logging.debug("Found user ID")
+            reply_toots = getter_wrappers.get_all_reply_toots(
+                helpers.arguments.server,
+                [token_user_id],
+                token,
+                seen_urls,
+                helpers.arguments.reply_interval_in_hours,
+            )
+            logging.debug("Found reply toots")
+            known_context_urls = getter_wrappers.get_all_known_context_urls(
+                helpers.arguments.server,
+                reply_toots,
+                parsed_urls,
+                )
+            logging.debug("Found known context URLs")
+            seen_urls.update(known_context_urls)
+            replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
+                helpers.arguments.server,
+                reply_toots,
+                replied_toot_server_ids,
+                parsed_urls,
+            )
+            logging.debug("Found replied toot IDs")
+            context_urls = getter_wrappers.get_all_context_urls(
+                helpers.arguments.server,
+                replied_toot_ids,
+                )
+            logging.debug("Found context URLs")
+            add_context.add_context_urls(
+                helpers.arguments.server,
+                token,
+                context_urls,
+                seen_urls,
+                )
+            logging.debug("Added context URLs")
         if helpers.arguments.max_followings > 0:
             logging.info(
         f"Getting posts from last {helpers.arguments.max_followings} followings")
             followings = getter_wrappers.get_new_followings(
                 helpers.arguments.server,
-                user_id,
+                token_user_id,
                 helpers.arguments.max_followings,
                 all_known_users,
                 )
@@ -163,7 +155,7 @@ mentioned users")
         f"Getting posts from last {helpers.arguments.max_followers} followers")
             followers = getter_wrappers.get_new_followers(
                 helpers.arguments.server,
-                user_id,
+                token_user_id,
                 helpers.arguments.max_followers,
                 all_known_users,
                 )
