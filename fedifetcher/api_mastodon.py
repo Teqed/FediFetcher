@@ -130,12 +130,12 @@ def get_user_id(
     if server == helpers.arguments.server or not server:
         return mastodon(server, token).account_lookup(
             acct = f"{user}@{server}",
-        )[0][id]
+        )[id]
     account_search = mastodon(server, token).account_lookup(
         acct = f"{user}@{server}",
     )
-    if account_search[0]["username"] == user:
-        return account_search[0]["id"]
+    if account_search["username"] == user:
+        return account_search["id"]
     return None
 
 @handle_mastodon_errors([])
