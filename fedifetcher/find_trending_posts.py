@@ -7,7 +7,7 @@ from fedifetcher import api_mastodon, helpers
 
 
 def pgupdate(
-        conn: psycopg2.connection,
+        conn,
         status_id: int,
         reblogs_count: int,
         favourites_count: int,
