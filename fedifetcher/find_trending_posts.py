@@ -1,9 +1,12 @@
 """Pull trending posts from a list of Mastodon servers, using tokens."""
 
 
+import logging
+from datetime import UTC, datetime
+
 import psycopg2
 
-from fedifetcher import api_mastodon, helpers
+from fedifetcher import api_mastodon
 
 
 def pgupdate(
@@ -11,7 +14,7 @@ def pgupdate(
         status_id: int,
         reblogs_count: int,
         favourites_count: int,
-        ) -> None:
+) -> None:
     """Update the public.status_stats table with the trending posts."""
     # First, check if the status_id is already in the table.
     # If it is, update the existing row with the new data.
@@ -30,23 +33,25 @@ def pgupdate(
     cursor_fetchone = cursor.fetchone()
     if cursor_fetchone:
         exists = cursor_fetchone[0]
+        now = datetime.now(UTC)
         if exists:
             cursor.execute(
                 """
                 UPDATE public.status_stats
-                SET reblogs_count = %s, favourites_count = %s
+                SET reblogs_count = %s, favourites_count = %s, updated_at = %s
                 WHERE status_id = %s;
                 """,
-                (reblogs_count, favourites_count, status_id),
+                (reblogs_count, favourites_count, now, status_id),
             )
         else:
             cursor.execute(
                 """
                 INSERT INTO public.status_stats
-                (status_id, reblogs_count, favourites_count)
-                VALUES (%s, %s, %s);
+                (status_id, reblogs_count, favourites_count, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s);
                 """,
-    )
+                (status_id, reblogs_count, favourites_count, now, now),
+            )
     conn.commit()
     cursor.close()
 
@@ -57,6 +62,7 @@ def find_trending_posts(
         pgpassword: str,
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
+    logging.debug("Finding trending posts")
     conn = psycopg2.connect(
     host="dreamer",
     port = 5432,
@@ -69,6 +75,7 @@ def find_trending_posts(
     # Later, we're going to compare these results to each other.
     all_trending_posts = []
     for key in external_tokens:
+        logging.info(f"Finding trending posts on {key}")
         trending_posts = api_mastodon.get_trending_posts(key, external_tokens[key])
         # A trending post might have already appeared from another server.
         # So, if the "url" of a trending post is already in the list, don't add it,
@@ -81,6 +88,7 @@ def find_trending_posts(
                         existing_post["reblogs_count"] += post["reblogs_count"]
                         existing_post["favourites_count"] += post["favourites_count"]
             else:
+                logging.info(f"Adding {post['url']} to trending posts")
                 all_trending_posts.append(post)
 
     # We're going to updaet the public.status_stats table with the trending posts.
@@ -98,10 +106,12 @@ def find_trending_posts(
     # If it isn't, we'll insert a new row.
 
     for post in all_trending_posts:
-        pgupdate(
-            conn,
-            post["local_status_id"],
-            post["reblogs_count"],
-            post["favourites_count"],
-        )
+        if post["local_status_id"] is not None:
+            logging.info(f"Updating {post['local_status_id']} in public.status_stats")
+            pgupdate(
+                conn,
+                post["local_status_id"],
+                post["reblogs_count"],
+                post["favourites_count"],
+            )
     return all_trending_posts

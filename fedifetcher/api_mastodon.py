@@ -568,6 +568,7 @@ def get_trending_posts(
     list[dict[str, str]]: A list of trending posts, or [] if the \
         request fails.
     """
+    logging.info(f"Getting trending posts for {server}")
     return mastodon(server, token).trending_statuses(limit=40)
 
 @handle_mastodon_errors(None)
@@ -588,7 +589,15 @@ def get_status_id_from_url(
     -------
     str | None: The status id of the toot, or None if the toot is not found.
     """
-    return mastodon(server, token).search_v2(
+    logging.info(f"Getting status id from url {url}")
+    statuses = mastodon(server, token).search_v2(
         q = url,
-        )[0]["id"]
+        )["statuses"]
+    # If statuses has a length of at least 1, then the toot was found.
+    # Let's check the returned toots until we find the one with the correct URL.
+    if statuses:
+        for status in statuses:
+            if status["url"] == url:
+                return status["id"]
+    return None
 
