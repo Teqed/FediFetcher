@@ -128,15 +128,11 @@ def get_user_id(
     str | None: The user id if found, or None if the user is not found.
     """
     if server == helpers.arguments.server or not server:
-        return mastodon(server, token).account_search(
-            q = f"{user}@{server}",
-            limit = 1,
-            following = False,
-            resolve = True,
+        return mastodon(server, token).account_lookup(
+            acct = f"{user}@{server}",
         )[0][id]
-    account_search = mastodon(server, token).account_search(
-        q = f"{user}@{server}",
-        limit = 1,
+    account_search = mastodon(server, token).account_lookup(
+        acct = f"{user}@{server}",
     )
     if account_search[0]["username"] == user:
         return account_search[0]["id"]
