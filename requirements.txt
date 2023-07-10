@@ -14,9 +14,11 @@ mando==0.7.1
 Mastodon.py==1.8.1
 packaging==23.1
 pluggy==1.2.0
+psycopg2==2.9.6
 pypandoc==1.10
 pytest==7.4.0
 python-dateutil==2.8.2
+python-magic-bin==0.4.14
 pytidylib==0.3.2
 PyYAML==6.0
 radon==6.0.1
