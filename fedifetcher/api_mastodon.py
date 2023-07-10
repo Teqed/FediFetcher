@@ -22,14 +22,14 @@ from fedifetcher.ordered_set import OrderedSet
 from . import helpers
 
 T = TypeVar("T")
-def handle_mastodon_errors(
+def handle_mastodon_errors(  # noqa: C901
         default_return_value: T) -> Callable: # type: ignore # noqa: PGH003
     """Handle Mastodon errors."""
     def decorator(func: Callable[..., T | None]) -> Callable[..., T | None]:
         sig = inspect.signature(func)
 
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T | None:  # noqa: ANN401
+        def wrapper(*args: Any, **kwargs: Any) -> T | None:  # noqa: ANN401, PLR0911
             bound = sig.bind(*args, **kwargs)
 
             server = bound.arguments.get("server", "Unknown")
@@ -129,10 +129,10 @@ def get_user_id(
     """
     if server == helpers.arguments.server or not server:
         return mastodon(server, token).account_lookup(
-            acct = f"{user}@{server}",
+            acct = f"{user}",
         )[id]
     account_search = mastodon(server, token).account_lookup(
-        acct = f"{user}@{server}",
+        acct = f"{user}",
     )
     if account_search["username"] == user:
         return account_search["id"]
