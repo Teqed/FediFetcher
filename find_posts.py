@@ -207,7 +207,7 @@ provided. Continuing without active user IDs.")
                 external_tokens,
             )
 
-        if external_tokens:
+        if external_tokens and helpers.arguments.pgpassword:
             trending_posts = find_trending_posts(
                 helpers.arguments.server,
                 admin_token,
