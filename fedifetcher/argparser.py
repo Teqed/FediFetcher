@@ -69,5 +69,7 @@ argparser.add_argument("--log-level", required = False, type=int, default=20,
 argparser.add_argument("--external-tokens", required = False, type=json.loads,
     default=None, help="Provide a JSON-formatted dictionary of external tokens, \
     keyed by server.")
+argparser.add_argument("--pgpassword", required = False, type=str, default=None,
+    help="Provide the password for the postgres user")
 
 arguments = argparser.parse_args()

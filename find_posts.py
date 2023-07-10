@@ -18,6 +18,7 @@ from fedifetcher import (
     helpers,
 )
 from fedifetcher.find_posts_by_token import find_posts_by_token
+from fedifetcher.find_trending_posts import find_trending_posts
 from fedifetcher.ordered_set import OrderedSet
 
 if __name__ == "__main__":
@@ -144,7 +145,6 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             logging.warning(f"Found {len(external_tokens)} external tokens")
         else:
             logging.warning("No external tokens found")
-            logging.warning(helpers.arguments.external_tokens)
         try:
             user_ids = list(api_mastodon.get_active_user_ids(
                 helpers.arguments.server,
@@ -206,6 +206,28 @@ provided. Continuing without active user IDs.")
                 known_followings,
                 external_tokens,
             )
+
+        if external_tokens:
+            trending_posts = find_trending_posts(
+                helpers.arguments.server,
+                admin_token,
+                external_tokens,
+            )
+            logging.debug(f"Found {len(trending_posts)} trending posts")
+
+            known_context_urls = getter_wrappers.get_all_known_context_urls(
+                helpers.arguments.server,
+                trending_posts,
+                parsed_urls,
+                )
+            logging.debug("Found known context URLs")
+            add_context.add_context_urls(
+                helpers.arguments.server,
+                admin_token,
+                known_context_urls,
+                seen_urls,
+                )
+            logging.debug("Added context URLs")
 
         helpers.write_seen_files(
             SEEN_URLS_FILE,

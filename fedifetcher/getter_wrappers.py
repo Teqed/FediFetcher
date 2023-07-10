@@ -206,7 +206,7 @@ def get_all_reply_toots(
 
 def get_all_known_context_urls(  # noqa: C901, PLR0912
     server: str,
-    reply_toots: Iterator[dict[str, str]],
+    reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
 ) -> Iterable[str]:
     """Get the context toots of the given toots from their original server.

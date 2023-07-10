@@ -550,3 +550,45 @@ def add_context_url(
         q = url,
     )
     return True
+
+@handle_mastodon_errors(default_return_value=[])
+def get_trending_posts(
+        server : str,
+        token : str | None = None,
+        ) -> list[dict[str, str]]:
+    """Get a list of trending posts.
+
+    Args:
+    ----
+    server (str): The server to get the trending posts from.
+    token (str): The access token to use for the request.
+
+    Returns:
+    -------
+    list[dict[str, str]]: A list of trending posts, or [] if the \
+        request fails.
+    """
+    return mastodon(server, token).trending_statuses(limit=40)
+
+@handle_mastodon_errors(None)
+def get_status_id_from_url(
+        server : str,
+        token : str,
+        url : str,
+        ) -> str | None:
+    """Get the status id from a toot URL.
+
+    Args:
+    ----
+    server (str): The server to get the status id from.
+    token (str): The access token to use for the request.
+    url (str): The URL of the toot to get the status id of.
+
+    Returns:
+    -------
+    str | None: The status id of the toot, or None if the toot is not found.
+    """
+    return mastodon(server, token).search_v2(
+        q = url,
+        )[0]["id"]
+
