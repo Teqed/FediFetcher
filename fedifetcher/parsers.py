@@ -57,7 +57,7 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
 
 def post(
     unparsed_url: str,
-    parsed_urls: dict[str, tuple[str | None, str | None]],
+    parsed_urls: dict[str, tuple[str | None, str | None]] | None = None,
 ) -> tuple[str | None, str | None] | None:
     """Parse a post URL and return the server and toot ID.
 
@@ -89,6 +89,9 @@ def post(
         if match:
             return match.group("server"), match.group("toot_id")
         return None
+
+    if parsed_urls is None:
+        parsed_urls = {}
 
     fediverse_post_regex: dict[str, str] = {
         "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)",

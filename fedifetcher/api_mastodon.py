@@ -17,6 +17,7 @@ from mastodon import (
     MastodonUnauthorizedError,
 )
 
+from fedifetcher import parsers
 from fedifetcher.ordered_set import OrderedSet
 
 from . import helpers
@@ -532,7 +533,7 @@ def add_context_url(
         url : str,
         server : str,
         access_token : str,
-        ) -> bool:
+        ) -> dict[str, str] | bool:
     """Add the given toot URL to the server.
 
     Args:
@@ -543,13 +544,19 @@ def add_context_url(
 
     Returns:
     -------
-    bool: True if the toot was added successfully, False otherwise.
+    dict[str, str] | bool: The status of the request, or False if the \
+        request fails.
     """
-    # Use mastodon.py add the toot to the server.
-    mastodon(server, access_token).search_v2(
+    result = mastodon(server, access_token).search_v2(
         q = url,
     )
-    return True
+    if result:
+        statuses = result["statuses"]
+        if statuses:
+            for _status in statuses:
+                if _status["url"] == url:
+                    return _status
+    return False
 
 @handle_mastodon_errors(default_return_value=[])
 def get_trending_posts(
@@ -601,3 +608,27 @@ def get_status_id_from_url(
                 return status["id"]
     return None
 
+@handle_mastodon_errors(None)
+def get_status_by_id(
+        server: str,
+        status_id : str,
+        external_tokens : dict[str, str] | None,
+        ) -> dict[str, str] | None:
+    """Get the status from a toot URL.
+
+    Args:
+    ----
+    server (str): The server to get the status from.
+    status_id (str): The ID of the toot to get the status of.
+    external_tokens (dict[str, str] | None): A dict of external tokens, keyed \
+        by server. If None, no external tokens will be used.
+
+    Returns:
+    -------
+    dict[str, str] | None: The status of the toot, or None if the toot is not found.
+    """
+    logging.info(f"Getting status {status_id} from {server}")
+    token = None
+    if external_tokens and server in external_tokens:
+        token = external_tokens[server]
+    return mastodon(server, token).status(status_id)
