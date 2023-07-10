@@ -54,6 +54,7 @@ def find_trending_posts(
         home_server: str,
         home_token: str,
         external_tokens: dict[str, str],
+        pgpassword: str,
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
     conn = psycopg2.connect(
@@ -61,7 +62,7 @@ def find_trending_posts(
     port = 5432,
     database="mastodon_production",
     user="teq",
-    password=helpers.arguments.pgpassword,
+    password=pgpassword,
     )
 
     # For each key in external_tokens, query its mastodon API for trending posts.

@@ -212,6 +212,7 @@ provided. Continuing without active user IDs.")
                 helpers.arguments.server,
                 admin_token,
                 external_tokens,
+                helpers.arguments.pgpassword,
             )
             logging.debug(f"Found {len(trending_posts)} trending posts")
 
