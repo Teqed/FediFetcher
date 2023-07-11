@@ -220,8 +220,8 @@ provided. Continuing without active user IDs.")
                 external_tokens,
                 helpers.arguments.pgpassword,
             )
-            logging.info(f"Found {len(trending_posts)} trending posts, getting \
-                    known context URLs")
+            logging.info(
+f"Found {len(trending_posts)} trending posts, getting known context URLs")
             known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 trending_posts,
