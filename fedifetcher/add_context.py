@@ -116,6 +116,7 @@ def add_context_urls(
                 seen_urls.add(url)
                 count += 1
             else:
+                logging.warning(f"Failed to add context for {url}")
                 failed += 1
 
     logging.info(f"Added {count} new context toots (with {failed} failures)")
