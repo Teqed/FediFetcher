@@ -83,23 +83,22 @@ def find_trending_posts(
         for post in trending_posts:
             post_url: str = post["url"]
             if post_url in all_trending_posts:
-                all_trending_posts[post_url]["reblogs_count"] \
-                    += post["reblogs_count"]
-                all_trending_posts[post_url]["favourites_count"] \
-                    += post["favourites_count"]
+                if "original" not in all_trending_posts[post_url]:
+                    all_trending_posts[post_url]["reblogs_count"] \
+                        += post["reblogs_count"]
+                    all_trending_posts[post_url]["favourites_count"] \
+                        += post["favourites_count"]
             else:
                 original = re.search(r"https?://[^/]*\b" + re.escape(key), post["url"])
                 if not original:
-                    original = parsers.post(post["url"])
-                    if original and original[0] and original[1]:
+                    parsed_url = parsers.post(post["url"])
+                    if parsed_url and parsed_url[0] and parsed_url[1]:
                         original_status = api_mastodon.get_status_by_id(
-                                original[0], original[1], external_tokens)
+                                parsed_url[0], parsed_url[1], external_tokens)
                         if original_status:
-                            original_status["reblogs_count"] += post["reblogs_count"]
-                            original_status["favourites_count"] += \
-                                post["favourites_count"]
                             logging.info(
                                 f"Adding {post_url} to trending posts from origin")
+                            original_status["original"] = "Yes"
                             all_trending_posts[post_url] = original_status
                             continue
                 logging.info(f"Adding {post_url} to trending posts")
