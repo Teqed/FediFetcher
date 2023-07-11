@@ -105,7 +105,8 @@ def find_trending_posts(
                                 else:
                                     all_trending_posts[trending_post["url"]] \
                                         = trending_post
-                            continue
+                            if post_url in all_trending_posts:
+                                continue
                         remote = api_mastodon.get_status_by_id(
                             parsed_url[0], parsed_url[1],
                             external_tokens)
