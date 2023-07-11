@@ -232,7 +232,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
     if reply_toots is not None:
         for toot in reply_toots:
             if toot is not None and toot_has_parseable_url(toot, parsed_urls):
-                logging.info(f"Getting context for toot {toot['url']}")
+                logging.info(f"Getting context for toot on {server}")
                 reblog = toot.get("reblog")
                 if isinstance(reblog, str):
                     try:
@@ -241,6 +241,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                         if url is None:
                             logging.error("Error accessing URL in the boosted toot")
                             continue
+                        logging.info(f"Got boosted toot URL {url}")
                     except json.JSONDecodeError:
                         logging.error("Error decoding JSON in the boosted toot")
                         continue
@@ -249,8 +250,10 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                     if url is None:
                         logging.error("Error accessing URL in the boosted toot")
                         continue
+                    logging.info(f"Got boosted toot URL {url}")
                 elif toot.get("url") is not None:
                     url = str(toot["url"])
+                    logging.info(f"Got toot URL {url}")
                 else:
                     logging.error("Error accessing URL in the toot")
                     continue
@@ -265,6 +268,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                             f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                         continue
                     if context:
+                        logging.info(f"Got {len(context)} context toots")
                         known_context_urls.extend(context)
 
     return filter(
