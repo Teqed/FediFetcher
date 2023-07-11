@@ -136,13 +136,13 @@ Favourites: {trending_post['favourites_count']}")
         trending_posts_dict[post_url]["favourites_count"] \
             += incrementing_post["favourites_count"]
 
-    domains_to_fetch = external_feeds
+    domains_to_fetch = external_feeds.copy()
     logging.warning(f"Fetching trending posts from {len(domains_to_fetch)} domains:")
     for domain in domains_to_fetch:
         logging.warning(domain)
     domains_fetched = []
     remember_to_find_me : dict[str, list[str]] = {}
-    for fetch_domain in external_feeds:
+    for fetch_domain in external_feeds.copy():
         logging.warning(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens.get(fetch_domain))
