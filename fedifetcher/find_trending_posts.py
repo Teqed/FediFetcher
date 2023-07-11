@@ -152,6 +152,7 @@ def find_trending_posts(
                 remember_to_find_me[parsed_url[0]].append(parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
+                logging.warning(f"Finding aux trending posts from {parsed_url[0]}")
                 trending = api_mastodon.get_trending_posts(
                     parsed_url[0], external_tokens.get(parsed_url[0]))
                 domains_fetched.append(parsed_url[0])
