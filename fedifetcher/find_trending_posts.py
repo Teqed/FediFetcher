@@ -126,11 +126,13 @@ def find_trending_posts(
 
     domains_to_fetch = list(external_tokens.keys())
     domains_fetched = []
+    remember_to_find_me : dict[str, list[str]] = {}
     for fetch_domain in domains_to_fetch:
         logging.info(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens[fetch_domain])
         domains_fetched.append(fetch_domain)
+        domains_to_fetch.remove(fetch_domain)
 
         for post in trending_posts:
             post_url: str = post["url"]
@@ -142,6 +144,9 @@ def find_trending_posts(
                 logging.warning(f"Error parsing post URL {post_url}")
                 continue
             if parsed_url[0] in domains_to_fetch:
+                if parsed_url[0] not in remember_to_find_me:
+                    remember_to_find_me[parsed_url[0]] = []
+                remember_to_find_me[parsed_url[0]].append(parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
                 trending = api_mastodon.get_trending_posts(
@@ -159,6 +164,20 @@ def find_trending_posts(
                     original = add_post_to_dict(remote, parsed_url[0])
             if not original:
                 logging.warning(f"Couldn't find original for {post_url}")
+        if fetch_domain in remember_to_find_me:
+            for status_id in remember_to_find_me[fetch_domain]:
+                if status_id not in trending_posts_dict or \
+                        "original" not in trending_posts_dict[status_id]:
+                    logging.info(f"Fetching {status_id} from {fetch_domain}")
+                    original = api_mastodon.get_status_by_id(
+                        fetch_domain, status_id, external_tokens)
+                    if original:
+                        add_post_to_dict(original, fetch_domain)
+                    else:
+                        logging.warning(
+                            f"Couldn't find {status_id} from {fetch_domain}")
+            remember_to_find_me.pop(fetch_domain)
+
 
     """Update the status stats with the trending posts."""
     for url, post in trending_posts_dict.items():
