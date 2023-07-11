@@ -94,7 +94,7 @@ def find_trending_posts(
                     parsed_url = parsers.post(post["url"])
                     if parsed_url and parsed_url[0] and parsed_url[1]:
                         trending = api_mastodon.get_trending_posts(
-                                parsed_url[0], external_tokens[parsed_url[0]])
+                                parsed_url[0], external_tokens.get(parsed_url[0]))
                         if trending:
                             logging.info(
                                 f"Adding {post_url} to trending posts from origin")
