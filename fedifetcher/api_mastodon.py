@@ -11,6 +11,7 @@ from mastodon import (
     Mastodon,
     MastodonAPIError,
     MastodonError,
+    MastodonNetworkError,
     MastodonNotFoundError,
     MastodonRatelimitError,
     MastodonServiceUnavailableError,
@@ -40,7 +41,7 @@ def handle_mastodon_errors(  # noqa: C901
             except MastodonNotFoundError:
                 logging.error(
                     f"Error with Mastodon API on server {server}. Status code: 404. "
-                    "Ensure the server is correct.",
+                    "Ensure the server endpoint is reachable.",
                 )
                 return default_return_value
             except MastodonRatelimitError:
@@ -48,6 +49,7 @@ def handle_mastodon_errors(  # noqa: C901
                     f"Error with Mastodon API on server {server}. Status code: 429. "
                     "You are being rate limited. Try again later.",
                 )
+                return default_return_value
                 return default_return_value
             except MastodonUnauthorizedError:
                 logging.error(
@@ -61,14 +63,21 @@ def handle_mastodon_errors(  # noqa: C901
                     "The server is temporarily unavailable.",
                 )
                 return default_return_value
-            except MastodonAPIError:
-                logging.exception(
+            except MastodonNetworkError as ex:
+                logging.error(
+                    f"Error with Mastodon API on server {server}. "
+                    "The server encountered an error. Try again later. ",
+                    f"Error: {ex}",
+                )
+            except MastodonAPIError as ex:
+                logging.error(
                     f"Error with Mastodon API on server {server}. "
             "Make sure you have the read:statuses scope enabled for your access token.",
+            f"The error was: {ex}",
                 )
                 return default_return_value
-            except MastodonError:
-                logging.exception(f"Error with Mastodon API on server {server}.")
+            except MastodonError as ex:
+                logging.error(f"Error with Mastodon API on server {server}: {ex}")
                 return default_return_value
             except KeyError:
                 logging.exception(
