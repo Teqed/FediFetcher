@@ -74,73 +74,94 @@ def find_trending_posts(
 
     # For each key in external_tokens, query its mastodon API for trending posts.
     # Later, we're going to compare these results to each other.
-    all_trending_posts: dict[str, dict[str, str]] = {}
+    trending_posts_dict: dict[str, dict[str, str]] = {}
 
-    for key in external_tokens:
-        logging.info(f"Finding trending posts on {key}")
-        trending_posts = api_mastodon.get_trending_posts(key, external_tokens[key])
+    def add_post_to_dict(trending_post : dict[str, str],
+                        fetched_from_domain : str) -> bool:
+        """Add a trending post to the trending_posts_dict, if it's not already there.
+
+        Args:
+        ----
+        trending_post (dict[str, str]): The trending post to add.
+        fetched_from_domain (str): The domain the trending post was fetched from.
+
+        Returns:
+        -------
+        bool: True if the post was original, False otherwise.
+        """
+        t_post_url = trending_post["url"]
+        original = re.search(
+            r"https?://[^/]*\b" + re.escape(fetched_from_domain), t_post_url)
+        if original:
+            logging.info(
+        f"Adding original {t_post_url} to trending posts from {fetched_from_domain}")
+            trending_posts_dict[t_post_url] = trending_post
+            trending_posts_dict[t_post_url]["original"] = "Yes"
+            return True
+        if t_post_url in trending_posts_dict:
+            if "original" not in trending_posts_dict[t_post_url]:
+                logging.info(
+                    f"Adding stats for {t_post_url} from {fetched_from_domain}")
+                increment_count(t_post_url, trending_post)
+                return False
+            return True # We already have the original
+        logging.info(
+            f"Adding copy of {t_post_url} to trending posts from {fetched_from_domain}")
+        trending_posts_dict[t_post_url] = trending_post
+        return False
+
+    def increment_count(post_url : str, incrementing_post : dict[str, str]) -> None:
+        """Increment the reblogs_count and favourites_count of a post."""
+        trending_posts_dict[post_url]["reblogs_count"] \
+            += incrementing_post["reblogs_count"]
+        trending_posts_dict[post_url]["favourites_count"] \
+            += incrementing_post["favourites_count"]
+
+    for fetch_domain in external_tokens:
+        logging.info(f"Finding trending posts on {fetch_domain}")
+        trending_posts = api_mastodon.get_trending_posts(
+            fetch_domain, external_tokens[fetch_domain])
 
         for post in trending_posts:
             post_url: str = post["url"]
-            if post_url in all_trending_posts:
-                if "original" not in all_trending_posts[post_url]:
-                    all_trending_posts[post_url]["reblogs_count"] \
-                        += post["reblogs_count"]
-                    all_trending_posts[post_url]["favourites_count"] \
-                        += post["favourites_count"]
-            else:
-                original = re.search(r"https?://[^/]*\b" + re.escape(key), post["url"])
-                if not original:
-                    parsed_url = parsers.post(post["url"])
-                    if parsed_url and parsed_url[0] and parsed_url[1]:
-                        logging.info(
-                            f"Adding {post_url} to trending posts from origin")
-                        trending = api_mastodon.get_trending_posts(
-                                parsed_url[0], external_tokens.get(parsed_url[0]))
-                        if trending:
-                            for trending_post in trending:
-                                if trending_post["url"] == post_url:
-                                    trending_post["original"] = "Yes"
-                                    all_trending_posts[post_url] = trending_post
-                                else:
-                                    all_trending_posts[trending_post["url"]] \
-                                        = trending_post
-                            if post_url in all_trending_posts:
-                                continue
-                        remote = api_mastodon.get_status_by_id(
-                            parsed_url[0], parsed_url[1],
-                            external_tokens)
-                        if remote and remote["url"] == post_url:
-                            remote["original"] = "Yes"
-                            all_trending_posts[post_url] = remote
-                            continue
-                logging.info(f"Adding {post_url} to trending posts from {key}")
-                all_trending_posts[post_url] = post
+            original = add_post_to_dict(post, fetch_domain)
+            if original:
+                continue
+            parsed_url = parsers.post(post_url)
+            if not parsed_url or not parsed_url[0] or not parsed_url[1]:
+                logging.warning(f"Error parsing post URL {post_url}")
+                continue
+            trending = api_mastodon.get_trending_posts(
+                parsed_url[0], external_tokens.get(parsed_url[0]))
+            if trending:
+                for t_post in trending:
+                    if add_post_to_dict(t_post, parsed_url[0]) \
+                            and t_post["url"] == post_url:
+                        original = True
+            if not original:
+                remote = api_mastodon.get_status_by_id(
+                    parsed_url[0], parsed_url[1], external_tokens)
+                if remote and remote["url"] == post_url:
+                    original = add_post_to_dict(remote, parsed_url[0])
+            if not original:
+                logging.warning(f"Couldn't find original for {post_url}")
 
-    # We're going to updaet the public.status_stats table with the trending posts.
-    # We'll navigate by status_id, which we'll need to fetch from our home server,
-    # since it's different from the status's home server's ID for it.
-    # We can do a lookup on Mastodon API using the URL of the status.
-    # We'll add this as a property to each trending post, named 'local_status_id'.
-    for url in all_trending_posts:
-        local_status_id = \
-            api_mastodon.get_status_id_from_url(home_server, home_token, url)
-        all_trending_posts[url]["local_status_id"] = \
-            local_status_id if local_status_id else ""
+    """Update the status stats with the trending posts."""
+    for url, post in trending_posts_dict.items():
+        local_status_id = api_mastodon.get_status_id_from_url(
+            home_server, home_token, url)
+        post["local_status_id"] = local_status_id if local_status_id else ""
 
-    # Now, we'll contact the pg database to update the public.status_stats table.
-    # We'll need to do a lookup on the status_id to see if it's already in the table.
-    # If it is, we'll update the existing row with the new data.
-    # If it isn't, we'll insert a new row.
-
-    for url in all_trending_posts:
-        post = all_trending_posts[url]
-        if post["local_status_id"] is not None and post["local_status_id"] != "":
-            logging.info(f"Updating {post['local_status_id']} in public.status_stats")
+    """Update the status stats with the trending posts."""
+    for _url, post in trending_posts_dict.items():
+        local_status_id = post["local_status_id"]
+        if local_status_id:
+            logging.info(f"Updating {local_status_id} in public.status_stats")
             pgupdate(
                 conn,
-                int(post["local_status_id"]),
+                int(local_status_id),
                 int(post["reblogs_count"]),
                 int(post["favourites_count"]),
             )
-    return list(all_trending_posts.values())
+
+    return list(trending_posts_dict.values())
