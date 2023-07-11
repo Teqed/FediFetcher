@@ -105,6 +105,8 @@ def find_trending_posts(
         f"Adding original {t_post_url} to trending posts from {fetched_from_domain}")
             trending_posts_dict[t_post_url] = trending_post
             trending_posts_dict[t_post_url]["original"] = "Yes"
+            logging.info(f"Reblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']}")
             return True
         if t_post_url in trending_posts_dict:
             if "original" not in trending_posts_dict[t_post_url]:
@@ -117,13 +119,19 @@ def find_trending_posts(
             return True # We already have the original
         logging.info(
             f"Adding copy of {t_post_url} to trending posts from {fetched_from_domain}")
+        logging.info(f"Reblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']}")
         trending_posts_dict[t_post_url] = trending_post
         return False
 
     def increment_count(post_url : str, incrementing_post : dict[str, str]) -> None:
         """Increment the reblogs_count and favourites_count of a post."""
+        logging.info(f"Reblogs: trending_posts_dict[{post_url}]['reblogs_count'] \
++= {incrementing_post['reblogs_count']}")
         trending_posts_dict[post_url]["reblogs_count"] \
             += incrementing_post["reblogs_count"]
+        logging.info(f"Favourites: trending_posts_dict[{post_url}]['favourites_count'] \
++= {incrementing_post['favourites_count']}")
         trending_posts_dict[post_url]["favourites_count"] \
             += incrementing_post["favourites_count"]
 
