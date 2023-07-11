@@ -77,7 +77,7 @@ def find_trending_posts(
         pgpassword: str,
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
-    logging.debug("Finding trending posts")
+    logging.warning("Finding trending posts")
 
     # For each key in external_tokens, query its mastodon API for trending posts.
     # Later, we're going to compare these results to each other.
@@ -111,6 +111,8 @@ def find_trending_posts(
                     f"Adding stats for {t_post_url} from {fetched_from_domain}")
                 increment_count(t_post_url, trending_post)
                 return False
+            logging.info(
+                f"Already seen {t_post_url} from {fetched_from_domain}")
             return True # We already have the original
         logging.info(
             f"Adding copy of {t_post_url} to trending posts from {fetched_from_domain}")
@@ -128,7 +130,7 @@ def find_trending_posts(
     domains_fetched = []
     remember_to_find_me : dict[str, list[str]] = {}
     for fetch_domain in domains_to_fetch:
-        logging.info(f"Finding trending posts on {fetch_domain}")
+        logging.warning(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens[fetch_domain])
         domains_fetched.append(fetch_domain)
@@ -165,6 +167,9 @@ def find_trending_posts(
             if not original:
                 logging.warning(f"Couldn't find original for {post_url}")
         if fetch_domain in remember_to_find_me:
+            logging.info(
+f"Fetching {len(remember_to_find_me[fetch_domain])} \
+less popular posts from {fetch_domain}")
             for status_id in remember_to_find_me[fetch_domain]:
                 if status_id not in trending_posts_dict or \
                         "original" not in trending_posts_dict[status_id]:
