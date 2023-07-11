@@ -5,56 +5,64 @@ import logging
 import re
 from datetime import UTC, datetime
 
-import psycopg2
+from psycopg2 import Error, OperationalError, connect
 
 from fedifetcher import api_mastodon, parsers
 
 
-def pgupdate(
-        conn,
-        status_id: int,
-        reblogs_count: int,
-        favourites_count: int,
-) -> None:
-    """Update the public.status_stats table with the trending posts."""
-    # First, check if the status_id is already in the table.
-    # If it is, update the existing row with the new data.
-    # If it isn't, insert a new row.
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT EXISTS (
-            SELECT 1
-            FROM public.status_stats
-            WHERE status_id = %s
-        );
-        """,
-        (status_id,),
-    )
-    cursor_fetchone = cursor.fetchone()
-    if cursor_fetchone:
-        exists = cursor_fetchone[0]
-        now = datetime.now(UTC)
-        if exists:
-            cursor.execute(
-                """
+class PostgreSQLUpdater:
+    """A class for updating the PostgreSQL database."""
+
+    def __init__(self, conn) -> None: # noqa: ANN101, ANN001
+        """Initialize the PostgreSQLUpdater."""
+        self.conn = conn
+        self.updates = []
+
+    def queue_update(self, # noqa: ANN101
+                    status_id: int, reblogs_count: int, favourites_count: int) -> None:
+        """Queue an update to be processed later."""
+        self.updates.append((status_id, reblogs_count, favourites_count))
+
+    def commit_updates(self) -> None: # noqa: ANN101
+        """Commit all queued updates to the database."""
+        if len(self.updates) == 0:
+            return
+        try:
+            with self.conn.cursor() as cursor:
+                now = datetime.now(UTC)
+                for update in self.updates:
+                    status_id, reblogs_count, favourites_count = update
+                    cursor.execute(
+                        """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM public.status_stats
+                            WHERE status_id = %s
+                        );
+                        """,
+                        (status_id,),
+                    )
+                    exists = cursor.fetchone()[0]
+                    if exists:
+                        query = """
                 UPDATE public.status_stats
                 SET reblogs_count = %s, favourites_count = %s, updated_at = %s
                 WHERE status_id = %s;
-                """,
-                (reblogs_count, favourites_count, now, status_id),
-            )
-        else:
-            cursor.execute(
-                """
+                                """
+                        data = (reblogs_count, favourites_count, now, status_id)
+                    else:
+                        query = """
                 INSERT INTO public.status_stats
                 (status_id, reblogs_count, favourites_count, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s);
-                """,
-                (status_id, reblogs_count, favourites_count, now, now),
-            )
-    conn.commit()
-    cursor.close()
+                                """
+                        data = (
+                            status_id, reblogs_count, favourites_count, now, now)
+                    cursor.execute(query, data)
+                self.conn.commit()
+            self.updates = []
+        except (OperationalError, Error) as e:
+            logging.error(f"Error updating public.status_stats: {e}")
 
 def find_trending_posts(
         home_server: str,
@@ -64,13 +72,6 @@ def find_trending_posts(
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
     logging.debug("Finding trending posts")
-    conn = psycopg2.connect(
-    host="dreamer",
-    port = 5432,
-    database="mastodon_production",
-    user="teq",
-    password=pgpassword,
-    )
 
     # For each key in external_tokens, query its mastodon API for trending posts.
     # Later, we're going to compare these results to each other.
@@ -152,16 +153,24 @@ def find_trending_posts(
             home_server, home_token, url)
         post["local_status_id"] = local_status_id if local_status_id else ""
 
+    conn = connect(
+    host="dreamer",
+    port = 5432,
+    database="mastodon_production",
+    user="teq",
+    password=pgpassword,
+    )
+    pgupdate = PostgreSQLUpdater(conn)
+
     """Update the status stats with the trending posts."""
     for _url, post in trending_posts_dict.items():
         local_status_id = post["local_status_id"]
         if local_status_id:
-            logging.info(f"Updating {local_status_id} in public.status_stats")
-            pgupdate(
-                conn,
+            pgupdate.queue_update(
                 int(local_status_id),
                 int(post["reblogs_count"]),
                 int(post["favourites_count"]),
             )
+    pgupdate.commit_updates()
 
     return list(trending_posts_dict.values())
