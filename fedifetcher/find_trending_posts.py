@@ -93,11 +93,11 @@ def find_trending_posts(
                 if not original:
                     parsed_url = parsers.post(post["url"])
                     if parsed_url and parsed_url[0] and parsed_url[1]:
+                        logging.info(
+                            f"Adding {post_url} to trending posts from origin")
                         trending = api_mastodon.get_trending_posts(
                                 parsed_url[0], external_tokens.get(parsed_url[0]))
                         if trending:
-                            logging.info(
-                                f"Adding {post_url} to trending posts from origin")
                             for trending_post in trending:
                                 if trending_post["url"] == post_url:
                                     trending_post["original"] = "Yes"
@@ -106,7 +106,14 @@ def find_trending_posts(
                                     all_trending_posts[trending_post["url"]] \
                                         = trending_post
                             continue
-                logging.info(f"Adding {post_url} to trending posts")
+                        remote = api_mastodon.get_status_by_id(
+                            parsed_url[0], parsed_url[1],
+                            external_tokens)
+                        if remote and remote["url"] == post_url:
+                            remote["original"] = "Yes"
+                            all_trending_posts[post_url] = remote
+                            continue
+                logging.info(f"Adding {post_url} to trending posts from {key}")
                 all_trending_posts[post_url] = post
 
     # We're going to updaet the public.status_stats table with the trending posts.
