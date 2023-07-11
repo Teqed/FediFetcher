@@ -105,18 +105,18 @@ def add_context_urls(
     context_urls: The list of toot URLs to add.
     seen_urls: The list of all URLs we have already seen.
     """
-    logging.info("Adding context...")
+    logging.info("Adding statuses to server...")
     count = 0
     failed = 0
     for url in context_urls:
         if url not in seen_urls:
-            logging.info(f"Adding context for {url}")
+            logging.info(f"Adding {url}")
             added = api_mastodon.add_context_url(url, server, access_token)
             if added is not False:
                 seen_urls.add(url)
                 count += 1
             else:
-                logging.warning(f"Failed to add context for {url}")
+                logging.warning(f"Failed to add {url}")
                 failed += 1
 
-    logging.info(f"Added {count} new context toots (with {failed} failures)")
+    logging.info(f"Added {count} new statuses (with {failed} failures)")
