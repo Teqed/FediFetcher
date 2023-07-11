@@ -173,8 +173,8 @@ def find_trending_posts(
         local_status_id = post["local_status_id"]
         if local_status_id:
             logging.info(
-                f"Queueing stats for {local_status_id} with {post['reblogs_count']} \
-                reblogs and {post['favourites_count']} favourites")
+f"Queueing stats for {local_status_id} with {post['reblogs_count']} reblogs \
+and {post['favourites_count']} favourites")
             pgupdate.queue_update(
                 int(local_status_id),
                 int(post["reblogs_count"]),
