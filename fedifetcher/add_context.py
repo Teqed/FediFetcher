@@ -75,7 +75,7 @@ def add_post_with_context(
     bool: True if the post was added successfully, False otherwise.
     """
     added = api_mastodon.add_context_url(post["url"], server, access_token)
-    if added is True:
+    if added is not False:
         seen_urls.add(post["url"])
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
@@ -111,7 +111,7 @@ def add_context_urls(
         if url not in seen_urls:
             logging.info(f"Adding context for {url}")
             added = api_mastodon.add_context_url(url, server, access_token)
-            if added is True:
+            if added is not False:
                 seen_urls.add(url)
                 count += 1
             else:
