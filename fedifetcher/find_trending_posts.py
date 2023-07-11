@@ -98,7 +98,8 @@ def find_trending_posts(
         """
         t_post_url = trending_post["url"]
         original = re.search(
-            r"https?://[^/]*\b" + re.escape(fetched_from_domain), t_post_url)
+            r"https?://([a-zA-Z0-9_-]+\.)*(?:" + re.escape(fetched_from_domain) \
+                + ")(?:/.*)?", t_post_url)
         if original:
             logging.info(
         f"Adding original {t_post_url} to trending posts from {fetched_from_domain}")
