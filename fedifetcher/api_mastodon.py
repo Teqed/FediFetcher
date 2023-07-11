@@ -18,7 +18,6 @@ from mastodon import (
     MastodonUnauthorizedError,
 )
 
-from fedifetcher import parsers
 from fedifetcher.ordered_set import OrderedSet
 
 from . import helpers
