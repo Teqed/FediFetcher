@@ -232,6 +232,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
     if reply_toots is not None:
         for toot in reply_toots:
             if toot is not None and toot_has_parseable_url(toot, parsed_urls):
+                logging.info(f"Getting context for toot {toot['url']}")
                 reblog = toot.get("reblog")
                 if isinstance(reblog, str):
                     try:
