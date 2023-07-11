@@ -12,6 +12,7 @@ def get_user_posts_from_url(
         parsed_url : tuple[str, str],
 ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user."""
+    logging.info(f"Getting user posts from {parsed_url[0]} for user {parsed_url[1]}")
     url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
     response = helpers.get(url)
 
@@ -38,6 +39,8 @@ f"Error getting user posts from {url}")
 def get_community_posts_from_url(
         parsed_url : tuple[str, str]) -> list[dict[str, str]] | None:
     """Get a list of posts from a community."""
+    logging.info(
+        f"Getting community posts from {parsed_url[0]} for community {parsed_url[1]}")
     try:
         url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
         response = helpers.get(url)
@@ -74,6 +77,7 @@ def get_comment_context(
     -------
     list[str]: The URLs of the context toots of the given toot.
     """
+    logging.info(f"Getting context for comment {toot_url}")
     comment = f"https://{server}/api/v3/comment?id={toot_id}"
     try:
         resp = helpers.get(comment)
@@ -118,6 +122,7 @@ def get_comments_urls(  # noqa: PLR0912
     -------
     list[str]: The URLs of the comments of the given post.
     """
+    logging.info(f"Getting comments for post {toot_url}")
     urls = []
     url = f"https://{server}/api/v3/post?id={post_id}"
     try:

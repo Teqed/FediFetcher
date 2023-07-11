@@ -547,6 +547,7 @@ def add_context_url(
     dict[str, str] | bool: The status of the request, or False if the \
         request fails.
     """
+    logging.info(f"Adding context url {url} to {server}")
     result = mastodon(server, access_token).search_v2(
         q = url,
     )

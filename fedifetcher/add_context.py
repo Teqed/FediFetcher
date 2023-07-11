@@ -105,6 +105,7 @@ def add_context_urls(
     context_urls: The list of toot URLs to add.
     seen_urls: The list of all URLs we have already seen.
     """
+    logging.info("Adding context...")
     count = 0
     failed = 0
     for url in context_urls:

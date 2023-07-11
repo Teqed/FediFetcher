@@ -20,6 +20,7 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
         external_tokens: dict[str, str] | None,
         ) -> OrderedSet:
     """Pull posts from a Mastodon server, using a token."""
+    logging.info("Finding posts for provided token")
     if helpers.arguments.home_timeline_length > 0:
         """Do the same with any toots on the key owner's home timeline """
         logging.info("Pulling context toots for home timeline")
