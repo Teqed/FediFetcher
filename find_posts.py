@@ -212,11 +212,16 @@ provided. Continuing without active user IDs.")
                 external_tokens,
             )
 
-        if external_tokens and helpers.arguments.pgpassword:
+        if external_tokens and helpers.arguments.pgpassword \
+                and helpers.arguments.external_feeds:
+            # external_feeds is a comma-separated list of external feeds to fetch
+            # from, e.g. "example1.com,example2.com"
+            external_feeds = helpers.arguments.external_feeds.split(",")
             logging.info("Getting trending posts")
             trending_posts = find_trending_posts(
                 helpers.arguments.server,
                 admin_token,
+                external_feeds,
                 external_tokens,
                 helpers.arguments.pgpassword,
             )

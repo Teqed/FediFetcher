@@ -71,5 +71,7 @@ argparser.add_argument("--external-tokens", required = False, type=json.loads,
     keyed by server.")
 argparser.add_argument("--pgpassword", required = False, type=str, default=None,
     help="Provide the password for the postgres user")
+argparser.add_argument("--external-feeds", required = False, type=str, default=None,
+    help="Provide a comma-separated list of external feeds to fetch from.")
 
 arguments = argparser.parse_args()

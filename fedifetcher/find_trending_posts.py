@@ -73,6 +73,7 @@ reblogs and {update[2]} favourites")
 def find_trending_posts(
         home_server: str,
         home_token: str,
+        external_feeds: list[str],
         external_tokens: dict[str, str],
         pgpassword: str,
         ) -> list[dict[str, str]]:
@@ -135,7 +136,7 @@ Favourites: {trending_post['favourites_count']}")
         trending_posts_dict[post_url]["favourites_count"] \
             += incrementing_post["favourites_count"]
 
-    domains_to_fetch = list(external_tokens.keys())
+    domains_to_fetch = external_feeds
     logging.warning(f"Fetching trending posts from {len(domains_to_fetch)} domains:")
     for domain in domains_to_fetch:
         logging.warning(domain)
@@ -144,7 +145,7 @@ Favourites: {trending_post['favourites_count']}")
     for fetch_domain in domains_to_fetch:
         logging.warning(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens[fetch_domain])
+            fetch_domain, external_tokens.get(fetch_domain))
         domains_fetched.append(fetch_domain)
         domains_to_fetch.remove(fetch_domain)
 
