@@ -125,10 +125,12 @@ def find_trending_posts(
             += incrementing_post["favourites_count"]
 
     domains_to_fetch = list(external_tokens.keys())
+    domains_fetched = []
     for fetch_domain in domains_to_fetch:
         logging.info(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens[fetch_domain])
+        domains_fetched.append(fetch_domain)
 
         for post in trending_posts:
             post_url: str = post["url"]
@@ -141,13 +143,15 @@ def find_trending_posts(
                 continue
             if parsed_url[0] in domains_to_fetch:
                 continue
-            trending = api_mastodon.get_trending_posts(
-                parsed_url[0], external_tokens.get(parsed_url[0]))
-            if trending:
-                for t_post in trending:
-                    if add_post_to_dict(t_post, parsed_url[0]) \
-                            and t_post["url"] == post_url:
-                        original = True
+            if parsed_url[0] not in domains_fetched:
+                trending = api_mastodon.get_trending_posts(
+                    parsed_url[0], external_tokens.get(parsed_url[0]))
+                domains_fetched.append(parsed_url[0])
+                if trending:
+                    for t_post in trending:
+                        if add_post_to_dict(t_post, parsed_url[0]) \
+                                and t_post["url"] == post_url:
+                            original = True
             if not original:
                 remote = api_mastodon.get_status_by_id(
                     parsed_url[0], parsed_url[1], external_tokens)
