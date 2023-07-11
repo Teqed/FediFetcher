@@ -136,6 +136,9 @@ Favourites: {trending_post['favourites_count']}")
             += incrementing_post["favourites_count"]
 
     domains_to_fetch = list(external_tokens.keys())
+    logging.warning(f"Fetching trending posts from {len(domains_to_fetch)} domains:")
+    for domain in domains_to_fetch:
+        logging.warning(domain)
     domains_fetched = []
     remember_to_find_me : dict[str, list[str]] = {}
     for fetch_domain in domains_to_fetch:
@@ -193,8 +196,6 @@ less popular posts from {fetch_domain}")
                             f"Couldn't find {status_id} from {fetch_domain}")
             remember_to_find_me.pop(fetch_domain)
 
-
-    """Update the status stats with the trending posts."""
     for url, post in trending_posts_dict.items():
         local_status_id = api_mastodon.get_status_id_from_url(
             home_server, home_token, url)
