@@ -28,9 +28,12 @@ class PostgreSQLUpdater:
         if len(self.updates) == 0:
             return
         try:
+            logging.info(f"Updating {len(self.updates)} status stats")
             with self.conn.cursor() as cursor:
                 now = datetime.now(UTC)
                 for update in self.updates:
+                    logging.info(f"Updating status stats for {update[0]} \
+                                to {update[1]} reblogs and {update[2]} favourites")
                     status_id, reblogs_count, favourites_count = update
                     cursor.execute(
                         """
@@ -59,7 +62,9 @@ class PostgreSQLUpdater:
                         data = (
                             status_id, reblogs_count, favourites_count, now, now)
                     cursor.execute(query, data)
+                logging.info("Committing updates")
                 self.conn.commit()
+                logging.info(f"Committed {len(self.updates)} updates")
             self.updates = []
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.status_stats: {e}")
@@ -166,6 +171,9 @@ def find_trending_posts(
     for _url, post in trending_posts_dict.items():
         local_status_id = post["local_status_id"]
         if local_status_id:
+            logging.info(
+                f"Queueing stats for {local_status_id} with {post['reblogs_count']} \
+                reblogs and {post['favourites_count']} favourites")
             pgupdate.queue_update(
                 int(local_status_id),
                 int(post["reblogs_count"]),
