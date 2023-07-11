@@ -124,7 +124,8 @@ def find_trending_posts(
         trending_posts_dict[post_url]["favourites_count"] \
             += incrementing_post["favourites_count"]
 
-    for fetch_domain in external_tokens:
+    domains_to_fetch = list(external_tokens.keys())
+    for fetch_domain in domains_to_fetch:
         logging.info(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens[fetch_domain])
@@ -137,6 +138,8 @@ def find_trending_posts(
             parsed_url = parsers.post(post_url)
             if not parsed_url or not parsed_url[0] or not parsed_url[1]:
                 logging.warning(f"Error parsing post URL {post_url}")
+                continue
+            if parsed_url[0] in domains_to_fetch:
                 continue
             trending = api_mastodon.get_trending_posts(
                 parsed_url[0], external_tokens.get(parsed_url[0]))
