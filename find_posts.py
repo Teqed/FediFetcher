@@ -98,6 +98,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         known_followings = OrderedSet([])
         recently_checked_users = OrderedSet({})
     try:
+        logging.info("Loading seen files")
         SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
         REPLIED_TOOT_SERVER_IDS_FILE = Path(
             helpers.arguments.state_dir) / "replied_toot_server_ids"
@@ -122,11 +123,13 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 recently_checked_users = OrderedSet(list(json.load(file)))
 
         # Remove any users whose last check is too long in the past from the list
+        logging.info("Removing old users from recently checked users")
         for user in list(recently_checked_users):
             last_check = recently_checked_users.get_time(user)
             user_age = datetime.now(last_check.tzinfo) - last_check
             if(user_age.total_seconds(
             ) > helpers.arguments.remember_users_for_hours * 60 * 60):
+                logging.info(f"Removing user {user} from recently checked users")
                 recently_checked_users.remove(user)
 
         parsed_urls : dict[str, tuple[str | None, str | None]] = {}
@@ -146,6 +149,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         else:
             logging.warning("No external tokens found")
         try:
+            logging.info("Getting active user IDs")
             user_ids = list(api_mastodon.get_active_user_ids(
                 helpers.arguments.server,
                 admin_token,
@@ -155,7 +159,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""
             logging.info("Pulling context toots for replies")
-            logging.debug("Found user ID")
+            logging.debug("Found user ID, getting reply toots")
             reply_toots = getter_wrappers.get_all_reply_toots(
                 helpers.arguments.server,
                 user_ids,
@@ -163,13 +167,13 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 seen_urls,
                 helpers.arguments.reply_interval_in_hours,
             )
-            logging.debug("Found reply toots")
+            logging.debug("Found reply toots, getting known context URLs")
             known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
                 )
-            logging.debug("Found known context URLs")
+            logging.debug("Found known context URLs, getting replied toot IDs")
             seen_urls.update(known_context_urls)
             replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
                 helpers.arguments.server,
@@ -177,12 +181,12 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 replied_toot_server_ids,
                 parsed_urls,
             )
-            logging.debug("Found replied toot IDs")
+            logging.debug("Found replied toot IDs, getting context URLs")
             context_urls = getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
                 )
-            logging.debug("Found context URLs")
+            logging.debug("Found context URLs, adding context URLs")
             add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
@@ -196,6 +200,7 @@ requires the admin:read:accounts scope to be enabled on the first access token \
 provided. Continuing without active user IDs.")
 
         for _token in helpers.arguments.access_token:
+            logging.info("Getting posts for token")
             find_posts_by_token(
                 _token,
                 seen_urls,
@@ -208,28 +213,30 @@ provided. Continuing without active user IDs.")
             )
 
         if external_tokens and helpers.arguments.pgpassword:
+            logging.info("Getting trending posts")
             trending_posts = find_trending_posts(
                 helpers.arguments.server,
                 admin_token,
                 external_tokens,
                 helpers.arguments.pgpassword,
             )
-            logging.debug(f"Found {len(trending_posts)} trending posts")
-
+            logging.info(f"Found {len(trending_posts)} trending posts, getting \
+                    known context URLs")
             known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 trending_posts,
                 parsed_urls,
                 )
-            logging.debug("Found known context URLs")
+            logging.info("Found known context URLs, getting context URLs")
             add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 known_context_urls,
                 seen_urls,
                 )
-            logging.debug("Added context URLs")
+            logging.info("Added context URLs")
 
+        logging.info("Writing seen files")
         helpers.write_seen_files(
             SEEN_URLS_FILE,
             REPLIED_TOOT_SERVER_IDS_FILE,
