@@ -65,14 +65,12 @@ def handle_mastodon_errors(  # noqa: C901
             except MastodonNetworkError as ex:
                 logging.error(
                     f"Error with Mastodon API on server {server}. "
-                    "The server encountered an error. Try again later. ",
-                    f"Error: {ex}",
+                    f"The server encountered an error: {ex} ",
                 )
             except MastodonAPIError as ex:
                 logging.error(
-                    f"Error with Mastodon API on server {server}. "
-            "Make sure you have the read:statuses scope enabled for your access token.",
-            f"The error was: {ex}",
+                    f"Error with Mastodon API on server {server} : {ex}",
+            # Make sure you have the read:statuses scope enabled for your access token.
                 )
                 return default_return_value
             except MastodonError as ex:
