@@ -176,10 +176,10 @@ less popular posts from {fetch_domain}")
                 if status_id not in trending_posts_dict or \
                         "original" not in trending_posts_dict[status_id]:
                     logging.info(f"Fetching {status_id} from {fetch_domain}")
-                    original = api_mastodon.get_status_by_id(
+                    original_post = api_mastodon.get_status_by_id(
                         fetch_domain, status_id, external_tokens)
-                    if original:
-                        add_post_to_dict(original, fetch_domain)
+                    if original_post:
+                        add_post_to_dict(original_post, fetch_domain)
                     else:
                         logging.warning(
                             f"Couldn't find {status_id} from {fetch_domain}")
