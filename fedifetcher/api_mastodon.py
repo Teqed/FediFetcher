@@ -4,9 +4,10 @@ import inspect
 import logging
 from collections.abc import Callable, Generator, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 import requests
+from dateutil import parser
 from mastodon import (
     Mastodon,
     MastodonAPIError,
@@ -19,7 +20,6 @@ from mastodon import (
 )
 
 from fedifetcher.ordered_set import OrderedSet
-import parser
 
 from . import helpers
 
