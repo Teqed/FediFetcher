@@ -319,7 +319,7 @@ def get_reply_posts_from_id(
                 toot
                 for toot in all_statuses
                 if toot["in_reply_to_id"]
-                and parser.parse(toot["created_at"]).astimezone(UTC) > reply_since
+                and cast(datetime, toot["created_at"]).astimezone(UTC) > reply_since
                 and toot["url"] not in seen_urls
                 ]
     except Exception:

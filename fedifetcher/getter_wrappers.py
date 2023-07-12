@@ -49,8 +49,7 @@ def get_notification_users(
     )
     notification_users = []
     for notification in notifications:
-        notification_date : datetime = parser.parse(
-            notification["created_at"]).astimezone(UTC)
+        notification_date : datetime = cast(datetime, notification["created_at"])
         if(notification_date >= since and notification["account"] not in \
                 notification_users):
             notification_users.append(notification["account"])
