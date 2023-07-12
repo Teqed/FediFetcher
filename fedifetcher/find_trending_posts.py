@@ -145,6 +145,9 @@ Favourites: {trending_post['favourites_count']}")
         domains_fetched.append(fetch_domain)
         domains_to_fetch.remove(fetch_domain)
 
+        if not trending_posts:
+            logging.warning(f"Couldn't find trending posts on {fetch_domain}")
+            continue
         for post in trending_posts:
             post_url: str = post["url"]
             original = add_post_to_dict(post, fetch_domain)
