@@ -7,13 +7,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import requests
+from dateutil import parser
 
 from fedifetcher import api_mastodon
 from fedifetcher.getters import (
     get_post_context,
 )
 from fedifetcher.ordered_set import OrderedSet
-import parser
 
 from . import helpers, parsers
 
