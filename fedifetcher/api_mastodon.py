@@ -4,10 +4,9 @@ import inspect
 import logging
 from collections.abc import Callable, Generator, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import requests
-from dateutil import parser
 from mastodon import (
     Mastodon,
     MastodonAPIError,
@@ -27,7 +26,8 @@ T = TypeVar("T")
 def handle_mastodon_errors(  # noqa: C901
         default_return_value: T) -> Callable: # type: ignore # noqa: PGH003
     """Handle Mastodon errors."""
-    def decorator(func: Callable[..., T | None]) -> Callable[..., T | None]:
+    def decorator(  # noqa: C901
+            func: Callable[..., T | None]) -> Callable[..., T | None]:
         sig = inspect.signature(func)
 
         @functools.wraps(func)
