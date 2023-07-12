@@ -103,24 +103,26 @@ def find_trending_posts(  # noqa: C901, PLR0915, PLR0912
                 + ")(?:/.*)?", t_post_url)
         if original:
             logging.info(
-        f"Adding original {t_post_url} to trending posts from {fetched_from_domain}")
+        f"Adding original {t_post_url} to trending posts from {fetched_from_domain} \
+Reblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']}")
             trending_posts_dict[t_post_url] = trending_post
             trending_posts_dict[t_post_url]["original"] = "Yes"
-            logging.info(f"Reblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']}")
             return True
         if t_post_url in trending_posts_dict:
             if "original" not in trending_posts_dict[t_post_url]:
                 logging.info(
-                    f"Adding stats for {t_post_url} from {fetched_from_domain}")
+                    f"Adding stats for {t_post_url} from {fetched_from_domain} \
+Reblogs: +{trending_post['reblogs_count']} \
+Favourites: +{trending_post['favourites_count']}")
                 increment_count(t_post_url, trending_post)
                 return False
             logging.info(
-                f"Already seen {t_post_url} from {fetched_from_domain}")
+                f"Already seen {t_post_url} from origin")
             return True # We already have the original
         logging.info(
-            f"Adding copy of {t_post_url} to trending posts from {fetched_from_domain}")
-        logging.info(f"Reblogs: {trending_post['reblogs_count']} \
+            f"Adding copy of {t_post_url} to trending posts from {fetched_from_domain} \
+Reblogs: {trending_post['reblogs_count']} \
 Favourites: {trending_post['favourites_count']}")
         trending_posts_dict[t_post_url] = trending_post
         return False
@@ -214,9 +216,6 @@ less popular posts from {fetch_domain}")
     for _url, post in trending_posts_dict.items():
         local_status_id = post["local_status_id"]
         if local_status_id:
-            logging.info(
-f"Queueing stats for {local_status_id} with {post['reblogs_count']} reblogs \
-and {post['favourites_count']} favourites")
             pgupdate.queue_update(
                 int(local_status_id),
                 int(post["reblogs_count"]),
