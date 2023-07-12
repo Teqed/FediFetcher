@@ -346,7 +346,6 @@ def get_toot_context(
     list[str] | None: A list of toot URLs in the context of the toot, or [] \
         if the toot is not found.
     """
-    logging.info(f"Getting context for toot {toot_id} on {server}")
     context = mastodon(server, token).status_context(
         id = toot_id,
         )
