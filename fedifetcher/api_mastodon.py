@@ -112,7 +112,7 @@ def mastodon(server: str, token: str | None = None) -> Mastodon:
             debug_requests=False,
             ratelimit_method="throw",
             ratelimit_pacefactor=1.1,
-            request_timeout=10,
+            request_timeout=20,
             version_check_mode="none",
         )
     return mastodon.sessions[server]
