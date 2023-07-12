@@ -70,7 +70,7 @@ reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.status_stats: {e}")
 
-def find_trending_posts(
+def find_trending_posts(  # noqa: C901, PLR0915, PLR0912
         home_server: str,
         home_token: str,
         external_feeds: list[str],
