@@ -127,12 +127,8 @@ Favourites: {trending_post['favourites_count']}")
 
     def increment_count(post_url : str, incrementing_post : dict[str, str]) -> None:
         """Increment the reblogs_count and favourites_count of a post."""
-        logging.info(f"Reblogs: {trending_posts_dict[post_url]['reblogs_count']} \
-+= {incrementing_post['reblogs_count']}")
         trending_posts_dict[post_url]["reblogs_count"] \
             += incrementing_post["reblogs_count"]
-        logging.info(f"Favourites: {trending_posts_dict[post_url]['favourites_count']} \
-+= {incrementing_post['favourites_count']}")
         trending_posts_dict[post_url]["favourites_count"] \
             += incrementing_post["favourites_count"]
 
