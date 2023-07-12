@@ -4,7 +4,7 @@ import inspect
 import logging
 from collections.abc import Callable, Generator, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import requests
 from mastodon import (
@@ -283,6 +283,7 @@ def get_user_posts_from_id(
     Exception: If the access token does not have the correct scope.
     Exception: If the server returns an unexpected status code.
     """
+    logging.info(f"Getting posts for user {user_id} on {server}")
     return mastodon(server, token).account_statuses(
         id = user_id,
         limit = 40,
@@ -317,9 +318,7 @@ def get_reply_posts_from_id(
                 toot
                 for toot in all_statuses
                 if toot["in_reply_to_id"]
-                and datetime.strptime(
-                    toot["created_at"],
-                        "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC) > reply_since
+                and cast(datetime, toot["created_at"]).astimezone(UTC) > reply_since
                 and toot["url"] not in seen_urls
                 ]
     except Exception:
