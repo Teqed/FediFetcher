@@ -234,6 +234,13 @@ provided. Continuing without active user IDs.")
             )
             logging.info(
 f"Found {len(trending_posts)} trending posts, getting known context URLs")
+            trending_posts = [
+                post for post in trending_posts
+                if post["replies_count"] != 0 or post["in_reply_to_id"] is not None
+            ]
+            logging.info(
+f"Found {len(trending_posts)} trending posts with replies, getting known \
+context URLs")
             known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 trending_posts,
