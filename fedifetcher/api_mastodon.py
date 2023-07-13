@@ -601,8 +601,8 @@ def get_status_id_from_url(
     server (str): The server to get the status id from.
     token (str): The access token to use for the request.
     url (str): The URL of the toot to get the status id of.
-    status_id_cache (dict[str, str] | None): A dict of status ids, keyed by \
-        URL. If None, no cache will be used.
+    status_id_cache (dict[str, str]): A dict of status ids, keyed by \
+        "server,URL".
 
     Returns:
     -------
@@ -620,8 +620,7 @@ def get_status_id_from_url(
     if statuses:
         for status in statuses:
             if status["url"] == url:
-                if status_id_cache:
-                    status_id_cache[f"{server},{url}"] = status["id"]
+                status_id_cache[f"{server},{url}"] = status["id"]
                 return status["id"]
     return None
 
