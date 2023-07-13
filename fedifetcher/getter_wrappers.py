@@ -266,7 +266,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                             f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                         continue
                     if context:
-                        logging.info(f"Got {len(context)} context toots got toot {url}")
+                        logging.info(f"Got {len(context)} context for {url}")
                         known_context_urls.extend(context)
 
     return filter(
