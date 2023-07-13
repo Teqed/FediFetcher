@@ -93,11 +93,11 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
     with Path(LOCK_FILE).open("w", encoding="utf-8") as file:
         file.write(f"{datetime.now(UTC)}")
 
-        seen_urls = OrderedSet()
-        replied_toot_server_ids: dict[str, str | None] = {}
-        known_followings = OrderedSet([])
-        recently_checked_users = OrderedSet({})
-        status_id_cache: dict[str, str] = {}
+    seen_urls = OrderedSet()
+    replied_toot_server_ids: dict[str, str | None] = {}
+    known_followings = OrderedSet([])
+    recently_checked_users = OrderedSet({})
+    status_id_cache: dict[str, str] = {}
     try:
         logging.info("Loading seen files")
         SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
@@ -280,6 +280,7 @@ context URLs")
         logging.info(f"Processing finished in {datetime.now(UTC) - start}.")
 
     except Exception:
+        logging.exception("Error running FediFetcher")
         try: # Try to clean up
             SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
             REPLIED_TOOT_SERVER_IDS_FILE = Path(
@@ -312,4 +313,4 @@ context URLs")
                 helpers.get(f"{helpers.arguments.on_fail}?rid={run_id}")
             except Exception as ex:
                 logging.error(f"Error getting callback url: {ex}")
-        raise
+        sys.exit(1)

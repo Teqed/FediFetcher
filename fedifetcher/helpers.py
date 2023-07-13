@@ -87,11 +87,11 @@ def write_seen_files(  # noqa: PLR0913
         KNOWN_FOLLOWINGS_FILE : Path,  # noqa: N803
         RECENTLY_CHECKED_USERS_FILE : Path,  # noqa: N803
         STATUS_ID_CACHE_FILE : Path,  # noqa: N803
-        seen_urls : OrderedSet | None,
-        replied_toot_server_ids : dict[str, str | None] | None,
-        known_followings : OrderedSet | None,
-        recently_checked_users : OrderedSet | None,
-        status_id_cache : dict[str, str] | None,
+        seen_urls : OrderedSet,
+        replied_toot_server_ids : dict[str, str | None],
+        known_followings : OrderedSet,
+        recently_checked_users : OrderedSet,
+        status_id_cache : dict[str, str],
         ) -> None:
     """Write the seen files to disk."""
     if known_followings is not None:
