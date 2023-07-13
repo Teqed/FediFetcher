@@ -252,7 +252,6 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                     logging.info(f"Got boosted toot URL {url}")
                 elif toot.get("url") is not None:
                     url = str(toot["url"])
-                    logging.info(f"Got toot URL {url}")
                 else:
                     logging.error("Error accessing URL in the toot")
                     continue
@@ -267,7 +266,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                             f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                         continue
                     if context:
-                        logging.info(f"Got {len(context)} context toots")
+                        logging.info(f"Got {len(context)} context toots got toot {url}")
                         known_context_urls.extend(context)
 
     return filter(
