@@ -70,12 +70,13 @@ reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.status_stats: {e}")
 
-def find_trending_posts(  # noqa: C901, PLR0915, PLR0912
+def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
         home_server: str,
         home_token: str,
         external_feeds: list[str],
         external_tokens: dict[str, str],
         pgpassword: str,
+        status_id_cache: dict[str, str] | None = None,
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
     logging.warning("Finding trending posts")
@@ -200,7 +201,7 @@ less popular posts from {fetch_domain}")
 
     for url, post in trending_posts_dict.items():
         local_status_id = api_mastodon.get_status_id_from_url(
-            home_server, home_token, url)
+            home_server, home_token, url, status_id_cache)
         post["local_status_id"] = local_status_id if local_status_id else ""
 
     conn = connect(

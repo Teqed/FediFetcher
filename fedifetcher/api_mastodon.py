@@ -592,6 +592,7 @@ def get_status_id_from_url(
         server : str,
         token : str,
         url : str,
+        status_id_cache: dict[str, str] | None = None,
         ) -> str | None:
     """Get the status id from a toot URL.
 
@@ -600,11 +601,16 @@ def get_status_id_from_url(
     server (str): The server to get the status id from.
     token (str): The access token to use for the request.
     url (str): The URL of the toot to get the status id of.
+    status_id_cache (dict[str, str] | None): A dict of status ids, keyed by \
+        URL. If None, no cache will be used.
 
     Returns:
     -------
     str | None: The status id of the toot, or None if the toot is not found.
     """
+    if status_id_cache and f"{server},{url}" in status_id_cache:
+        logging.info(f"Getting status id from cache for url {url}")
+        return status_id_cache[f"{server},{url}"]
     logging.info(f"Getting status id from url {url}")
     statuses = mastodon(server, token).search_v2(
         q = url,
@@ -614,6 +620,8 @@ def get_status_id_from_url(
     if statuses:
         for status in statuses:
             if status["url"] == url:
+                if status_id_cache:
+                    status_id_cache[f"{server},{url}"] = status["id"]
                 return status["id"]
     return None
 

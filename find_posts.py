@@ -97,6 +97,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         replied_toot_server_ids: dict[str, str | None] = {}
         known_followings = OrderedSet([])
         recently_checked_users = OrderedSet({})
+        status_id_cache: dict[str, str] = {}
     try:
         logging.info("Loading seen files")
         SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
@@ -105,6 +106,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         KNOWN_FOLLOWINGS_FILE = Path(helpers.arguments.state_dir) / "known_followings"
         RECENTLY_CHECKED_USERS_FILE = Path(
             helpers.arguments.state_dir) / "recently_checked_users"
+        STATUS_ID_CACHE_FILE = Path(helpers.arguments.state_dir) / "status_id_cache"
 
         if Path(SEEN_URLS_FILE).exists():
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
@@ -121,6 +123,10 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         if Path(RECENTLY_CHECKED_USERS_FILE).exists():
             with Path(RECENTLY_CHECKED_USERS_FILE).open(encoding="utf-8") as file:
                 recently_checked_users = OrderedSet(list(json.load(file)))
+
+        if Path(STATUS_ID_CACHE_FILE).exists():
+            with Path(STATUS_ID_CACHE_FILE).open(encoding="utf-8") as file:
+                status_id_cache = json.load(file)
 
         # Remove any users whose last check is too long in the past from the list
         logging.info("Removing old users from recently checked users")
@@ -224,6 +230,7 @@ provided. Continuing without active user IDs.")
                 external_feeds,
                 external_tokens,
                 helpers.arguments.pgpassword,
+                status_id_cache,
             )
             logging.info(
 f"Found {len(trending_posts)} trending posts, getting known context URLs")
@@ -247,10 +254,12 @@ f"Found {len(trending_posts)} trending posts, getting known context URLs")
             REPLIED_TOOT_SERVER_IDS_FILE,
             KNOWN_FOLLOWINGS_FILE,
             RECENTLY_CHECKED_USERS_FILE,
+            STATUS_ID_CACHE_FILE,
             seen_urls,
             replied_toot_server_ids,
             known_followings,
             recently_checked_users,
+            status_id_cache,
             )
 
         Path.unlink(LOCK_FILE)
@@ -272,15 +281,19 @@ f"Found {len(trending_posts)} trending posts, getting known context URLs")
                 helpers.arguments.state_dir) / "known_followings"
             RECENTLY_CHECKED_USERS_FILE = Path(
                 helpers.arguments.state_dir) / "recently_checked_users"
+            STATUS_ID_CACHE_FILE = Path(
+                helpers.arguments.state_dir) / "status_id_cache"
             helpers.write_seen_files(
                 SEEN_URLS_FILE,
                 REPLIED_TOOT_SERVER_IDS_FILE,
                 KNOWN_FOLLOWINGS_FILE,
                 RECENTLY_CHECKED_USERS_FILE,
+                STATUS_ID_CACHE_FILE,
                 seen_urls,
                 replied_toot_server_ids,
                 known_followings,
                 recently_checked_users,
+                status_id_cache,
                 )
             logging.info("Successfully wrote seen files.")
         except Exception as ex:
