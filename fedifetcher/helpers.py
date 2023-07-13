@@ -87,11 +87,13 @@ def write_seen_files(  # noqa: PLR0913
         KNOWN_FOLLOWINGS_FILE : Path,  # noqa: N803
         RECENTLY_CHECKED_USERS_FILE : Path,  # noqa: N803
         STATUS_ID_CACHE_FILE : Path,  # noqa: N803
+        TRENDING_POSTS_WITH_REPLIES_SEEN_FILE : Path,  # noqa: N803
         seen_urls : OrderedSet,
         replied_toot_server_ids : dict[str, str | None],
         known_followings : OrderedSet,
         recently_checked_users : OrderedSet,
         status_id_cache : dict[str, str],
+        trending_posts_replies_seen : dict[str, str],
         ) -> None:
     """Write the seen files to disk."""
     if known_followings is not None:
@@ -115,3 +117,9 @@ def write_seen_files(  # noqa: PLR0913
         with Path(STATUS_ID_CACHE_FILE).open("w", encoding="utf-8") as file:
             json.dump(dict(list(status_id_cache.items())[-10000:]), file)
             logging.info(f"Wrote {len(status_id_cache)} status IDs")
+    if trending_posts_replies_seen is not None:
+        with Path(
+            TRENDING_POSTS_WITH_REPLIES_SEEN_FILE).open("w", encoding="utf-8") as file:
+            json.dump(dict(list(trending_posts_replies_seen.items())[-10000:]), file)
+            logging.info(f"Wrote {len(trending_posts_replies_seen)} \
+trending posts with replies seen")

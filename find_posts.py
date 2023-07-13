@@ -98,6 +98,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
     known_followings = OrderedSet([])
     recently_checked_users = OrderedSet({})
     status_id_cache: dict[str, str] = {}
+    trending_posts_replies_seen = {}
     try:
         logging.info("Loading seen files")
         SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
@@ -107,6 +108,8 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         RECENTLY_CHECKED_USERS_FILE = Path(
             helpers.arguments.state_dir) / "recently_checked_users"
         STATUS_ID_CACHE_FILE = Path(helpers.arguments.state_dir) / "status_id_cache"
+        TRENDING_POSTS_REPLIES_SEEN_FILE = Path(
+            helpers.arguments.state_dir) / "trending_posts_replies_seen"
 
         if Path(SEEN_URLS_FILE).exists():
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
@@ -133,6 +136,14 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             with Path(STATUS_ID_CACHE_FILE).open(encoding="utf-8") as file:
                 status_id_cache = json.load(file)
                 logging.info(f"Loaded {len(status_id_cache)} status IDs")
+
+        if Path(TRENDING_POSTS_REPLIES_SEEN_FILE).exists():
+            with Path(TRENDING_POSTS_REPLIES_SEEN_FILE).open(
+                    encoding="utf-8") as file:
+                trending_posts_replies_seen = json.load(file)
+                logging.info(
+                    f"Loaded {len(trending_posts_replies_seen)} trending posts \
+with replies seen")
 
         # Remove any users whose last check is too long in the past from the list
         logging.info("Removing old users from recently checked users")
@@ -239,17 +250,25 @@ provided. Continuing without active user IDs.")
                 status_id_cache,
             )
             logging.info(
-f"Found {len(trending_posts)} trending posts, getting known context URLs")
+f"Found {len(trending_posts)} trending posts")
             trending_posts = [
                 post for post in trending_posts
                 if post["replies_count"] != 0 or post["in_reply_to_id"] is not None
             ]
+            trending_posts_changed = []
+            for post in trending_posts:
+                new_reply_count = post["replies_count"]
+                old_reply_count = trending_posts_replies_seen.get(
+                    post["id"], None)
+                if old_reply_count is None or new_reply_count > old_reply_count:
+                    trending_posts_changed.append(post)
+                    trending_posts_replies_seen[post["id"]] = new_reply_count
             logging.info(
-f"Found {len(trending_posts)} trending posts with replies, getting known \
+f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
             known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
-                trending_posts,
+                trending_posts_changed,
                 parsed_urls,
                 )
             logging.info("Found known context URLs, getting context URLs")
@@ -268,11 +287,13 @@ context URLs")
             KNOWN_FOLLOWINGS_FILE,
             RECENTLY_CHECKED_USERS_FILE,
             STATUS_ID_CACHE_FILE,
+            TRENDING_POSTS_REPLIES_SEEN_FILE,
             seen_urls,
             replied_toot_server_ids,
             known_followings,
             recently_checked_users,
             status_id_cache,
+            trending_posts_replies_seen,
             )
 
         Path.unlink(LOCK_FILE)
@@ -297,17 +318,21 @@ context URLs")
                 helpers.arguments.state_dir) / "recently_checked_users"
             STATUS_ID_CACHE_FILE = Path(
                 helpers.arguments.state_dir) / "status_id_cache"
+            TRENDING_POSTS_REPLIES_SEEN_FILE = Path(
+                helpers.arguments.state_dir) / "trending_posts_replies_seen"
             helpers.write_seen_files(
                 SEEN_URLS_FILE,
                 REPLIED_TOOT_SERVER_IDS_FILE,
                 KNOWN_FOLLOWINGS_FILE,
                 RECENTLY_CHECKED_USERS_FILE,
                 STATUS_ID_CACHE_FILE,
+                TRENDING_POSTS_REPLIES_SEEN_FILE,
                 seen_urls,
                 replied_toot_server_ids,
                 known_followings,
                 recently_checked_users,
                 status_id_cache,
+                trending_posts_replies_seen,
                 )
             logging.info("Successfully wrote seen files.")
         except Exception as ex:
