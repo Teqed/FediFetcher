@@ -110,9 +110,9 @@ def add_context_urls(
     failed = 0
     for url in context_urls:
         if url not in seen_urls:
-            logging.info(f"Adding {url}")
             added = api_mastodon.add_context_url(url, server, access_token)
             if added is not False:
+                logging.info(f"Added {url}")
                 seen_urls.add(url)
                 count += 1
             else:
