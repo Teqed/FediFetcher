@@ -592,7 +592,7 @@ def get_status_id_from_url(
         server : str,
         token : str,
         url : str,
-        status_id_cache: dict[str, str] | None = None,
+        status_id_cache: dict[str, str],
         ) -> str | None:
     """Get the status id from a toot URL.
 

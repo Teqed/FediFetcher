@@ -76,7 +76,7 @@ def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
         external_feeds: list[str],
         external_tokens: dict[str, str],
         pgpassword: str,
-        status_id_cache: dict[str, str] | None = None,
+        status_id_cache: dict[str, str],
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
     logging.warning("Finding trending posts")
