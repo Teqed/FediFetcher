@@ -320,6 +320,7 @@ def get_replied_toot_server_id(  # noqa: PLR0911
         if mention["id"] == in_reply_to_account_id
     ]
     if len(mentions) < 1:
+        logging.info(f"Could not find mention for toot {in_reply_to_id}")
         return (None, None)
 
     mention = mentions[0]
@@ -327,10 +328,13 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     o_url = f"https://{server}/@{mention['acct']}/{in_reply_to_id}"
     if o_url in replied_toot_server_ids:
         if replied_toot_server_ids[o_url] is None:
+            logging.info(f"Found {o_url} in replied toots dictionary as None")
             return (None, None)
         if isinstance(replied_toot_server_ids[o_url], str):
             found_server, found_id = cast(
                 str, replied_toot_server_ids[o_url]).split(",")
+            logging.info(
+        f"Found {o_url} in replied toots dictionary as {found_server}, {found_id}")
             return (
                 found_server,
                 found_id,
@@ -339,14 +343,17 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     url = get_redirect_url(o_url)
 
     if url is None:
+        logging.error(f"Error getting redirect URL for URL {o_url}")
         return (None, None)
 
     match = parsers.post(url, parsed_urls)
     if match:
         if match[0] is not None and match[1] is not None:
-            logging.info(f"Added {url} to replied toots dictionary")
+            logging.info(
+                f"Added {url} to replied toots dictionary as {match[0]}, {match[1]}")
             replied_toot_server_ids[o_url] = f"{url},{match[0]},{match[1]}"
             return (match[0], match[1])
+        logging.info(f"Added {url} to replied toots dictionary as None")
         replied_toot_server_ids[o_url] = None
         return (None, None)
 
