@@ -329,11 +329,11 @@ def get_replied_toot_server_id(  # noqa: PLR0911
         if replied_toot_server_ids[o_url] is None:
             return (None, None)
         if isinstance(replied_toot_server_ids[o_url], str):
-            ## Missing code goes here
-            cast(str, replied_toot_server_ids[o_url]).split(",")
+            found_server, found_id = cast(
+                str, replied_toot_server_ids[o_url]).split(",")
             return (
-                    cast(str, replied_toot_server_ids[o_url])[0],
-                    cast(str, replied_toot_server_ids[o_url])[1],
+                found_server,
+                found_id,
                     )
 
     url = get_redirect_url(o_url)
@@ -344,6 +344,7 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     match = parsers.post(url, parsed_urls)
     if match:
         if match[0] is not None and match[1] is not None:
+            logging.info(f"Added {url} to replied toots dictionary")
             replied_toot_server_ids[o_url] = f"{url},{match[0]},{match[1]}"
             return (match[0], match[1])
         replied_toot_server_ids[o_url] = None
