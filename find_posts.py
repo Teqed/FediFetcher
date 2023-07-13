@@ -111,22 +111,28 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         if Path(SEEN_URLS_FILE).exists():
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
                 seen_urls = OrderedSet(file.read().splitlines())
+                logging.info(f"Loaded {len(seen_urls)} seen URLs")
 
         if Path(REPLIED_TOOT_SERVER_IDS_FILE).exists():
             with Path(REPLIED_TOOT_SERVER_IDS_FILE).open(encoding="utf-8") as file:
                 replied_toot_server_ids = json.load(file)
+                logging.info(f"Loaded {len(replied_toot_server_ids)} replied toot IDs")
 
         if Path(KNOWN_FOLLOWINGS_FILE).exists():
             with Path(KNOWN_FOLLOWINGS_FILE).open(encoding="utf-8") as file:
                 known_followings = OrderedSet(file.read().splitlines())
+                logging.info(f"Loaded {len(known_followings)} known followings")
 
         if Path(RECENTLY_CHECKED_USERS_FILE).exists():
             with Path(RECENTLY_CHECKED_USERS_FILE).open(encoding="utf-8") as file:
                 recently_checked_users = OrderedSet(list(json.load(file)))
+                logging.info(
+                    f"Loaded {len(recently_checked_users)} recently checked users")
 
         if Path(STATUS_ID_CACHE_FILE).exists():
             with Path(STATUS_ID_CACHE_FILE).open(encoding="utf-8") as file:
                 status_id_cache = json.load(file)
+                logging.info(f"Loaded {len(status_id_cache)} status IDs")
 
         # Remove any users whose last check is too long in the past from the list
         logging.info("Removing old users from recently checked users")

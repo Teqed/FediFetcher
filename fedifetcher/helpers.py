@@ -97,15 +97,21 @@ def write_seen_files(  # noqa: PLR0913
     if known_followings is not None:
         with Path(KNOWN_FOLLOWINGS_FILE).open("w", encoding="utf-8") as file:
             file.write("\n".join(list(known_followings)[-10000:]))
+            logging.info(f"Wrote {len(known_followings)} known followings")
     if seen_urls is not None:
         with Path(SEEN_URLS_FILE).open("w", encoding="utf-8") as file:
             file.write("\n".join(list(seen_urls)[-10000:]))
+            logging.info(f"Wrote {len(seen_urls)} seen URLs")
     if replied_toot_server_ids is not None:
         with Path(REPLIED_TOOT_SERVER_IDS_FILE).open("w", encoding="utf-8") as file:
             json.dump(dict(list(replied_toot_server_ids.items())[-10000:]), file)
+            logging.info(
+                f"Wrote {len(replied_toot_server_ids)} replied toot server IDs")
     if recently_checked_users is not None:
         with Path(RECENTLY_CHECKED_USERS_FILE).open("w", encoding="utf-8") as file:
             recently_checked_users.to_json(file.name)
+            logging.info(f"Wrote {len(recently_checked_users)} recently checked users")
     if status_id_cache is not None:
         with Path(STATUS_ID_CACHE_FILE).open("w", encoding="utf-8") as file:
             json.dump(dict(list(status_id_cache.items())[-10000:]), file)
+            logging.info(f"Wrote {len(status_id_cache)} status IDs")
