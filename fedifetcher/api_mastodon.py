@@ -644,7 +644,6 @@ def get_status_by_id(
     -------
     dict[str, str] | None: The status of the toot, or None if the toot is not found.
     """
-    logging.info(f"Getting status {status_id} from {server}")
     token = None
     if external_tokens and server in external_tokens:
         token = external_tokens[server]
