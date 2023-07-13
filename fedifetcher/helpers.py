@@ -108,4 +108,4 @@ def write_seen_files(  # noqa: PLR0913
             recently_checked_users.to_json(file.name)
     if status_id_cache is not None:
         with Path(STATUS_ID_CACHE_FILE).open("w", encoding="utf-8") as file:
-            json.dump(status_id_cache, file)
+            json.dump(dict(list(status_id_cache.items())[-10000:]), file)
