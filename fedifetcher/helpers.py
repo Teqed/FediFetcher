@@ -118,8 +118,10 @@ def write_seen_files(  # noqa: PLR0913
             json.dump(dict(list(status_id_cache.items())[-10000:]), file)
             logging.info(f"Wrote {len(status_id_cache)} status IDs")
     if trending_posts_replies_seen is not None:
+        logging.info(f"Received {len(trending_posts_replies_seen)} trending posts \
+with replies seen")
+        recent = dict(list(trending_posts_replies_seen.items())[-10000:])
         with Path(
             TRENDING_POSTS_WITH_REPLIES_SEEN_FILE).open("w", encoding="utf-8") as file:
-            json.dump(dict(list(trending_posts_replies_seen.items())[-10000:]), file)
-            logging.info(f"Wrote {len(trending_posts_replies_seen)} \
-trending posts with replies seen")
+            json.dump(recent, file)
+            logging.info(f"Wrote {len(recent)} trending posts with replies seen")
