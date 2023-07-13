@@ -100,7 +100,7 @@ def write_seen_files(  # noqa: PLR0913
             logging.info(f"Wrote {len(known_followings)} known followings")
     if seen_urls is not None:
         with Path(SEEN_URLS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(seen_urls)[-10000:]))
+            file.write("\n".join(list(seen_urls)[-15000:]))
             logging.info(f"Wrote {len(seen_urls)} seen URLs")
     if replied_toot_server_ids is not None:
         with Path(REPLIED_TOOT_SERVER_IDS_FILE).open("w", encoding="utf-8") as file:
