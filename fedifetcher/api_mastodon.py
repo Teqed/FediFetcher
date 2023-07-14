@@ -580,7 +580,7 @@ def get_trending_posts(
     server (str): The server to get the trending posts from.
     token (str): The access token to use for the request.
     limit (int): The maximum number of trending posts to get. \
-        Defaults to 40. The maximum value is 40.
+        Defaults to 40. Paginates until the limit is reached.
 
     Returns:
     -------
@@ -588,13 +588,38 @@ def get_trending_posts(
         request fails.
     """
     logging.info(f"Getting trending posts for {server}")
-    trending_posts = mastodon(server, token).trending_statuses(limit)
-    trending_posts: list[dict[str, str]] = [
-        toot
-        for toot in trending_posts
-        if toot["language"] == "en"
-        ]
+    got_trending_posts = cast(list[dict[str, str]],
+                        mastodon(server, token).trends(limit=limit))
+    trending_posts: list[dict[str, str]] = []
+    trending_posts.extend(filter_language(got_trending_posts, "en"))
+    while len(trending_posts) < limit \
+            and len(got_trending_posts) == 40:  # noqa: PLR2004
+        got_trending_posts = cast(list[dict[str, str]],
+                            mastodon(server, token).fetch_next(got_trending_posts))
+        trending_posts.extend(filter_language(got_trending_posts, "en"))
+    logging.info(f"Found {len(trending_posts)} trending posts")
     return trending_posts
+
+def filter_language(
+        toots : Iterable[dict[str, str]],
+        language : str,
+        ) -> Iterator[dict[str, str]]:
+    """Filter out toots that are not in the given language.
+
+    Args:
+    ----
+    toots (Iterable[dict[str, str]]): The toots to filter.
+    language (str): The language to filter by.
+
+    Returns:
+    -------
+    Iterator[dict[str, str]]: The filtered toots.
+    """
+    return (
+        toot
+        for toot in toots
+        if toot["language"] == language
+        )
 
 @handle_mastodon_errors(None)
 def get_status_id_from_url(
