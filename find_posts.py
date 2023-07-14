@@ -144,6 +144,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 logging.info(
                     f"Loaded {len(trending_posts_replies_seen)} trending posts \
 with replies seen")
+                logging.info(trending_posts_replies_seen) # Debug
 
         # Remove any users whose last check is too long in the past from the list
         logging.info("Removing old users from recently checked users")
