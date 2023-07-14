@@ -98,7 +98,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
     known_followings = OrderedSet([])
     recently_checked_users = OrderedSet({})
     status_id_cache: dict[str, str] = {}
-    trending_posts_replies_seen = {}
+    trending_posts_replies_seen: dict[str, str] = {}
     try:
         logging.info("Loading seen files")
         SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
