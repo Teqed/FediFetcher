@@ -125,3 +125,4 @@ with replies seen")
             TRENDING_POSTS_WITH_REPLIES_SEEN_FILE).open("w", encoding="utf-8") as file:
             json.dump(recent, file)
             logging.info(f"Wrote {len(recent)} trending posts with replies seen")
+            logging.info(recent) # Debug
