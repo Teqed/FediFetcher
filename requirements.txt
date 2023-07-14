@@ -11,7 +11,7 @@ idna==3.4
 iniconfig==2.0.0
 lark==1.1.5
 mando==0.7.1
--e git+https://github.com/halcy/Mastodon.py.git@cd86887d88bbc07de462d1e00a8fbc3d956c0151#egg=Mastodon.py
+-e git+https://github.com/Teqed/Mastodon.py.git@cd86887d88bbc07de462d1e00a8fbc3d956c0151#egg=Mastodon.py
 packaging==23.1
 pluggy==1.2.0
 psycopg2-binary==2.9.6
