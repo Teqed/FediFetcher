@@ -312,6 +312,7 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     parsed_urls: dict[str, tuple[str | None, str | None]],
 ) -> tuple[str | None, str | None]:
     """Get the server and ID of the toot the given toot replied to."""
+    logging.warning(f"Getting replied toot server and ID for toot {toot['id']}")
     in_reply_to_id = toot["in_reply_to_id"]
     in_reply_to_account_id = toot["in_reply_to_account_id"]
     mentions = [
