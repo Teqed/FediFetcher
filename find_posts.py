@@ -263,7 +263,8 @@ f"Found {len(trending_posts)} trending posts")
                     post["id"], None)
                 if old_reply_count is None or new_reply_count > old_reply_count:
                     trending_posts_changed.append(post)
-                    trending_posts_replies_seen[post["id"]] = new_reply_count
+                    post_id: str = str(post["id"])
+                    trending_posts_replies_seen[post_id] = new_reply_count
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
