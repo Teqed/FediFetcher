@@ -571,6 +571,7 @@ def add_context_url(
 def get_trending_posts(
         server : str,
         token : str | None = None,
+        limit : int = 40,
         ) -> list[dict[str, str]]:
     """Get a list of trending posts.
 
@@ -578,6 +579,8 @@ def get_trending_posts(
     ----
     server (str): The server to get the trending posts from.
     token (str): The access token to use for the request.
+    limit (int): The maximum number of trending posts to get. \
+        Defaults to 40. The maximum value is 40.
 
     Returns:
     -------
@@ -585,7 +588,13 @@ def get_trending_posts(
         request fails.
     """
     logging.info(f"Getting trending posts for {server}")
-    return mastodon(server, token).trending_statuses(limit=40)
+    trending_posts = mastodon(server, token).trending_statuses(limit)
+    trending_posts: list[dict[str, str]] = [
+        toot
+        for toot in trending_posts
+        if toot["language"] == "en"
+        ]
+    return trending_posts
 
 @handle_mastodon_errors(None)
 def get_status_id_from_url(
