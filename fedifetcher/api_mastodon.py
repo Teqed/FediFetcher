@@ -373,7 +373,7 @@ def get_toot_context(
                     status_home_id = get_status_id_from_url(
                         home_server, home_server_token, _status.url, status_id_cache)
                     if status_home_id:
-                        status_id_cache[(f"{home_server,_status.url}")] = status_home_id
+                        status_id_cache[f"{home_server,_status.url}"] = status_home_id
                 if status_home_id:
                     status_home_id = int(status_home_id)
                     pgupdater.queue_update(
