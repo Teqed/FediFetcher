@@ -17,7 +17,8 @@ class PostgreSQLUpdater:
     def queue_update(self, # noqa: ANN101
                     status_id: int, reblogs_count: int, favourites_count: int) -> None:
         """Queue an update to be processed later."""
-        self.updates.append((status_id, reblogs_count, favourites_count))
+        if reblogs_count > 0 or favourites_count > 0:
+            self.updates.append((status_id, reblogs_count, favourites_count))
 
     def commit_updates(self) -> None: # noqa: ANN101
         """Commit all queued updates to the database."""
