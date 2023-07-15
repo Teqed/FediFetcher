@@ -210,6 +210,10 @@ with replies seen")
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
+                external_tokens,
+                pgupdater,
+                admin_token,
+                status_id_cache,
                 )
             logging.debug("Found known context URLs, getting replied toot IDs")
             seen_urls.update(known_context_urls)
@@ -292,6 +296,10 @@ context URLs")
                 helpers.arguments.server,
                 trending_posts_changed,
                 parsed_urls,
+                external_tokens,
+                pgupdater,
+                admin_token,
+                status_id_cache,
                 )
             logging.info("Found known context URLs, getting context URLs")
             add_context.add_context_urls(

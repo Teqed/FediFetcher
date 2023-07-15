@@ -38,6 +38,10 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
             helpers.arguments.server,
             timeline_toots,
             parsed_urls,
+            external_tokens,
+            pgupdater,
+            token,
+            status_id_cache,
             )
         logging.info("Found known context URLs, getting context URLs")
         add_context.add_context_urls(
@@ -95,6 +99,8 @@ mentioned users")
                 all_known_users,
                 seen_urls,
                 external_tokens,
+                pgupdater,
+                status_id_cache,
                 )
     token_user_id = api_mastodon.get_me(helpers.arguments.server, token)
     if not token_user_id:
@@ -117,6 +123,10 @@ mentioned users")
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
+                external_tokens,
+                pgupdater,
+                token,
+                status_id_cache,
                 )
             logging.info("Found known context URLs, getting context URLs")
             seen_urls.update(known_context_urls)
@@ -162,6 +172,8 @@ mentioned users")
                 all_known_users,
                 seen_urls,
                 external_tokens,
+                pgupdater,
+                status_id_cache,
                 )
             logging.info("Added context URLs")
         if helpers.arguments.max_followers > 0:
@@ -183,6 +195,8 @@ mentioned users")
                 all_known_users,
                 seen_urls,
                 external_tokens,
+                pgupdater,
+                status_id_cache,
                 )
             logging.info("Added context URLs")
     if helpers.arguments.max_follow_requests > 0:
@@ -202,7 +216,9 @@ mentioned users")
             recently_checked_users,
             all_known_users,
             seen_urls,
-                external_tokens,
+            external_tokens,
+            pgupdater,
+            status_id_cache,
             )
         logging.info("Added context URLs")
     if helpers.arguments.from_notifications > 0:
@@ -223,6 +239,8 @@ mentioned users")
             all_known_users,
             seen_urls,
             external_tokens,
+            pgupdater,
+            status_id_cache,
             )
         logging.info("Added context URLs")
     if helpers.arguments.max_bookmarks > 0:
@@ -238,6 +256,10 @@ mentioned users")
                                 helpers.arguments.server,
                                 iter(bookmarks),
                                 parsed_urls,
+                                external_tokens,
+                                pgupdater,
+                                token,
+                                status_id_cache,
                                 )
         logging.info("Got known context URLs, getting context URLs")
         add_context.add_context_urls(
@@ -260,6 +282,10 @@ mentioned users")
                                 helpers.arguments.server,
                                 iter(favourites),
                                 parsed_urls,
+                                external_tokens,
+                                pgupdater,
+                                token,
+                                status_id_cache,
                                 )
         logging.info("Got known context URLs, getting context URLs")
         add_context.add_context_urls(

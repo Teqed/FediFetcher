@@ -63,11 +63,11 @@ def get_post_context(
         server : str,
         toot_id : str,
         toot_url : str,
-        external_tokens : dict[str, str] | None = None,
-        pgupdater : PostgreSQLUpdater | None = None,
-        home_server : str | None = None,
-        home_server_token : str | None = None,
-        status_id_cache : dict[str, str] | None = None,
+        external_tokens : dict[str, str],
+        pgupdater : PostgreSQLUpdater,
+        home_server : str,
+        home_server_token : str,
+        status_id_cache : dict[str, str],
         ) -> list[str]:
     """Get the URLs of the context toots of the given toot.
 

@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 from fedifetcher import api_mastodon, getter_wrappers, parsers
 from fedifetcher.ordered_set import OrderedSet
+from fedifetcher.postgresql import PostgreSQLUpdater
 from mastodon.types import Status
 
 from . import getters, helpers
@@ -16,7 +17,9 @@ def add_user_posts( # noqa: PLR0913
         know_followings: OrderedSet,
         all_known_users: OrderedSet,
         seen_urls: OrderedSet,
-        external_tokens: dict[str, str] | None,
+        external_tokens: dict[str, str],
+        pgupdater: PostgreSQLUpdater,
+        status_id_cache: dict[str, str],
 ) -> None:
     """Add the given user's posts to the server.
 
@@ -43,7 +46,8 @@ def add_user_posts( # noqa: PLR0913
                     if post.get("reblog") is None and isinstance(post.get("url"), str) \
                             and str(post.get("url")) not in seen_urls:
                         added = add_post_with_context(
-                            post, server, access_token, seen_urls)
+                            post, server, access_token, seen_urls,
+                            external_tokens, pgupdater, status_id_cache)
                         if added is True:
                             seen_urls.add(str(post["url"]))
                             count += 1
@@ -61,6 +65,9 @@ def add_post_with_context(
         server : str,
         access_token : str,
         seen_urls : OrderedSet,
+        external_tokens : dict[str, str],
+        pgupdater : PostgreSQLUpdater,
+        status_id_cache : dict[str, str],
         ) -> bool:
     """Add the given post to the server.
 
@@ -82,11 +89,11 @@ def add_post_with_context(
                 helpers.arguments, "backfill_with_context", 0) > 0:
             parsed_urls : dict[str, tuple[str | None, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
-            if parsed is None:
-                return True
-            known_context_urls = getter_wrappers.get_all_known_context_urls(
-                server, iter((post,)), parsed_urls)
-            add_context_urls(server, access_token, known_context_urls, seen_urls)
+            if parsed is not None and parsed[0] is not None:
+                known_context_urls = getter_wrappers.get_all_known_context_urls(
+                    server, iter((post,)), parsed_urls, external_tokens, pgupdater,
+                    access_token, status_id_cache)
+                add_context_urls(server, access_token, known_context_urls, seen_urls)
         return True
 
     return False

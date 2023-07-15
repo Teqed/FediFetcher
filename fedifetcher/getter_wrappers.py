@@ -209,17 +209,16 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
     server: str,
     reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
-    external_tokens: dict[str, str] | None = None,
-    pgupdater: PostgreSQLUpdater | None = None,
-    home_server: str | None = None,
-    home_server_token: str | None = None,
-    status_id_cache: dict[str, str] | None = None,
+    external_tokens: dict[str, str],
+    pgupdater: PostgreSQLUpdater,
+    home_server_token: str,
+    status_id_cache: dict[str, str],
 ) -> Iterable[str]:
     """Get the context toots of the given toots from their original server.
 
     Args:
     ----
-    server (str): The server to get the context toots from.
+    server (str): The home server of the user.
     reply_toots (Iterator[Optional[Dict[str, Optional[str]]]]): \
         The toots to get the context toots for.
     parsed_urls (Dict[str, Optional[Tuple[str, str]]]): \
@@ -266,7 +265,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                 if parsed_url and parsed_url[0] and parsed_url[1]:
                     try:
                         context = get_post_context(parsed_url[0], parsed_url[1], url,
-                                                external_tokens, pgupdater, home_server,
+                                                external_tokens, pgupdater, server,
                                                 home_server_token, status_id_cache)
                     except Exception as ex:
                         logging.error(f"Error getting context for toot {url} : {ex}")

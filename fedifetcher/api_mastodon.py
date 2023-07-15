@@ -334,11 +334,11 @@ f"Error getting user posts for user {user_id}")
 def get_toot_context(
         server : str,
         toot_id : str,
-        token : str | None = None,
-        pgupdater : PostgreSQLUpdater | None = None,
-        home_server : str | None = None,
-        home_server_token : str | None = None,
-        status_id_cache : dict[str, str] | None = None,
+        token : str | None,
+        pgupdater : PostgreSQLUpdater,
+        home_server : str,
+        home_server_token : str,
+        status_id_cache : dict[str, str],
         ) -> list[str]:
     """Get the context of a toot.
 
@@ -349,6 +349,9 @@ def get_toot_context(
     token (str): The access token to use for the request.
     pgupdater (PostgreSQLUpdater): A PostgreSQLUpdater instance to use for \
         updating the database.
+    home_server (str): The home server to use for fetching status IDs.
+    home_server_token (str): The access token to use for the home server.
+    status_id_cache (dict[str, str]): A dict of status IDs, keyed by URL.
 
     Returns:
     -------
@@ -359,6 +362,7 @@ def get_toot_context(
         id = toot_id,
         )
     if pgupdater and home_server and home_server_token and status_id_cache:
+        logging.info("Updating status stats as part of context fetch")
         for status in context["ancestors"] + context["descendants"]:
             _status: Status = cast(Status, status)
             if _status.url:
