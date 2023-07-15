@@ -101,9 +101,11 @@ def mastodon(server: str, token: str | None = None) -> Mastodon:
 
     if server not in mastodon.sessions or (
         token is not None and mastodon.sessions[server].access_token is None):
-        logging.warning(f"Creating Mastodon session for {server}")
+        msg = f"Creating Mastodon session for {server}"
+        logging.info(f"\033[1;33m{msg}\033[0m")
         if token:
-            logging.warning("Using provided token")
+            msg = "Using provided token"
+            logging.info(f"\033[1;33m{msg}\033[0m")
         session = requests.Session()
         session.headers.update({
             "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",

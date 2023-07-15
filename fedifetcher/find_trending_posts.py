@@ -17,7 +17,8 @@ def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
         status_id_cache: dict[str, str],
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
-    logging.warning("Finding trending posts")
+    msg = f"Finding trending posts from {len(external_feeds)} domains:"
+    logging.info(f"\033[1;34m{msg}\033[0m")
 
     # For each key in external_tokens, query its mastodon API for trending posts.
     # Later, we're going to compare these results to each other.
@@ -74,13 +75,13 @@ Copy: {t_post_url}")
             += incrementing_post["favourites_count"]
 
     domains_to_fetch = external_feeds.copy()
-    logging.warning(f"Fetching trending posts from {len(domains_to_fetch)} domains:")
     for domain in domains_to_fetch:
-        logging.warning(domain)
+        logging.info(domain)
     domains_fetched = []
     remember_to_find_me : dict[str, list[str]] = {}
     for fetch_domain in external_feeds.copy():
-        logging.warning(f"Finding trending posts on {fetch_domain}")
+        msg = f"Fetching trending posts from {fetch_domain}"
+        logging.info(f"\033[1;34m{msg}\033[0m")
         trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens.get(fetch_domain), 240)
         domains_fetched.append(fetch_domain)
@@ -104,7 +105,8 @@ Copy: {t_post_url}")
                 remember_to_find_me[parsed_url[0]].append(parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
-                logging.warning(f"Finding aux trending posts from {parsed_url[0]}")
+                msg = f"Finding aux trending posts from {parsed_url[0]}"
+                logging.info(f"\033[1;35m{msg}\033[0m")
                 trending = api_mastodon.get_trending_posts(
                     parsed_url[0], external_tokens.get(parsed_url[0]))
                 domains_fetched.append(parsed_url[0])
@@ -121,9 +123,10 @@ Copy: {t_post_url}")
             if not original:
                 logging.warning(f"Couldn't find original for {post_url}")
         if fetch_domain in remember_to_find_me:
+            msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
+less popular posts from {fetch_domain}"
             logging.info(
-f"Fetching {len(remember_to_find_me[fetch_domain])} \
-less popular posts from {fetch_domain}")
+                f"\033[1;34m{msg}\033[0m")
             for status_id in remember_to_find_me[fetch_domain]:
                 if status_id not in trending_posts_dict or \
                         "original" not in trending_posts_dict[status_id]:

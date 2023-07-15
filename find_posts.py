@@ -168,9 +168,9 @@ with replies seen")
         admin_token = helpers.arguments.access_token[0]
         external_tokens = helpers.arguments.external_tokens \
             if helpers.arguments.external_tokens else {}
-        logging.warning(f"Found {len(helpers.arguments.access_token)} access tokens")
+        logging.debug(f"Found {len(helpers.arguments.access_token)} access tokens")
         if external_tokens:
-            logging.warning(f"Found {len(external_tokens)} external tokens")
+            logging.debug(f"Found {len(external_tokens)} external tokens")
         else:
             logging.warning("No external tokens found")
         conn = connect(
