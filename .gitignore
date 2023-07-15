@@ -1,3 +1,4 @@
 .vscode/launch.json
 artifacts/*
 **\__pycache__
+src/mastodon-py/
