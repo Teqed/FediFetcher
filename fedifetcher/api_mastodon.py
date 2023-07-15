@@ -175,8 +175,8 @@ def get_timeline(
     Exception: If the access token does not have the correct scope.
     Exception: If the server returns an unexpected status code.
     """
-    toots: list[dict] = mastodon(server, token).timeline(
-        timeline=timeline, limit=limit)
+    toots: list[dict] = cast(list[dict], mastodon(server, token).timeline(
+        timeline=timeline, limit=limit))
     number_of_toots_received = len(toots)
     yield from toots
     while toots and number_of_toots_received < limit \
@@ -219,23 +219,23 @@ def get_active_user_ids(
     since = datetime.now(UTC) - timedelta(days=reply_interval_hours / 24 + 1)
     logging.debug(f"Since: {since}")
     local_accounts = mastodon(server, access_token).admin_accounts_v2(
-        origin="local",
-        status="active",
-        )
+                                origin="local",
+                                status="active",
+                                )
     logging.debug(f"Found {len(local_accounts)} accounts")
     if local_accounts:
         logging.debug(
 f"Getting user IDs for {len(local_accounts)} local accounts")
         for user in local_accounts:
             logging.debug(f"User: {user.username}")
-            last_status_at = user["account"]["last_status_at"]
+            last_status_at = user.account.last_status_at
             logging.debug(f"Last status at: {last_status_at}")
             if last_status_at:
                 last_active = last_status_at.astimezone(UTC)
                 logging.debug(f"Last active: {last_active}")
                 if last_active > since:
-                    logging.info(f"Found active user: {user['username']}")
-                    yield user["id"]
+                    logging.info(f"Found active user: {user.username}")
+                    yield str(user.id)
 
 @handle_mastodon_errors(None)
 def get_me(server : str, token : str) -> str | None:
@@ -285,10 +285,11 @@ def get_user_posts_from_id(
     Exception: If the server returns an unexpected status code.
     """
     logging.info(f"Getting posts for user {user_id} on {server}")
-    return mastodon(server, token).account_statuses(
-        id = user_id,
-        limit = 40,
-        )
+    return cast(list[dict[str, str]],
+                mastodon(server, token).account_statuses(
+                    id = user_id,
+                    limit = 40,
+                    ))
 
 def get_reply_posts_from_id(
         user_id : str,
