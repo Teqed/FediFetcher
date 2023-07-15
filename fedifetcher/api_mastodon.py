@@ -620,6 +620,7 @@ def get_trending_posts(
     offset = 40
     while len(trending_posts) < limit \
             and len(got_trending_posts) == 40:  # noqa: PLR2004
+        logging.info(f"Got {len(trending_posts)} trending posts, paginating")
         got_trending_posts = cast(list[dict[str, str]],
                             mastodon(server, token).trending_statuses(
                                 limit=40,
