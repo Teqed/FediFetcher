@@ -83,7 +83,7 @@ Copy: {t_post_url}\033[0m")
         msg = f"Fetching trending posts from {fetch_domain}"
         logging.info(f"\033[1;34m{msg}\033[0m")
         trending_posts = api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 720)
+            fetch_domain, external_tokens.get(fetch_domain), 2800)
         domains_fetched.append(fetch_domain)
         domains_to_fetch.remove(fetch_domain)
 
