@@ -104,7 +104,6 @@ def add_context_urls(
         context_urls : Iterable[str],
         seen_urls : OrderedSet,
         status_id_cache : dict[str, str] | None = None,
-        parsed_urls : dict[str, tuple[str | None, str | None]] | None = None,
         ) -> None:
     """Add the given toot URLs to the server.
 
