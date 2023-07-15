@@ -18,9 +18,9 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
         all_known_users : OrderedSet,
         recently_checked_users : OrderedSet,
         known_followings : OrderedSet,
-        external_tokens: dict[str, str] | None,
-        pgupdater: PostgreSQLUpdater | None,
-        status_id_cache: dict[str, str] | None,
+        external_tokens: dict[str, str],
+        pgupdater: PostgreSQLUpdater,
+        status_id_cache: dict[str, str],
         ) -> OrderedSet:
     """Pull posts from a Mastodon server, using a token."""
     logging.info("Finding posts for provided token")

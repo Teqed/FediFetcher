@@ -168,26 +168,24 @@ with replies seen")
 
         admin_token = helpers.arguments.access_token[0]
         external_tokens = helpers.arguments.external_tokens \
-            if helpers.arguments.external_tokens else None
+            if helpers.arguments.external_tokens else {}
         logging.warning(f"Found {len(helpers.arguments.access_token)} access tokens")
         if external_tokens:
             logging.warning(f"Found {len(external_tokens)} external tokens")
         else:
             logging.warning("No external tokens found")
-        pgupdater = None
-        if external_tokens and helpers.arguments.pgpassword \
-                and helpers.arguments.external_feeds:
-            conn = connect(
-                host="dreamer", \
-                    # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
-                port = 5432,
-                database="mastodon_production", \
-                    # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
-                user="teq", \
-                    # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
-                password=helpers.arguments.pgpassword,
-            )
-            pgupdater = PostgreSQLUpdater(conn)
+        conn = connect(
+            host="dreamer", \
+                # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+            port = 5432,
+            database="mastodon_production", \
+                # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+            user="teq", \
+                # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+            password= \
+                helpers.arguments.pgpassword if helpers.arguments.pgpassword else None,
+        )
+        pgupdater = PostgreSQLUpdater(conn)
         try:
             logging.info("Getting active user IDs")
             user_ids = list(api_mastodon.get_active_user_ids(
