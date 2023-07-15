@@ -640,9 +640,10 @@ def get_trending_posts(
         tasks = [
             loop.create_task(get_trending_posts_async(server, token, offset)),
             loop.create_task(get_trending_posts_async(server, token, offset + 40)),
+            loop.create_task(get_trending_posts_async(server, token, offset + 80)),
         ]
         loop.run_until_complete(asyncio.wait(tasks))
-        if tasks[0].result() == 0 or tasks[1].result() == 0:
+        if tasks[0].result() == 0 or tasks[1].result() == 0 or tasks[2].result() == 0:
             break
 
     logging.info(f"Found {len(trending_posts)} trending posts")
