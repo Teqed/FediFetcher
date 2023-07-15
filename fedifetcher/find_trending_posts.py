@@ -51,19 +51,19 @@ From: {t_post_url}")
             return True
         if t_post_url in trending_posts_dict:
             if "original" not in trending_posts_dict[t_post_url]:
-                logging.info(
-f"Reblogs: +{trending_post['reblogs_count']} \
-Favourites: +{trending_post['favourites_count']} \
-Copy: {t_post_url}")
+                logging.debug(
+f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']} \
+Copy: {t_post_url}\033[0m")
                 increment_count(t_post_url, trending_post)
                 return False
             logging.debug(
                 f"Already seen {t_post_url} from origin")
             return True # We already have the original
-        logging.info(
-f"Reblogs: {trending_post['reblogs_count']} \
+        logging.debug(
+f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
 Favourites: {trending_post['favourites_count']} \
-Copy: {t_post_url}")
+Copy: {t_post_url}\033[0m")
         trending_posts_dict[t_post_url] = trending_post
         return False
 

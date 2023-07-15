@@ -28,7 +28,7 @@ class PostgreSQLUpdater:
             with self.conn.cursor() as cursor:
                 now = datetime.now(UTC)
                 for update in self.updates:
-                    logging.info(
+                    logging.debug(
 f"Updating {update[0]} to {update[1]} \
 reblogs and {update[2]} favourites")
                     status_id, reblogs_count, favourites_count = update
