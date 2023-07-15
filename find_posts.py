@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """FediFetcher - a tool to fetch posts from the fediverse."""
 
+import asyncio
 import json
 import logging
 import re
@@ -23,7 +24,8 @@ from fedifetcher.find_trending_posts import find_trending_posts
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
-if __name__ == "__main__":
+
+async def main():
     start = datetime.now(UTC)
 
     if(helpers.arguments.config):
@@ -205,7 +207,7 @@ with replies seen")
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting known context URLs")
-            known_context_urls = getter_wrappers.get_all_known_context_urls(
+            known_context_urls = await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -223,7 +225,7 @@ with replies seen")
                 parsed_urls,
             )
             logging.debug("Found replied toot IDs, getting context URLs")
-            context_urls = getter_wrappers.get_all_context_urls(
+            context_urls_coroutine = getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
                 external_tokens,
@@ -231,14 +233,15 @@ with replies seen")
                 helpers.arguments.server,
                 admin_token,
                 status_id_cache,
-                )
+            )
+            context_urls = await context_urls_coroutine
             logging.debug("Found context URLs, adding context URLs")
             add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 context_urls,
                 seen_urls,
-                )
+            )
             logging.debug("Added context URLs")
         except Exception:
             logging.warning("Error getting active user IDs. This optional feature \
@@ -249,7 +252,7 @@ provided. Continuing without active user IDs.")
             index = helpers.arguments.access_token.index(_token)
             logging.info(f"Getting posts for token {index + 1} of \
 {len(helpers.arguments.access_token)}")
-            find_posts_by_token(
+            await find_posts_by_token(
                 _token,
                 seen_urls,
                 parsed_urls,
@@ -267,7 +270,7 @@ provided. Continuing without active user IDs.")
             # from, e.g. "example1.com,example2.com"
             external_feeds = helpers.arguments.external_feeds.split(",")
             logging.info("Getting trending posts")
-            trending_posts = find_trending_posts(
+            trending_posts = await find_trending_posts(
                 helpers.arguments.server,
                 admin_token,
                 external_feeds,
@@ -293,7 +296,7 @@ f"Found {len(trending_posts)} trending posts")
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
-            known_context_urls = getter_wrappers.get_all_known_context_urls(
+            known_context_urls = await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 trending_posts_changed,
                 parsed_urls,
@@ -378,3 +381,7 @@ context URLs")
             except Exception as ex:
                 logging.error(f"Error getting callback url: {ex}")
         sys.exit(1)
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

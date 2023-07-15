@@ -11,7 +11,7 @@ from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
+async def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -142,9 +142,9 @@ less popular posts from {fetch_domain}"
                             f"Couldn't find {status_id} from {fetch_domain}")
             remember_to_find_me.pop(fetch_domain)
 
-    updated_trending_posts_dict = asyncio.run(
+    updated_trending_posts_dict = await \
     update_local_status_ids(
-        trending_posts_dict, home_server, home_token, status_id_cache))
+        trending_posts_dict, home_server, home_token, status_id_cache)
 
     """Update the status stats with the trending posts."""
     if pgupdater:

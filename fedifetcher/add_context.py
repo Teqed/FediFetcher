@@ -1,4 +1,5 @@
 """Add context toots to the server."""
+import asyncio
 import logging
 from collections.abc import Iterable
 
@@ -60,7 +61,7 @@ def add_user_posts( # noqa: PLR0913
                     know_followings.add(user["acct"])
                     all_known_users.add(user["acct"])
 
-def add_post_with_context(
+async def add_post_with_context(
         post : dict[str, str],
         server : str,
         access_token : str,
@@ -90,10 +91,11 @@ def add_post_with_context(
             parsed_urls : dict[str, tuple[str | None, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is not None and parsed[0] is not None:
-                known_context_urls = getter_wrappers.get_all_known_context_urls(
+                known_context_urls = await \
+                    getter_wrappers.get_all_known_context_urls(
                     server, iter((post,)), parsed_urls, external_tokens, pgupdater,
                     access_token, status_id_cache)
-                add_context_urls(server, access_token, known_context_urls, seen_urls)
+                (add_context_urls(server, access_token, known_context_urls, seen_urls))
         return True
 
     return False

@@ -1,10 +1,10 @@
 """Functions to get data from Fediverse servers."""
+import asyncio
 import logging
 import re
 
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
-from mastodon.types import Context
 
 from . import api_lemmy, api_mastodon, parsers
 
@@ -59,17 +59,17 @@ def get_user_posts(
 
     return api_mastodon.get_user_posts_from_id(user_id, parsed_url[0])
 
-def get_post_context(
-        server : str,
-        toot_id : str,
-        toot_url : str,
-        external_tokens : dict[str, str],
-        pgupdater : PostgreSQLUpdater,
-        home_server : str,
-        home_server_token : str,
-        status_id_cache : dict[str, str],
-        ) -> list[str]:
-    """Get the URLs of the context toots of the given toot.
+async def get_post_context(  # noqa: PLR0913, D417
+        server: str,
+        toot_id: str,
+        toot_url: str,
+        external_tokens: dict[str, str],
+        pgupdater: PostgreSQLUpdater,
+        home_server: str,
+        home_server_token: str,
+        status_id_cache: dict[str, str],
+) -> list[str]:
+    """Get the URLs of the context toots of the given toot asynchronously.
 
     Args:
     ----
@@ -82,20 +82,21 @@ def get_post_context(
     list[str]: The URLs of the context toots of the given toot.
     """
     try:
-        external_token = None
-        if external_tokens:
-            external_token = external_tokens.get(server)
+        external_token = external_tokens.get(server)
+
         if toot_url.find("/comment/") != -1:
             return api_lemmy.get_comment_context(server, toot_id, toot_url)
+
         if toot_url.find("/post/") != -1:
             return api_lemmy.get_comments_urls(server, toot_id, toot_url)
-        return api_mastodon.get_toot_context(server, toot_id,
-                                            external_token,
-                                            pgupdater,
-                                            home_server,
-                                            home_server_token,
-                                            status_id_cache,
-                                            )
+
+        context = await api_mastodon.get_toot_context(
+            server, toot_id, external_token, pgupdater,
+            home_server, home_server_token, status_id_cache,
+        )
+
+        return context
+
     except Exception as ex:
         logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
-    return []
+        return []

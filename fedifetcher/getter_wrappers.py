@@ -1,4 +1,5 @@
 """Functions to get data from Fediverse servers."""
+import asyncio
 import itertools
 import json
 import logging
@@ -6,6 +7,7 @@ from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
+import aiohttp
 import requests
 
 from fedifetcher import api_mastodon
@@ -205,7 +207,7 @@ def get_all_reply_toots(
             yield from replies
 
 
-def get_all_known_context_urls(  # noqa: C901, PLR0912
+async def get_all_known_context_urls(  # noqa: C901, PLR0912
     server: str,
     reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
@@ -264,9 +266,20 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                 parsed_url = parsers.post(url, parsed_urls)
                 if parsed_url and parsed_url[0] and parsed_url[1]:
                     try:
-                        context = get_post_context(parsed_url[0], parsed_url[1], url,
-                                                external_tokens, pgupdater, server,
-                                                home_server_token, status_id_cache)
+                        # Get the event loop or create a new one
+                        loop = asyncio.get_event_loop()
+                        context = await (await loop.run_in_executor(
+                            None,
+                            get_post_context,
+                            parsed_url[0],
+                            parsed_url[1],
+                            url,
+                            external_tokens,
+                            pgupdater,
+                            server,
+                            home_server_token,
+                            status_id_cache,
+                        ))
                     except Exception as ex:
                         logging.error(f"Error getting context for toot {url} : {ex}")
                         logging.debug(
@@ -401,35 +414,63 @@ def get_redirect_url(url : str) -> str | None:
     )
     return None
 
-def get_all_context_urls(
-    server: str,
-    replied_toot_ids: Iterable[tuple[str | None, str | None]],
-    external_tokens: dict[str, str],
-    pgupdater: PostgreSQLUpdater,
-    home_server: str,
-    home_server_token: str,
-    status_id_cache: dict[str, str],
+async def get_all_context_urls(
+        server: str,
+        replied_toot_ids: Iterable[tuple[str | None, str | None]],
+        external_tokens: dict[str, str],
+        pgupdater: PostgreSQLUpdater,
+        home_server: str,
+        home_server_token: str,
+        status_id_cache: dict[str, str],
 ) -> Iterable[str]:
     """Get the URLs of the context toots of the given toots.
 
     Args:
     ----
     server (str): The server to get the context toots from.
-    replied_toot_ids (filter[tuple[str | None, str | None]]): The server and ID of the \
-        toots to get the context toots for.
+    replied_toot_ids (Iterable[tuple[str | None, str | None]]): The server and ID of \
+        the toots to get the context toots for.
 
     Returns:
     -------
-    filter[str]: The URLs of the context toots of the given toots.
+    Iterable[str]: The URLs of the context toots of the given toots.
     """
-    return cast(Iterable[str], filter(
-        lambda url: not str(url).startswith(f"https://{server}/"),
-        itertools.chain.from_iterable(
-            get_post_context(server, toot_id, url, external_tokens, pgupdater,
-                                home_server, home_server_token, status_id_cache)
-            for (url, (s, toot_id)) in cast(Iterable[tuple[str, str]], replied_toot_ids)
-        ),
-    ))
+    async def fetch_context_urls(url : str, toot_id : str) -> list[str]:
+        session = aiohttp.ClientSession()
+        try:
+            return await get_post_context(
+                server, toot_id, url, external_tokens, pgupdater,
+                home_server, home_server_token, status_id_cache,
+            )
+        finally:
+            await session.close()
+
+    tasks = []
+    # Filter replied toots that have a server and ID
+    _replied_toot_ids: Iterable[tuple[str, str]] = [
+        (url, toot_id)
+        for url, toot_id in replied_toot_ids
+        if url is not None and toot_id is not None
+    ]
+    for url, (_s, toot_id) in _replied_toot_ids:
+        tasks.append(
+            asyncio.ensure_future(
+                fetch_context_urls(url, toot_id),
+            ),
+        )
+
+    # Wait for all the tasks to complete
+    results = await asyncio.gather(*tasks)
+
+    # Flatten the list of context URLs
+    context_urls = list(itertools.chain.from_iterable(results))
+
+    # Filter out duplicate URLs and self-references
+    return [
+        url for url in context_urls
+        if not str(url).startswith(f"https://{server}/") and url != server
+    ]
+
 
 
 def filter_known_users(

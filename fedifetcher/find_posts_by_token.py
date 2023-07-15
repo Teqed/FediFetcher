@@ -1,5 +1,6 @@
 """Pull posts from a Mastodon server, using a token."""
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -10,7 +11,7 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
+async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
         token: str,
         seen_urls: OrderedSet,
         parsed_urls : dict[str, tuple[str | None, str | None]],
@@ -34,7 +35,7 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
             helpers.arguments.home_timeline_length,
             )
         logging.debug("Found home timeline toots, getting context URLs")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
+        known_context_urls = await getter_wrappers.get_all_known_context_urls(
             helpers.arguments.server,
             timeline_toots,
             parsed_urls,
@@ -119,7 +120,7 @@ mentioned users")
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting context URLs")
-            known_context_urls = getter_wrappers.get_all_known_context_urls(
+            known_context_urls = await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -137,7 +138,7 @@ mentioned users")
                 parsed_urls,
             )
             logging.debug("Found replied toot IDs, getting context URLs")
-            context_urls = getter_wrappers.get_all_context_urls(
+            context_urls = await getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
                 external_tokens,
@@ -252,7 +253,7 @@ mentioned users")
                         helpers.arguments.max_bookmarks,
                         )
         logging.debug("Got bookmarks, getting context URLs")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
+        known_context_urls = await getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
                                 iter(bookmarks),
                                 parsed_urls,
@@ -278,7 +279,7 @@ mentioned users")
                         helpers.arguments.max_favourites,
                         )
         logging.debug("Got favourites, getting context URLs")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
+        known_context_urls = await getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
                                 iter(favourites),
                                 parsed_urls,

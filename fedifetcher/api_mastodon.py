@@ -676,17 +676,17 @@ async def get_status_id_from_url(
         return status_id_cache[f"{server,url}"]
     logging.info(f"Asking server to lookup {url}")
     server_api = f"https://{server}/api/v2/search"
-    async with session.get(server_api, params={"q": url, "resolve": True,
-                                    "Authorization": f"Bearer {token}"}) as response:
+    async with session.get(server_api, params={"q": url, "resolve": "true"},
+                        headers={"Authorization": f"Bearer {token}"}) as response:
         result: SearchV2 = await response.json()
-    statuses = result.statuses
+    statuses = result.get("statuses")
     # If statuses has a length of at least 1, then the toot was found.
     # Let's check the returned toots until we find the one with the correct URL.
     if statuses:
         for status in statuses:
-            if status.url == url:
-                status_id_cache[f"{server,url}"] = str(status.id)
-                return str(status.id)
+            if status.get("url") == url:
+                status_id_cache[f"{server,url}"] = str(status.get("id"))
+                return str(status.get("id"))
     return None
 
 @handle_mastodon_errors(None)
