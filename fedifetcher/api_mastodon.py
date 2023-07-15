@@ -642,6 +642,7 @@ async def get_trending_posts(
             if result == 0:  # or whatever your error condition is
                 tasks = [t for t in tasks if not t.done()]  # remove completed tasks
                 break  # stop processing results
+            logging.info(f"Got {len(trending_posts)} trending posts...")
             highest_offset += 40
             new_task = get_trending_posts_async(server, token, highest_offset)
             tasks = [t for t in tasks if not t.done()]  # remove all done tasks
