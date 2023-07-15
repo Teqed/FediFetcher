@@ -367,14 +367,13 @@ def get_toot_context(
         for status in context["ancestors"] + context["descendants"]:
             _status: Status = cast(Status, status)
             if _status.url:
-                parsed = parsers.post(_status.url)
-                if parsed and (f"{parsed[0],_status.url}") in status_id_cache:
-                    status_home_id = status_id_cache.get(f"{parsed[0],_status.url}")
+                if (f"{home_server,_status.url}") in status_id_cache:
+                    status_home_id = status_id_cache.get(f"{home_server,_status.url}")
                 else:
                     status_home_id = get_status_id_from_url(
                         home_server, home_server_token, _status.url, status_id_cache)
-                    if status_home_id and parsed:
-                        status_id_cache[(f"{parsed[0],_status.url}")] = status_home_id
+                    if status_home_id:
+                        status_id_cache[(f"{home_server,_status.url}")] = status_home_id
                 if status_home_id:
                     status_home_id = int(status_home_id)
                     pgupdater.queue_update(
