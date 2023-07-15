@@ -98,15 +98,15 @@ def write_seen_files(  # noqa: PLR0913
     """Write the seen files to disk."""
     if known_followings is not None:
         with Path(KNOWN_FOLLOWINGS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(known_followings)[-20000:]))
+            file.write("\n".join(list(known_followings)[-50000:]))
             logging.debug(f"Wrote {len(known_followings)} known followings")
     if seen_urls is not None:
         with Path(SEEN_URLS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(seen_urls)[-20000:]))
+            file.write("\n".join(list(seen_urls)[-50000:]))
             logging.debug(f"Wrote {len(seen_urls)} seen URLs")
     if replied_toot_server_ids is not None:
         with Path(REPLIED_TOOT_SERVER_IDS_FILE).open("w", encoding="utf-8") as file:
-            json.dump(dict(list(replied_toot_server_ids.items())[-20000:]), file)
+            json.dump(dict(list(replied_toot_server_ids.items())[-50000:]), file)
             logging.info(
                 f"Wrote {len(replied_toot_server_ids)} replied toot server IDs")
     if recently_checked_users is not None:
@@ -115,12 +115,12 @@ def write_seen_files(  # noqa: PLR0913
             logging.debug(f"Wrote {len(recently_checked_users)} recently checked users")
     if status_id_cache is not None:
         with Path(STATUS_ID_CACHE_FILE).open("w", encoding="utf-8") as file:
-            json.dump(dict(list(status_id_cache.items())[-20000:]), file)
+            json.dump(dict(list(status_id_cache.items())[-50000:]), file)
             logging.debug(f"Wrote {len(status_id_cache)} status IDs")
     if trending_posts_replies_seen is not None:
         items = list(trending_posts_replies_seen.items())
         items.sort(key=lambda x: x[1])
-        recent = dict(items[-20000:])
+        recent = dict(items[-50000:])
         with Path(
             TRENDING_POSTS_WITH_REPLIES_SEEN_FILE).open("w", encoding="utf-8") as file:
             json.dump(recent, file)
