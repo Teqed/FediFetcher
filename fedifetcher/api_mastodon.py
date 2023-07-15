@@ -633,10 +633,11 @@ def get_trending_posts(
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(filter_language(got_trending_posts, "en"))
     offset = 40
+    loop = asyncio.get_running_loop() if asyncio.get_event_loop().is_running() \
+        else asyncio.get_event_loop()
     while len(trending_posts) < limit \
             and len(got_trending_posts) == 40:  # noqa: PLR2004
         logging.info(f"Got {len(trending_posts)} trending posts, paginating")
-        loop = asyncio.get_event_loop()
         tasks = [
             loop.create_task(get_trending_posts_async(server, token, offset)),
             loop.create_task(get_trending_posts_async(server, token, offset + 40)),
@@ -645,6 +646,8 @@ def get_trending_posts(
         loop.run_until_complete(asyncio.wait(tasks))
         if tasks[0].result() == 0 or tasks[1].result() == 0 or tasks[2].result() == 0:
             break
+        for task in tasks:
+            task.cancel()
 
     logging.info(f"Found {len(trending_posts)} trending posts")
     return trending_posts
