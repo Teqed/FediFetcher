@@ -622,7 +622,6 @@ async def get_trending_posts(
                                 limit=40,
                                 offset=offset,
                                 ))
-        offset += 40
         trending_posts.extend(filter_language(got_trending_posts, "en"))
         return len(trending_posts)
 
@@ -643,6 +642,7 @@ async def get_trending_posts(
         ]
         if await tasks[0] == 0 or await tasks[1] == 0 or await tasks[2] == 0:
             break
+        offset += 120
 
     logging.info(f"Found {len(trending_posts)} trending posts")
     return trending_posts
