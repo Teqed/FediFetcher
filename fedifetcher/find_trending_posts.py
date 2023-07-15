@@ -113,13 +113,13 @@ Copy: {t_post_url}\033[0m")
                 continue
             if parsed_url[0] not in domains_fetched:
                 aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
-            if not original:
+            elif not original:
                 remote = api_mastodon.get_status_by_id(
                     parsed_url[0], parsed_url[1], external_tokens)
                 if remote and remote["url"] == post_url:
                     original = add_post_to_dict(remote, parsed_url[0])
-            if not original:
-                logging.warning(f"Couldn't find original for {post_url}")
+                if not original:
+                    logging.warning(f"Couldn't find original for {post_url}")
         if fetch_domain in remember_to_find_me:
             msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
 less popular posts from {fetch_domain}"
