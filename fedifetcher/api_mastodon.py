@@ -21,7 +21,7 @@ from mastodon import (
 )
 
 from fedifetcher.ordered_set import OrderedSet
-from mastodon.types import Context, Status
+from mastodon.types import Context, SearchV2, Status
 
 from . import helpers
 
@@ -679,16 +679,17 @@ def get_status_id_from_url(
         logging.info(f"Getting status id from cache for url {url}")
         return status_id_cache[f"{server,url}"]
     logging.info(f"Getting status id from url {url}")
-    statuses = mastodon(server, token).search_v2(
+    result: SearchV2 = mastodon(server, token).search_v2(
         q = url,
-        )["statuses"]
+        )
+    statuses = result.statuses
     # If statuses has a length of at least 1, then the toot was found.
     # Let's check the returned toots until we find the one with the correct URL.
     if statuses:
         for status in statuses:
-            if status["url"] == url:
-                status_id_cache[f"{server,url}"] = status["id"]
-                return status["id"]
+            if status.url == url:
+                status_id_cache[f"{server,url}"] = str(status.id)
+                return str(status.id)
     return None
 
 @handle_mastodon_errors(None)
