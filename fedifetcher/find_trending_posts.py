@@ -84,6 +84,8 @@ Copy: {t_post_url}\033[0m")
         logging.info(domain)
     domains_fetched = []
     remember_to_find_me : dict[str, list[str]] = {}
+    aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
+                                        domains_fetched)
     for fetch_domain in external_feeds.copy():
         msg = f"Fetching trending posts from {fetch_domain}"
         logging.info(f"\033[1;34m{msg}\033[0m")
@@ -110,16 +112,7 @@ Copy: {t_post_url}\033[0m")
                 remember_to_find_me[parsed_url[0]].append(parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
-                msg = f"Finding aux trending posts from {parsed_url[0]}"
-                logging.info(f"\033[1;35m{msg}\033[0m")
-                trending = api_mastodon.get_trending_posts(
-                    parsed_url[0], external_tokens.get(parsed_url[0]), 720)
-                domains_fetched.append(parsed_url[0])
-                if trending:
-                    for t_post in trending:
-                        if add_post_to_dict(t_post, parsed_url[0]) \
-                                and t_post["url"] == post_url:
-                            original = True
+                aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
             if not original:
                 remote = api_mastodon.get_status_by_id(
                     parsed_url[0], parsed_url[1], external_tokens)
@@ -144,6 +137,9 @@ less popular posts from {fetch_domain}"
                             f"Couldn't find {status_id} from {fetch_domain}")
             remember_to_find_me.pop(fetch_domain)
 
+    logging.info("Fetching aux posts")
+    await aux_domain_fetcher.do_aux_fetches()
+
     updated_trending_posts_dict = await \
     update_local_status_ids(
         trending_posts_dict, home_server, home_token, status_id_cache)
@@ -161,6 +157,61 @@ less popular posts from {fetch_domain}"
         pgupdater.commit_updates()
 
     return list(updated_trending_posts_dict.values())
+
+def aux_domain_fetch(external_tokens : dict[str, str],
+                    add_post_to_dict,
+                    domains_fetched : list[str],
+                    post_url : str,
+                    parsed_url : tuple[str | None, str | None]) -> None:
+    """Fetch a post from an aux domain."""
+    msg = f"Finding aux trending posts from {parsed_url[0]}"
+    logging.info(f"\033[1;35m{msg}\033[0m")
+    if parsed_url[0] is not None and parsed_url[1] is not None:
+        trending = api_mastodon.get_trending_posts(
+                        parsed_url[0], external_tokens.get(parsed_url[0]), 720)
+        domains_fetched.append(parsed_url[0])
+        if trending:
+            for t_post in trending:
+                add_post_to_dict(t_post, parsed_url[0])
+
+# Let's define a class to store aux domain fetches. It'll have a function to queue
+# them up, and then we'll do them all at once later.
+class AuxDomainFetch:
+    """A class for storing aux domain fetches."""
+
+    def __init__(self, external_tokens : dict[str, str],
+                add_post_to_dict,  # noqa: ANN001
+                domains_fetched : list[str],
+                ) -> None:
+        """Initialize the AuxDomainFetch."""
+        self.external_tokens = external_tokens
+        self.add_post_to_dict = add_post_to_dict
+        self.domains_fetched = domains_fetched
+        self.aux_fetches = {}
+
+    def queue_aux_fetch(self,
+                        parsed_url : tuple[str | None, str | None],
+                        post_url : str) -> None:
+        """Queue an aux fetch to be processed later."""
+        if parsed_url[0] not in self.domains_fetched:
+            if parsed_url[0] not in self.aux_fetches:
+                self.aux_fetches[parsed_url[0]] = []
+            self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
+
+    async def do_aux_fetches(self) -> None:
+        """Do all the queued aux fetches."""
+        for fetch_domain in self.aux_fetches.copy():
+            msg = f"Fetching {len(self.aux_fetches[fetch_domain])} \
+less popular posts from {fetch_domain}"
+            logging.info(
+                f"\033[1;34m{msg}\033[0m")
+            for parsed_url, post_url in self.aux_fetches[fetch_domain]:
+                if parsed_url[0] not in self.domains_fetched:
+                    original = aux_domain_fetch(self.external_tokens,
+                self.add_post_to_dict, self.domains_fetched, post_url, parsed_url)
+                    if not original:
+                        logging.warning(f"Couldn't find original for {post_url}")
+            self.aux_fetches.pop(fetch_domain)
 
 async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
