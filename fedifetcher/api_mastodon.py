@@ -632,17 +632,21 @@ async def get_trending_posts(
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(filter_language(got_trending_posts, "en"))
     offset = 40
-    while len(trending_posts) < limit \
-            and len(got_trending_posts) == 40:  # noqa: PLR2004
-        logging.info(f"Got {len(trending_posts)} trending posts, paginating")
-        tasks = [
-            get_trending_posts_async(server, token, offset),
-            get_trending_posts_async(server, token, offset + 40),
-            get_trending_posts_async(server, token, offset + 80),
-        ]
-        if await tasks[0] == 0 or await tasks[1] == 0 or await tasks[2] == 0:
-            break
-        offset += 120
+    offset_list = [offset+i*40 for i in range(5)]
+    tasks = [get_trending_posts_async(server, token, off) for off in offset_list]
+    highest_offset = max(offset_list)
+    while tasks:
+        done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            result = task.result()
+            if result == 0:  # or whatever your error condition is
+                tasks = [t for t in tasks if not t.done()]  # remove completed tasks
+                break  # stop processing results
+            highest_offset += 40
+            new_task = get_trending_posts_async(server, token, highest_offset)
+            tasks = [t for t in tasks if not t.done()]  # remove all done tasks
+            tasks.append(asyncio.ensure_future(new_task)) # appending the new task
+        tasks = [t for t in tasks if not t.done()]  # remove
 
     logging.info(f"Found {len(trending_posts)} trending posts")
     return trending_posts
