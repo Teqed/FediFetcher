@@ -1,5 +1,5 @@
 {
     "python.analysis.extraPaths": [
-        "./src/mastodon"
+        "./src/mastodon-py"
     ]
 }
