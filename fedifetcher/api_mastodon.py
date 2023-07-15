@@ -677,7 +677,7 @@ def get_status_id_from_url(
     """
     if status_id_cache and f"{server},{url}" in status_id_cache:
         logging.info(f"Getting status id from cache for url {url}")
-        return status_id_cache[f"{server},{url}"]
+        return status_id_cache[f"{server,url}"]
     logging.info(f"Getting status id from url {url}")
     statuses = mastodon(server, token).search_v2(
         q = url,
@@ -687,7 +687,7 @@ def get_status_id_from_url(
     if statuses:
         for status in statuses:
             if status["url"] == url:
-                status_id_cache[f"{server},{url}"] = status["id"]
+                status_id_cache[f"{server,url}"] = status["id"]
                 return status["id"]
     return None
 

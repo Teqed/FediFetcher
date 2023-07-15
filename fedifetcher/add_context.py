@@ -128,7 +128,7 @@ def add_context_urls(
                 added = api_mastodon.add_context_url(url, server, access_token)
                 if status_id_cache is not None and isinstance(added, Status) \
                         and added.url:
-                    status_id_cache[f"{server},{added.url}"] = str(added.id)
+                    status_id_cache[f"{server,added.url}"] = str(added.id)
             if added is not False:
                 logging.info(f"Added {url}")
                 seen_urls.add(url)
