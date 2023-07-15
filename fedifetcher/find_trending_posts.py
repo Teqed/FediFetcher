@@ -82,7 +82,7 @@ Favourites: {trending_post['favourites_count']}")
     for fetch_domain in external_feeds.copy():
         logging.warning(f"Finding trending posts on {fetch_domain}")
         trending_posts = api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 40)
+            fetch_domain, external_tokens.get(fetch_domain), 160)
         domains_fetched.append(fetch_domain)
         domains_to_fetch.remove(fetch_domain)
 
