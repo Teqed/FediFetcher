@@ -611,6 +611,23 @@ def get_trending_posts(
     list[dict[str, str]]: A list of trending posts, or [] if the \
         request fails.
     """
+    async def get_trending_posts_async(
+            server : str,
+            token : str | None = None,
+            offset : int = 0,
+            ) -> bool:
+        """Get a page of trending posts and return it asynchronously."""
+        got_trending_posts = cast(list[dict[str, str]],
+                            mastodon(server, token).trending_statuses(
+                                limit=40,
+                                offset=offset,
+                                ))
+        if got_trending_posts:
+            offset += 40
+            trending_posts.extend(filter_language(got_trending_posts, "en"))
+            return True
+        return False
+
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
     got_trending_posts = cast(list[dict[str, str]],
@@ -621,13 +638,13 @@ def get_trending_posts(
     while len(trending_posts) < limit \
             and len(got_trending_posts) == 40:  # noqa: PLR2004
         logging.info(f"Got {len(trending_posts)} trending posts, paginating")
-        got_trending_posts = cast(list[dict[str, str]],
-                            mastodon(server, token).trending_statuses(
-                                limit=40,
-                                offset=offset,
-                                ))
-        offset += 40
-        trending_posts.extend(filter_language(got_trending_posts, "en"))
+        loop = asyncio.get_event_loop()
+        tasks = [
+            loop.create_task(get_trending_posts_async(server, token, offset)),
+            loop.create_task(get_trending_posts_async(server, token, offset + 40)),
+        ]
+        loop.run_until_complete(asyncio.wait(tasks))
+
     logging.info(f"Found {len(trending_posts)} trending posts")
     return trending_posts
 
