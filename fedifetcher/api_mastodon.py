@@ -623,7 +623,7 @@ async def get_trending_posts(
                                 offset=offset,
                                 ))
         trending_posts.extend(filter_language(got_trending_posts, "en"))
-        return len(trending_posts)
+        return len(got_trending_posts)
 
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
