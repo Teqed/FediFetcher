@@ -1,8 +1,11 @@
 """Pull trending posts from a list of Mastodon servers, using tokens."""
 
 
+import asyncio
 import logging
 import re
+
+import aiohttp
 
 from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
@@ -139,10 +142,9 @@ less popular posts from {fetch_domain}"
                             f"Couldn't find {status_id} from {fetch_domain}")
             remember_to_find_me.pop(fetch_domain)
 
-    for url, post in trending_posts_dict.items():
-        local_status_id = api_mastodon.get_status_id_from_url(
-            home_server, home_token, url, status_id_cache)
-        post["local_status_id"] = local_status_id if local_status_id else ""
+    updated_trending_posts_dict = asyncio.run(
+    update_local_status_ids(
+        trending_posts_dict, home_server, home_token, status_id_cache))
 
     """Update the status stats with the trending posts."""
     if pgupdater:
@@ -156,4 +158,31 @@ less popular posts from {fetch_domain}"
                 )
         pgupdater.commit_updates()
 
-    return list(trending_posts_dict.values())
+    return list(updated_trending_posts_dict.values())
+
+async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
+                                home_server : str,
+                                home_token : str,
+                                status_id_cache: dict[str, str],
+                                ) -> dict[str, dict[str, str]]:
+    """Update the local_status_id in the trending_posts_dict."""
+    async def fetch_status_id(url : str) -> tuple[str, str]:
+        session = aiohttp.ClientSession()
+        try:
+            local_status_id = await api_mastodon.get_status_id_from_url(
+                home_server, home_token, url, status_id_cache, session)
+            return url, local_status_id if local_status_id else ""
+        finally:
+            await session.close()
+
+    tasks = [fetch_status_id(url) for url in trending_posts_dict]
+
+    # Wait for all the tasks to complete
+    results = await asyncio.gather(*tasks)
+
+    # Update the local_status_id in the trending_posts_dict
+    for url, local_status_id in results:
+        trending_posts_dict[url]["local_status_id"] = \
+            local_status_id if local_status_id else ""
+
+    return trending_posts_dict

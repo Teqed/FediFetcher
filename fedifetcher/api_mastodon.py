@@ -1,4 +1,5 @@
 """Mastodon API functions."""
+import asyncio
 import functools
 import inspect
 import logging
@@ -7,8 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar, cast
 
 import requests
-from fedifetcher import parsers
-from fedifetcher.postgresql import PostgreSQLUpdater
+from aiohttp import ClientSession
 from mastodon import (
     Mastodon,
     MastodonAPIError,
@@ -19,9 +19,10 @@ from mastodon import (
     MastodonServiceUnavailableError,
     MastodonUnauthorizedError,
 )
+from mastodon.types import Context, SearchV2, Status
 
 from fedifetcher.ordered_set import OrderedSet
-from mastodon.types import Context, SearchV2, Status
+from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers
 
@@ -334,58 +335,48 @@ f"Error getting user posts for user {user_id}")
         raise
 
 @handle_mastodon_errors([])
-def get_toot_context(
-        server : str,
-        toot_id : str,
-        token : str | None,
-        pgupdater : PostgreSQLUpdater,
-        home_server : str,
-        home_server_token : str,
-        status_id_cache : dict[str, str],
-        ) -> list[str]:
-    """Get the context of a toot.
+async def get_toot_context(  # noqa: PLR0913, D103
+        server: str,
+        toot_id: str,
+        token: str | None,
+        pgupdater: PostgreSQLUpdater,
+        home_server: str,
+        home_server_token: str,
+        status_id_cache: dict[str, str],
+) -> list[str]:
+    # Create a list to store the tasks
+    tasks = []
 
-    Args:
-    ----
-    server (str): The server to get the context from.
-    toot_id (str): The ID of the toot to get the context of.
-    token (str): The access token to use for the request.
-    pgupdater (PostgreSQLUpdater): A PostgreSQLUpdater instance to use for \
-        updating the database.
-    home_server (str): The home server to use for fetching status IDs.
-    home_server_token (str): The access token to use for the home server.
-    status_id_cache (dict[str, str]): A dict of status IDs, keyed by URL.
+    # Create a client session
+    async with ClientSession() as session:
+        # Create semaphore to limit the number of concurrent requests
+        semaphore = asyncio.Semaphore(5)
 
-    Returns:
-    -------
-    list[str] | None: A list of toot URLs in the context of the toot, or [] \
-        if the toot is not found.
-    """
-    context: Context = mastodon(server, token).status_context(
-        id = toot_id,
-        )
-    if pgupdater and home_server and home_server_token and status_id_cache:
-        logging.debug("Updating status stats as part of context fetch")
-        for status in context["ancestors"] + context["descendants"]:
-            _status: Status = cast(Status, status)
-            if _status.url:
-                if (f"{home_server,_status.url}") in status_id_cache:
-                    status_home_id = status_id_cache.get(f"{home_server,_status.url}")
-                else:
-                    status_home_id = get_status_id_from_url(
-                        home_server, home_server_token, _status.url, status_id_cache)
-                    if status_home_id:
-                        status_id_cache[f"{home_server,_status.url}"] = status_home_id
-                if status_home_id:
-                    status_home_id = int(status_home_id)
+        # Define an async function to process each status
+        async def process_status(status_url: str) -> None:
+            async with semaphore:
+                status_id = await get_status_id_from_url(
+                    home_server, home_server_token, status_url,
+                    status_id_cache, session)
+                if status_id:
+                    status_home_id = int(status_id)
                     pgupdater.queue_update(
                         status_home_id,
                         _status.reblogs_count,
                         _status.favourites_count,
-                        )
-        pgupdater.commit_updates()
+                    )
+
+        context: Context = mastodon(server, token).status_context(
+            id=toot_id,
+        )
+        for status in context["ancestors"] + context["descendants"]:
+            _status: Status = cast(Status, status)
+            if _status.url:
+                tasks.append(asyncio.ensure_future(process_status(_status.url)))
+        await asyncio.gather(*tasks)
+    pgupdater.commit_updates()
     context_urls: list[str] = [toot["url"] for toot in context["ancestors"]] + \
-        [toot["url"] for toot in context["descendants"]]
+                            [toot["url"] for toot in context["descendants"]]
     return context_urls
 
 @handle_mastodon_errors([])
@@ -658,21 +649,23 @@ def filter_language(
         lambda toot: toot.get("language") == language, toots)
 
 @handle_mastodon_errors(None)
-def get_status_id_from_url(
-        server : str,
-        token : str,
-        url : str,
+async def get_status_id_from_url(
+        server: str,
+        token: str,
+        url: str,
         status_id_cache: dict[str, str],
-        ) -> str | None:
-    """Get the status id from a toot URL.
+        session: ClientSession,
+) -> str | None:
+    """Get the status id from a toot URL asynchronously.
 
     Args:
     ----
     server (str): The server to get the status id from.
     token (str): The access token to use for the request.
     url (str): The URL of the toot to get the status id of.
-    status_id_cache (dict[str, str]): A dict of status ids, keyed by \
-        "server,URL".
+    status_id_cache (dict[str, str]): A dict of status ids, keyed by "server,URL".
+    session (ClientSession): The aiohttp ClientSession for making \
+        asynchronous HTTP requests.
 
     Returns:
     -------
@@ -682,9 +675,10 @@ def get_status_id_from_url(
         logging.debug(f"Getting status id from cache for url {url}")
         return status_id_cache[f"{server,url}"]
     logging.info(f"Asking server to lookup {url}")
-    result: SearchV2 = mastodon(server, token).search_v2(
-        q = url,
-        )
+    server_api = f"https://{server}/api/v2/search"
+    async with session.get(server_api, params={"q": url, "resolve": True,
+                                    "Authorization": f"Bearer {token}"}) as response:
+        result: SearchV2 = await response.json()
     statuses = result.statuses
     # If statuses has a length of at least 1, then the toot was found.
     # Let's check the returned toots until we find the one with the correct URL.

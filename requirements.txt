@@ -1,3 +1,8 @@
+aiohttp==3.8.4
+aiosignal==1.3.1
+async-timeout==4.0.2
+asyncio==3.4.3
+attrs==23.1.0
 blurhash==1.1.4
 certifi==2023.5.7
 charset-normalizer==3.1.0
@@ -6,12 +11,14 @@ colorlog==6.7.0
 decorator==5.1.1
 docopt-ng==0.8.1
 docutils==0.20.1
+frozenlist==1.4.0
 gdtoolkit==4.0.1
 idna==3.4
 iniconfig==2.0.0
 lark==1.1.5
 mando==0.7.1
 -e git+https://github.com/Teqed/Mastodon.py.git@4b5663f22e43e61b9392829b23df4f49f828ff48#egg=Mastodon.py
+multidict==6.0.4
 packaging==23.1
 pluggy==1.2.0
 psycopg2-binary==2.9.6
@@ -25,3 +32,4 @@ regex==2023.5.5
 requests==2.31.0
 six==1.16.0
 urllib3==2.0.3
+yarl==1.9.2
