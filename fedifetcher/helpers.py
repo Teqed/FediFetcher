@@ -118,8 +118,6 @@ def write_seen_files(  # noqa: PLR0913
             json.dump(dict(list(status_id_cache.items())[-10000:]), file)
             logging.debug(f"Wrote {len(status_id_cache)} status IDs")
     if trending_posts_replies_seen is not None:
-        logging.info(f"Received {len(trending_posts_replies_seen)} trending posts \
-with replies seen")
         items = list(trending_posts_replies_seen.items())
         items.sort(key=lambda x: x[1])
         recent = dict(items[-10000:])
