@@ -162,10 +162,11 @@ def aux_domain_fetch(external_tokens : dict[str, str],
                     add_post_to_dict,
                     domains_fetched : list[str],
                     post_url : str,
-                    parsed_url : tuple[str | None, str | None]) -> None:
+                    parsed_url : tuple[str | None, str | None]) -> bool:
     """Fetch a post from an aux domain."""
     msg = f"Finding aux trending posts from {parsed_url[0]}"
     logging.info(f"\033[1;35m{msg}\033[0m")
+    original = False
     if parsed_url[0] is not None and parsed_url[1] is not None:
         trending = api_mastodon.get_trending_posts(
                         parsed_url[0], external_tokens.get(parsed_url[0]), 720)
@@ -173,6 +174,9 @@ def aux_domain_fetch(external_tokens : dict[str, str],
         if trending:
             for t_post in trending:
                 add_post_to_dict(t_post, parsed_url[0])
+                if t_post["url"] == post_url:
+                    original = True
+    return original
 
 # Let's define a class to store aux domain fetches. It'll have a function to queue
 # them up, and then we'll do them all at once later.
