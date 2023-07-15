@@ -12,7 +12,7 @@ decorator==5.1.1
 docopt-ng==0.8.1
 docutils==0.20.1
 frozenlist==1.4.0
-gdtoolkit==4.0.1
+gdtoolkit==4.1.0
 idna==3.4
 iniconfig==2.0.0
 lark==1.1.5
