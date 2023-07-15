@@ -615,11 +615,8 @@ def filter_language(
     -------
     Iterator[dict[str, str]]: The filtered toots.
     """
-    return (
-        toot
-        for toot in toots
-        if toot["language"] == language
-        )
+    return filter(
+        lambda toot: toot.get("language") == language, toots)
 
 @handle_mastodon_errors(None)
 def get_status_id_from_url(
