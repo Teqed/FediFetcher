@@ -89,7 +89,7 @@ Copy: {t_post_url}\033[0m")
     for fetch_domain in external_feeds.copy():
         msg = f"Fetching trending posts from {fetch_domain}"
         logging.info(f"\033[1;34m{msg}\033[0m")
-        trending_posts = api_mastodon.get_trending_posts(
+        trending_posts = await api_mastodon.get_trending_posts(
             fetch_domain, external_tokens.get(fetch_domain), 5600)
         domains_fetched.append(fetch_domain)
         domains_to_fetch.remove(fetch_domain)
@@ -158,7 +158,7 @@ less popular posts from {fetch_domain}"
 
     return list(updated_trending_posts_dict.values())
 
-def aux_domain_fetch(external_tokens : dict[str, str],
+async def aux_domain_fetch(external_tokens : dict[str, str],
                     add_post_to_dict,
                     domains_fetched : list[str],
                     post_url : str,
@@ -168,7 +168,7 @@ def aux_domain_fetch(external_tokens : dict[str, str],
     logging.info(f"\033[1;35m{msg}\033[0m")
     original = False
     if parsed_url[0] is not None and parsed_url[1] is not None:
-        trending = api_mastodon.get_trending_posts(
+        trending = await api_mastodon.get_trending_posts(
                         parsed_url[0], external_tokens.get(parsed_url[0]), 5600)
         domains_fetched.append(parsed_url[0])
         if trending:
@@ -211,7 +211,7 @@ less popular posts from {fetch_domain}"
                 f"\033[1;34m{msg}\033[0m")
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 if parsed_url[0] not in self.domains_fetched:
-                    original = aux_domain_fetch(self.external_tokens,
+                    original = await aux_domain_fetch(self.external_tokens,
                 self.add_post_to_dict, self.domains_fetched, post_url, parsed_url)
                     if not original:
                         logging.warning(f"Couldn't find original for {post_url}")
