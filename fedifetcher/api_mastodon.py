@@ -675,7 +675,7 @@ def get_status_id_from_url(
     -------
     str | None: The status id of the toot, or None if the toot is not found.
     """
-    if status_id_cache and f"{server},{url}" in status_id_cache:
+    if status_id_cache and f"{server,url}" in status_id_cache:
         logging.info(f"Getting status id from cache for url {url}")
         return status_id_cache[f"{server,url}"]
     logging.info(f"Getting status id from url {url}")
