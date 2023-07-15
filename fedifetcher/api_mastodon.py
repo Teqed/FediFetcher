@@ -587,15 +587,20 @@ def get_trending_posts(
     list[dict[str, str]]: A list of trending posts, or [] if the \
         request fails.
     """
-    logging.info(f"Getting trending posts for {server}")
+    logging.info(f"Getting {limit} trending posts for {server}")
     got_trending_posts = cast(list[dict[str, str]],
-                        mastodon(server, token).trends(limit=limit))
+                        mastodon(server, token).trending_statuses(limit=40))
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(filter_language(got_trending_posts, "en"))
+    offset = 40
     while len(trending_posts) < limit \
             and len(got_trending_posts) == 40:  # noqa: PLR2004
         got_trending_posts = cast(list[dict[str, str]],
-                            mastodon(server, token).fetch_next(got_trending_posts))
+                            mastodon(server, token).trending_statuses(
+                                limit=40,
+                                offset=offset,
+                                ))
+        offset += 40
         trending_posts.extend(filter_language(got_trending_posts, "en"))
     logging.info(f"Found {len(trending_posts)} trending posts")
     return trending_posts
