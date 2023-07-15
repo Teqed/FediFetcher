@@ -3,6 +3,8 @@ import logging
 import re
 
 from fedifetcher.ordered_set import OrderedSet
+from fedifetcher.postgresql import PostgreSQLUpdater
+from mastodon.types import Context
 
 from . import api_lemmy, api_mastodon, parsers
 
@@ -61,6 +63,11 @@ def get_post_context(
         server : str,
         toot_id : str,
         toot_url : str,
+        external_tokens : dict[str, str] | None = None,
+        pgupdater : PostgreSQLUpdater | None = None,
+        home_server : str | None = None,
+        home_server_token : str | None = None,
+        status_id_cache : dict[str, str] | None = None,
         ) -> list[str]:
     """Get the URLs of the context toots of the given toot.
 
@@ -75,11 +82,20 @@ def get_post_context(
     list[str]: The URLs of the context toots of the given toot.
     """
     try:
+        external_token = None
+        if external_tokens:
+            external_token = external_tokens.get(server)
         if toot_url.find("/comment/") != -1:
             return api_lemmy.get_comment_context(server, toot_id, toot_url)
         if toot_url.find("/post/") != -1:
             return api_lemmy.get_comments_urls(server, toot_id, toot_url)
-        return api_mastodon.get_toot_context(server, toot_id)
+        return api_mastodon.get_toot_context(server, toot_id,
+                                            external_token,
+                                            pgupdater,
+                                            home_server,
+                                            home_server_token,
+                                            status_id_cache,
+                                            )
     except Exception as ex:
         logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
     return []

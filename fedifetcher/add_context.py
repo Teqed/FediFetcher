@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 from fedifetcher import api_mastodon, getter_wrappers, parsers
 from fedifetcher.ordered_set import OrderedSet
+from mastodon.types import Status
 
 from . import getters, helpers
 
@@ -95,6 +96,7 @@ def add_context_urls(
         access_token : str,
         context_urls : Iterable[str],
         seen_urls : OrderedSet,
+        status_id_cache : dict[str, str] | None = None,
         ) -> None:
     """Add the given toot URLs to the server.
 
@@ -104,13 +106,21 @@ def add_context_urls(
     access_token: The access token to use to add the toots.
     context_urls: The list of toot URLs to add.
     seen_urls: The list of all URLs we have already seen.
+    status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
+        IDs will be cached.
     """
     logging.info("Adding statuses to server...")
     count = 0
     failed = 0
     for url in context_urls:
         if url not in seen_urls:
-            added = api_mastodon.add_context_url(url, server, access_token)
+            # Check if url in status_id_cache dict
+            if status_id_cache is not None and url in status_id_cache:
+                added = True
+            else:
+                added = api_mastodon.add_context_url(url, server, access_token)
+                if status_id_cache is not None and isinstance(added, Status):
+                    status_id_cache[url] = str(added.id)
             if added is not False:
                 logging.info(f"Added {url}")
                 seen_urls.add(url)

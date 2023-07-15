@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dateutil import parser
+from psycopg2 import connect
 
 from fedifetcher import (
     add_context,
@@ -20,6 +21,7 @@ from fedifetcher import (
 from fedifetcher.find_posts_by_token import find_posts_by_token
 from fedifetcher.find_trending_posts import find_trending_posts
 from fedifetcher.ordered_set import OrderedSet
+from fedifetcher.postgresql import PostgreSQLUpdater
 
 if __name__ == "__main__":
     start = datetime.now(UTC)
@@ -172,6 +174,20 @@ with replies seen")
             logging.warning(f"Found {len(external_tokens)} external tokens")
         else:
             logging.warning("No external tokens found")
+        pgupdater = None
+        if external_tokens and helpers.arguments.pgpassword \
+                and helpers.arguments.external_feeds:
+            conn = connect(
+                host="dreamer", \
+                    # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+                port = 5432,
+                database="mastodon_production", \
+                    # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+                user="teq", \
+                    # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+                password=helpers.arguments.pgpassword,
+            )
+            pgupdater = PostgreSQLUpdater(conn)
         try:
             logging.info("Getting active user IDs")
             user_ids = list(api_mastodon.get_active_user_ids(
@@ -209,6 +225,11 @@ with replies seen")
             context_urls = getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
+                external_tokens,
+                pgupdater,
+                helpers.arguments.server,
+                admin_token,
+                status_id_cache,
                 )
             logging.debug("Found context URLs, adding context URLs")
             add_context.add_context_urls(
@@ -234,10 +255,11 @@ provided. Continuing without active user IDs.")
                 recently_checked_users,
                 known_followings,
                 external_tokens,
+                pgupdater,
+                status_id_cache,
             )
 
-        if external_tokens and helpers.arguments.pgpassword \
-                and helpers.arguments.external_feeds:
+        if external_tokens and helpers.arguments.external_feeds:
             # external_feeds is a comma-separated list of external feeds to fetch
             # from, e.g. "example1.com,example2.com"
             external_feeds = helpers.arguments.external_feeds.split(",")
@@ -247,7 +269,7 @@ provided. Continuing without active user IDs.")
                 admin_token,
                 external_feeds,
                 external_tokens,
-                helpers.arguments.pgpassword,
+                pgupdater,
                 status_id_cache,
             )
             logging.info(

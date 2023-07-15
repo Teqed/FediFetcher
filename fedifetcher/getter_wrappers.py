@@ -13,6 +13,7 @@ from fedifetcher.getters import (
     get_post_context,
 )
 from fedifetcher.ordered_set import OrderedSet
+from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers, parsers
 
@@ -208,6 +209,11 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
     server: str,
     reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
+    external_tokens: dict[str, str] | None = None,
+    pgupdater: PostgreSQLUpdater | None = None,
+    home_server: str | None = None,
+    home_server_token: str | None = None,
+    status_id_cache: dict[str, str] | None = None,
 ) -> Iterable[str]:
     """Get the context toots of the given toots from their original server.
 
@@ -259,7 +265,9 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                 parsed_url = parsers.post(url, parsed_urls)
                 if parsed_url and parsed_url[0] and parsed_url[1]:
                     try:
-                        context = get_post_context(parsed_url[0], parsed_url[1], url)
+                        context = get_post_context(parsed_url[0], parsed_url[1], url,
+                                                external_tokens, pgupdater, home_server,
+                                                home_server_token, status_id_cache)
                     except Exception as ex:
                         logging.error(f"Error getting context for toot {url} : {ex}")
                         logging.debug(
@@ -397,6 +405,11 @@ def get_redirect_url(url : str) -> str | None:
 def get_all_context_urls(
     server: str,
     replied_toot_ids: Iterable[tuple[str | None, str | None]],
+    external_tokens: dict[str, str] | None = None,
+    pgupdater: PostgreSQLUpdater | None = None,
+    home_server: str | None = None,
+    home_server_token: str | None = None,
+    status_id_cache: dict[str, str] | None = None,
 ) -> Iterable[str]:
     """Get the URLs of the context toots of the given toots.
 
@@ -413,7 +426,8 @@ def get_all_context_urls(
     return cast(Iterable[str], filter(
         lambda url: not str(url).startswith(f"https://{server}/"),
         itertools.chain.from_iterable(
-            get_post_context(server, toot_id, url)
+            get_post_context(server, toot_id, url, external_tokens, pgupdater,
+                                home_server, home_server_token, status_id_cache)
             for (url, (s, toot_id)) in cast(Iterable[tuple[str, str]], replied_toot_ids)
         ),
     ))

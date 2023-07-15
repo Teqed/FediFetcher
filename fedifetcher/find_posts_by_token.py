@@ -7,6 +7,7 @@ from dateutil import parser
 
 from fedifetcher import add_context, api_mastodon, getter_wrappers, helpers
 from fedifetcher.ordered_set import OrderedSet
+from fedifetcher.postgresql import PostgreSQLUpdater
 
 
 def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
@@ -18,6 +19,8 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
         recently_checked_users : OrderedSet,
         known_followings : OrderedSet,
         external_tokens: dict[str, str] | None,
+        pgupdater: PostgreSQLUpdater | None,
+        status_id_cache: dict[str, str] | None,
         ) -> OrderedSet:
     """Pull posts from a Mastodon server, using a token."""
     logging.info("Finding posts for provided token")
@@ -127,6 +130,11 @@ mentioned users")
             context_urls = getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
+                external_tokens,
+                pgupdater,
+                helpers.arguments.server,
+                token,
+                status_id_cache,
                 )
             logging.info("Found context URLs, getting context URLs")
             add_context.add_context_urls(

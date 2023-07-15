@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar, cast
 
 import requests
+from fedifetcher.postgresql import PostgreSQLUpdater
 from mastodon import (
     Mastodon,
     MastodonAPIError,
@@ -19,6 +20,7 @@ from mastodon import (
 )
 
 from fedifetcher.ordered_set import OrderedSet
+from mastodon.types import Context, Status
 
 from . import helpers
 
@@ -333,6 +335,10 @@ def get_toot_context(
         server : str,
         toot_id : str,
         token : str | None = None,
+        pgupdater : PostgreSQLUpdater | None = None,
+        home_server : str | None = None,
+        home_server_token : str | None = None,
+        status_id_cache : dict[str, str] | None = None,
         ) -> list[str]:
     """Get the context of a toot.
 
@@ -341,15 +347,36 @@ def get_toot_context(
     server (str): The server to get the context from.
     toot_id (str): The ID of the toot to get the context of.
     token (str): The access token to use for the request.
+    pgupdater (PostgreSQLUpdater): A PostgreSQLUpdater instance to use for \
+        updating the database.
 
     Returns:
     -------
     list[str] | None: A list of toot URLs in the context of the toot, or [] \
         if the toot is not found.
     """
-    context = mastodon(server, token).status_context(
+    context: Context = mastodon(server, token).status_context(
         id = toot_id,
         )
+    if pgupdater and home_server and home_server_token and status_id_cache:
+        for status in context["ancestors"] + context["descendants"]:
+            _status: Status = cast(Status, status)
+            if _status.url:
+                if _status.url in status_id_cache:
+                    status_home_id = status_id_cache[_status.url]
+                else:
+                    status_home_id = get_status_id_from_url(
+                        home_server, home_server_token, _status.url, status_id_cache)
+                    if status_home_id:
+                        status_id_cache[_status.url] = status_home_id
+                if status_home_id:
+                    status_home_id = int(status_home_id)
+                    pgupdater.queue_update(
+                        status_home_id,
+                        _status.reblogs_count,
+                        _status.favourites_count,
+                        )
+        pgupdater.commit_updates()
     context_urls: list[str] = [toot["url"] for toot in context["ancestors"]] + \
         [toot["url"] for toot in context["descendants"]]
     return context_urls
@@ -543,7 +570,7 @@ def add_context_url(
         url : str,
         server : str,
         access_token : str,
-        ) -> dict[str, str] | bool:
+        ) -> Status | bool:
     """Add the given toot URL to the server.
 
     Args:
@@ -560,12 +587,10 @@ def add_context_url(
     result = mastodon(server, access_token).search_v2(
         q = url,
     )
-    if result:
-        statuses = result["statuses"]
-        if statuses:
-            for _status in statuses:
-                if _status["url"] == url:
-                    return _status
+    if result.statuses:
+        for _status in result.statuses:
+            if _status.url == url:
+                return _status
     return False
 
 @handle_mastodon_errors(default_return_value=[])
