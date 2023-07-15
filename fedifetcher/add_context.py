@@ -130,7 +130,7 @@ def add_context_urls(
                         and added.url:
                     status_id_cache[f"{server,added.url}"] = str(added.id)
             if added is not False:
-                logging.info(f"Added  {url}")
+                logging.info(f"Added {url}")
                 seen_urls.add(url)
                 count += 1
             else:
