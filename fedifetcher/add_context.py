@@ -104,6 +104,7 @@ def add_context_urls(
         context_urls : Iterable[str],
         seen_urls : OrderedSet,
         status_id_cache : dict[str, str] | None = None,
+        parsed_urls : dict[str, tuple[str | None, str | None]] | None = None,
         ) -> None:
     """Add the given toot URLs to the server.
 
@@ -121,13 +122,17 @@ def add_context_urls(
     failed = 0
     for url in context_urls:
         if url not in seen_urls:
-            # Check if url in status_id_cache dict
-            if status_id_cache is not None and url in status_id_cache:
+            parsed = parsers.post(url, parsed_urls)
+            if status_id_cache is not None and parsed is not None \
+                    and (f"{parsed[0],url}") in status_id_cache:
                 added = True
             else:
                 added = api_mastodon.add_context_url(url, server, access_token)
-                if status_id_cache is not None and isinstance(added, Status):
-                    status_id_cache[url] = str(added.id)
+                if status_id_cache is not None and isinstance(added, Status) \
+                        and added.url:
+                    parsed = parsers.post(added.url, parsed_urls)
+                    if parsed is not None and parsed[0] is not None:
+                        status_id_cache[f"{parsed[0]},{added.url}"] = str(added.id)
             if added is not False:
                 logging.info(f"Added {url}")
                 seen_urls.add(url)
