@@ -189,7 +189,7 @@ def get_timeline(
             break
         number_of_toots_received += len(more_toots)
         yield from more_toots
-    logging.info(f"Found {number_of_toots_received} toots in timeline")
+    logging.info(f"Found {number_of_toots_received} posts in timeline")
 
 @handle_mastodon_errors(None)
 def get_active_user_ids(
@@ -363,7 +363,7 @@ def get_toot_context(
         id = toot_id,
         )
     if pgupdater and home_server and home_server_token and status_id_cache:
-        logging.info("Updating status stats as part of context fetch")
+        logging.debug("Updating status stats as part of context fetch")
         for status in context["ancestors"] + context["descendants"]:
             _status: Status = cast(Status, status)
             if _status.url:
@@ -618,7 +618,8 @@ def get_trending_posts(
     list[dict[str, str]]: A list of trending posts, or [] if the \
         request fails.
     """
-    logging.info(f"Getting {limit} trending posts for {server}")
+    msg = f"Getting {limit} trending posts for {server}"
+    logging.info(f"\033[1m{msg}\033[0m")
     got_trending_posts = cast(list[dict[str, str]],
                         mastodon(server, token).trending_statuses(limit=40))
     trending_posts: list[dict[str, str]] = []
@@ -676,9 +677,9 @@ def get_status_id_from_url(
     str | None: The status id of the toot, or None if the toot is not found.
     """
     if status_id_cache and f"{server,url}" in status_id_cache:
-        logging.info(f"Getting status id from cache for url {url}")
+        logging.debug(f"Getting status id from cache for url {url}")
         return status_id_cache[f"{server,url}"]
-    logging.info(f"Getting status id from url {url}")
+    logging.info(f"Asking server to lookup {url}")
     result: SearchV2 = mastodon(server, token).search_v2(
         q = url,
         )

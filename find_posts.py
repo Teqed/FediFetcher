@@ -102,7 +102,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
     status_id_cache: dict[str, str] = {}
     trending_posts_replies_seen: dict[str, str] = {}
     try:
-        logging.info("Loading seen files")
+        logging.debug("Loading seen files")
         SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
         REPLIED_TOOT_SERVER_IDS_FILE = Path(
             helpers.arguments.state_dir) / "replied_toot_server_ids"
@@ -116,7 +116,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         if Path(SEEN_URLS_FILE).exists():
             with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
                 seen_urls = OrderedSet(file.read().splitlines())
-                logging.info(f"Loaded {len(seen_urls)} seen URLs")
+                logging.debug(f"Loaded {len(seen_urls)} seen URLs")
 
         if Path(REPLIED_TOOT_SERVER_IDS_FILE).exists():
             with Path(REPLIED_TOOT_SERVER_IDS_FILE).open(encoding="utf-8") as file:
@@ -126,36 +126,35 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         if Path(KNOWN_FOLLOWINGS_FILE).exists():
             with Path(KNOWN_FOLLOWINGS_FILE).open(encoding="utf-8") as file:
                 known_followings = OrderedSet(file.read().splitlines())
-                logging.info(f"Loaded {len(known_followings)} known followings")
+                logging.debug(f"Loaded {len(known_followings)} known followings")
 
         if Path(RECENTLY_CHECKED_USERS_FILE).exists():
             with Path(RECENTLY_CHECKED_USERS_FILE).open(encoding="utf-8") as file:
                 recently_checked_users = OrderedSet(list(json.load(file)))
-                logging.info(
+                logging.debug(
                     f"Loaded {len(recently_checked_users)} recently checked users")
 
         if Path(STATUS_ID_CACHE_FILE).exists():
             with Path(STATUS_ID_CACHE_FILE).open(encoding="utf-8") as file:
                 status_id_cache = json.load(file)
-                logging.info(f"Loaded {len(status_id_cache)} status IDs")
+                logging.debug(f"Loaded {len(status_id_cache)} status IDs")
 
         if Path(TRENDING_POSTS_REPLIES_SEEN_FILE).exists():
             with Path(TRENDING_POSTS_REPLIES_SEEN_FILE).open(
                     encoding="utf-8") as file:
                 trending_posts_replies_seen = json.load(file)
-                logging.info(
+                logging.debug(
                     f"Loaded {len(trending_posts_replies_seen)} trending posts \
 with replies seen")
-                logging.info(trending_posts_replies_seen) # Debug
 
         # Remove any users whose last check is too long in the past from the list
-        logging.info("Removing old users from recently checked users")
+        logging.debug("Removing old users from recently checked users")
         for user in list(recently_checked_users):
             last_check = recently_checked_users.get_time(user)
             user_age = datetime.now(last_check.tzinfo) - last_check
             if(user_age.total_seconds(
             ) > helpers.arguments.remember_users_for_hours * 60 * 60):
-                logging.info(f"Removing user {user} from recently checked users")
+                logging.debug(f"Removing user {user} from recently checked users")
                 recently_checked_users.remove(user)
 
         parsed_urls : dict[str, tuple[str | None, str | None]] = {}
@@ -247,7 +246,9 @@ requires the admin:read:accounts scope to be enabled on the first access token \
 provided. Continuing without active user IDs.")
 
         for _token in helpers.arguments.access_token:
-            logging.info("Getting posts for token")
+            index = helpers.arguments.access_token.index(_token)
+            logging.info(f"Getting posts for token {index + 1} of \
+{len(helpers.arguments.access_token)}")
             find_posts_by_token(
                 _token,
                 seen_urls,
@@ -301,14 +302,14 @@ context URLs")
                 admin_token,
                 status_id_cache,
                 )
-            logging.info("Found known context URLs, getting context URLs")
+            logging.debug("Found known context URLs, getting context URLs")
             add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 known_context_urls,
                 seen_urls,
                 )
-            logging.info("Added context URLs")
+            logging.debug("Added context URLs")
 
         logging.info("Writing seen files")
         helpers.write_seen_files(
@@ -334,7 +335,9 @@ context URLs")
             except Exception as ex:
                 logging.error(f"Error getting callback url: {ex}")
 
-        logging.info(f"Processing finished in {datetime.now(UTC) - start}.")
+        logging.info(
+            f"\033[1m\033[38;5;208mProcessing finished in \
+\033[38;5;208m{datetime.now(UTC) - start}.\033[0m")
 
     except Exception:
         logging.exception("Error running FediFetcher")
@@ -364,7 +367,7 @@ context URLs")
                 status_id_cache,
                 trending_posts_replies_seen,
                 )
-            logging.info("Successfully wrote seen files.")
+            logging.debug("Successfully wrote seen files.")
         except Exception as ex:
             logging.error(f"Error writing seen files: {ex}")
         Path.unlink(LOCK_FILE)

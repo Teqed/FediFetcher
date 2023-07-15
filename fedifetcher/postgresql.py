@@ -24,12 +24,12 @@ class PostgreSQLUpdater:
         if len(self.updates) == 0:
             return
         try:
-            logging.info(f"Updating {len(self.updates)} status stats")
+            logging.debug(f"Updating {len(self.updates)} status stats")
             with self.conn.cursor() as cursor:
                 now = datetime.now(UTC)
                 for update in self.updates:
                     logging.info(
-f"Updating status stats for {update[0]} to {update[1]} \
+f"Updating {update[0]} to {update[1]} \
 reblogs and {update[2]} favourites")
                     status_id, reblogs_count, favourites_count = update
                     cursor.execute(
@@ -59,7 +59,7 @@ reblogs and {update[2]} favourites")
                         data = (
                             status_id, reblogs_count, favourites_count, now, now)
                     cursor.execute(query, data)
-                logging.info("Committing updates")
+                logging.debug("Committing updates")
                 self.conn.commit()
                 logging.info(f"Committed {len(self.updates)} updates")
             self.updates = []

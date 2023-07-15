@@ -42,27 +42,27 @@ def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
                 + ")(?:/.*)?", t_post_url)
         if original:
             logging.info(
-        f"Adding original {t_post_url} to trending posts from {fetched_from_domain} \
-Reblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']}")
+f"Reblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']} \
+From: {t_post_url}")
             trending_posts_dict[t_post_url] = trending_post
             trending_posts_dict[t_post_url]["original"] = "Yes"
             return True
         if t_post_url in trending_posts_dict:
             if "original" not in trending_posts_dict[t_post_url]:
                 logging.info(
-                    f"Adding stats for {t_post_url} from {fetched_from_domain} \
-Reblogs: +{trending_post['reblogs_count']} \
-Favourites: +{trending_post['favourites_count']}")
+f"Reblogs: +{trending_post['reblogs_count']} \
+Favourites: +{trending_post['favourites_count']} \
+Copy: {t_post_url}")
                 increment_count(t_post_url, trending_post)
                 return False
-            logging.info(
+            logging.debug(
                 f"Already seen {t_post_url} from origin")
             return True # We already have the original
         logging.info(
-            f"Adding copy of {t_post_url} to trending posts from {fetched_from_domain} \
-Reblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']}")
+f"Reblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']} \
+Copy: {t_post_url}")
         trending_posts_dict[t_post_url] = trending_post
         return False
 

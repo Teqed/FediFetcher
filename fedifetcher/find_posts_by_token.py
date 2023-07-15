@@ -33,7 +33,7 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
             "home",
             helpers.arguments.home_timeline_length,
             )
-        logging.info("Found home timeline toots, getting context URLs")
+        logging.debug("Found home timeline toots, getting context URLs")
         known_context_urls = getter_wrappers.get_all_known_context_urls(
             helpers.arguments.server,
             timeline_toots,
@@ -43,14 +43,14 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
             token,
             status_id_cache,
             )
-        logging.info("Found known context URLs, getting context URLs")
+        logging.debug("Found known context URLs, getting context URLs")
         add_context.add_context_urls(
             helpers.arguments.server,
             token,
             known_context_urls,
             seen_urls,
             )
-        logging.info("Added context URLs")
+        logging.debug("Added context URLs")
         # Backfill any post authors, and any mentioned users
         if helpers.arguments.backfill_mentioned_users > 0:
             logging.info(
@@ -118,7 +118,7 @@ mentioned users")
                 seen_urls,
                 helpers.arguments.reply_interval_in_hours,
             )
-            logging.info("Found reply toots, getting context URLs")
+            logging.debug("Found reply toots, getting context URLs")
             known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
@@ -128,7 +128,7 @@ mentioned users")
                 token,
                 status_id_cache,
                 )
-            logging.info("Found known context URLs, getting context URLs")
+            logging.debug("Found known context URLs, getting context URLs")
             seen_urls.update(known_context_urls)
             replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
                 helpers.arguments.server,
@@ -136,7 +136,7 @@ mentioned users")
                 replied_toot_server_ids,
                 parsed_urls,
             )
-            logging.info("Found replied toot IDs, getting context URLs")
+            logging.debug("Found replied toot IDs, getting context URLs")
             context_urls = getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
@@ -146,14 +146,14 @@ mentioned users")
                 token,
                 status_id_cache,
                 )
-            logging.info("Found context URLs, getting context URLs")
+            logging.debug("Found context URLs, getting context URLs")
             add_context.add_context_urls(
                 helpers.arguments.server,
                 token,
                 context_urls,
                 seen_urls,
                 )
-            logging.info("Added context URLs")
+            logging.debug("Added context URLs")
         if helpers.arguments.max_followings > 0:
             logging.info(
         f"Getting posts from last {helpers.arguments.max_followings} followings")
@@ -164,7 +164,7 @@ mentioned users")
                 helpers.arguments.max_followings,
                 all_known_users,
                 )
-            logging.info("Got followings, getting context URLs")
+            logging.debug("Got followings, getting context URLs")
             add_context.add_user_posts(
                 helpers.arguments.server,
                 token, followings,
@@ -175,7 +175,7 @@ mentioned users")
                 pgupdater,
                 status_id_cache,
                 )
-            logging.info("Added context URLs")
+            logging.debug("Added context URLs")
         if helpers.arguments.max_followers > 0:
             logging.info(
         f"Getting posts from last {helpers.arguments.max_followers} followers")
@@ -186,7 +186,7 @@ mentioned users")
                 helpers.arguments.max_followers,
                 all_known_users,
                 )
-            logging.info("Got followers, getting context URLs")
+            logging.debug("Got followers, getting context URLs")
             add_context.add_user_posts(
                 helpers.arguments.server,
                 token,
@@ -198,7 +198,7 @@ mentioned users")
                 pgupdater,
                 status_id_cache,
                 )
-            logging.info("Added context URLs")
+            logging.debug("Added context URLs")
     if helpers.arguments.max_follow_requests > 0:
         logging.info(
     f"Getting posts from last {helpers.arguments.max_follow_requests} follow requests")
@@ -208,7 +208,7 @@ mentioned users")
                             helpers.arguments.max_follow_requests,
                             all_known_users,
                             )
-        logging.info("Got follow requests, getting context URLs")
+        logging.debug("Got follow requests, getting context URLs")
         add_context.add_user_posts(
             helpers.arguments.server,
             token,
@@ -220,7 +220,7 @@ mentioned users")
             pgupdater,
             status_id_cache,
             )
-        logging.info("Added context URLs")
+        logging.debug("Added context URLs")
     if helpers.arguments.from_notifications > 0:
         logging.info(
     f"Getting notifications for last {helpers.arguments.from_notifications} hours")
@@ -230,7 +230,7 @@ mentioned users")
                                 all_known_users,
                                 helpers.arguments.from_notifications,
                                 )
-        logging.info("Got notification users, getting context URLs")
+        logging.debug("Got notification users, getting context URLs")
         add_context.add_user_posts(
             helpers.arguments.server,
             token,
@@ -242,7 +242,7 @@ mentioned users")
             pgupdater,
             status_id_cache,
             )
-        logging.info("Added context URLs")
+        logging.debug("Added context URLs")
     if helpers.arguments.max_bookmarks > 0:
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_bookmarks} bookmarks")
@@ -251,7 +251,7 @@ mentioned users")
                         token,
                         helpers.arguments.max_bookmarks,
                         )
-        logging.info("Got bookmarks, getting context URLs")
+        logging.debug("Got bookmarks, getting context URLs")
         known_context_urls = getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
                                 iter(bookmarks),
@@ -261,14 +261,14 @@ mentioned users")
                                 token,
                                 status_id_cache,
                                 )
-        logging.info("Got known context URLs, getting context URLs")
+        logging.debug("Got known context URLs, getting context URLs")
         add_context.add_context_urls(
             helpers.arguments.server,
             token,
             known_context_urls,
             seen_urls,
             )
-        logging.info("Added context URLs")
+        logging.debug("Added context URLs")
     if helpers.arguments.max_favourites > 0:
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_favourites} favourites")
@@ -277,7 +277,7 @@ mentioned users")
                         token,
                         helpers.arguments.max_favourites,
                         )
-        logging.info("Got favourites, getting context URLs")
+        logging.debug("Got favourites, getting context URLs")
         known_context_urls = getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
                                 iter(favourites),
@@ -287,12 +287,12 @@ mentioned users")
                                 token,
                                 status_id_cache,
                                 )
-        logging.info("Got known context URLs, getting context URLs")
+        logging.debug("Got known context URLs, getting context URLs")
         add_context.add_context_urls(
             helpers.arguments.server,
             token,
             known_context_urls,
             seen_urls,
             )
-        logging.info("Added context URLs")
+        logging.debug("Added context URLs")
     return seen_urls

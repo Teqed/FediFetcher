@@ -245,7 +245,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                         if url is None:
                             logging.error("Error accessing URL in the boosted toot")
                             continue
-                        logging.info(f"Got boosted toot URL {url}")
+                        logging.debug(f"Got boosted toot URL {url}")
                     except json.JSONDecodeError:
                         logging.error("Error decoding JSON in the boosted toot")
                         continue
@@ -254,7 +254,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                     if url is None:
                         logging.error("Error accessing URL in the boosted toot")
                         continue
-                    logging.info(f"Got boosted toot URL {url}")
+                    logging.debug(f"Got boosted toot URL {url}")
                 elif toot.get("url") is not None:
                     url = str(toot["url"])
                 else:
@@ -273,7 +273,7 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912
                             f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                         continue
                     if context:
-                        logging.info(f"Got {len(context)} context for {url}")
+                        logging.info(f"Got {len(context)} context posts for {url}")
                         known_context_urls.extend(context)
 
     return filter(
@@ -328,7 +328,7 @@ def get_replied_toot_server_id(  # noqa: PLR0911
         if mention["id"] == in_reply_to_account_id
     ]
     if len(mentions) < 1:
-        logging.info(f"Could not find mention for toot {in_reply_to_id}")
+        logging.info(f"Could not find mention for post {in_reply_to_id}")
         return (None, None)
 
     mention = mentions[0]
@@ -336,12 +336,12 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     o_url = f"https://{server}/@{mention['acct']}/{in_reply_to_id}"
     if o_url in replied_toot_server_ids:
         if replied_toot_server_ids[o_url] is None:
-            logging.info(f"Found {o_url} in replied toots dictionary as None")
+            logging.debug(f"Found {o_url} in replied toots dictionary as None")
             return (None, None)
         if isinstance(replied_toot_server_ids[o_url], str):
             found_server, found_id = cast(
                 str, replied_toot_server_ids[o_url]).split(",")
-            logging.info(
+            logging.debug(
         f"Found {o_url} in replied toots dictionary as {found_server}, {found_id}")
             return (
                 found_server,
@@ -357,11 +357,11 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     match = parsers.post(url, parsed_urls)
     if match:
         if match[0] is not None and match[1] is not None:
-            logging.info(
+            logging.debug(
                 f"Added {url} to replied toots dictionary as {match[0]}, {match[1]}")
             replied_toot_server_ids[o_url] = f"{url},{match[0]},{match[1]}"
             return (match[0], match[1])
-        logging.info(f"Added {url} to replied toots dictionary as None")
+        logging.debug(f"Added {url} to replied toots dictionary as None")
         replied_toot_server_ids[o_url] = None
         return (None, None)
 
@@ -394,9 +394,9 @@ def get_redirect_url(url : str) -> str | None:
         return url
     if resp.status_code == helpers.Response.FOUND:
         redirect_url = resp.headers["Location"]
-        logging.info(f"Discovered redirect for URL {url}")
+        logging.debug(f"Discovered redirect for URL {url}")
         return redirect_url
-    logging.info(
+    logging.error(
         f"Error getting redirect URL for URL {url} Status code: {resp.status_code}",
     )
     return None

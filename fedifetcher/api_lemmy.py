@@ -12,7 +12,7 @@ def get_user_posts_from_url(
         parsed_url : tuple[str, str],
 ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user."""
-    logging.info(f"Getting user posts from {parsed_url[0]} for user {parsed_url[1]}")
+    logging.info(f"Getting posts from {parsed_url[0]} for user {parsed_url[1]}")
     url = f"https://{parsed_url[0]}/api/v3/user?username={parsed_url[1]}&sort=New&limit=50"
     response = helpers.get(url)
 
@@ -40,7 +40,7 @@ def get_community_posts_from_url(
         parsed_url : tuple[str, str]) -> list[dict[str, str]] | None:
     """Get a list of posts from a community."""
     logging.info(
-        f"Getting community posts from {parsed_url[0]} for community {parsed_url[1]}")
+        f"Getting posts from {parsed_url[0]} for community {parsed_url[1]}")
     try:
         url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
         response = helpers.get(url)

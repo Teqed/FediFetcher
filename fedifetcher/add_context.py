@@ -116,7 +116,7 @@ def add_context_urls(
     status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
         IDs will be cached.
     """
-    logging.info("Adding statuses to server...")
+    logging.debug("Adding statuses to server...")
     count = 0
     failed = 0
     for url in context_urls:
@@ -130,11 +130,11 @@ def add_context_urls(
                         and added.url:
                     status_id_cache[f"{server,added.url}"] = str(added.id)
             if added is not False:
-                logging.info(f"Added {url}")
+                logging.info(f"Added  {url}")
                 seen_urls.add(url)
                 count += 1
             else:
-                logging.warning(f"Failed to add {url}")
+                logging.warning(f"Failed {url}")
                 failed += 1
 
-    logging.info(f"Added {count} new statuses (with {failed} failures)")
+    logging.info(f"\033[1mAdded {count} new statuses (with {failed} failures)\033[0m")
