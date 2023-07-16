@@ -9,6 +9,7 @@ import aiohttp
 
 from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
+from mastodon.errors import MastodonError
 
 
 async def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
@@ -86,56 +87,45 @@ Copy: {t_post_url}\033[0m")
     remember_to_find_me : dict[str, list[str]] = {}
     aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
                                         domains_fetched)
+    externals = {}
+    tasks = []
     for fetch_domain in external_feeds.copy():
-        msg = f"Fetching trending posts from {fetch_domain}"
-        logging.info(f"\033[1;34m{msg}\033[0m")
-        trending_posts = await api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 120)
-        domains_fetched.append(fetch_domain)
-        domains_to_fetch.remove(fetch_domain)
+        task = asyncio.create_task(fetch_trending_from_domain(external_tokens,
+            add_post_to_dict, domains_to_fetch, domains_fetched, remember_to_find_me,
+            aux_domain_fetcher, fetch_domain))
+        tasks.append(task)
+        externals.update({fetch_domain: task})
+    while externals:
+        for fetch_domain, task in externals.copy().items():
+            if task.done():
+                try:
+                    result = task.result()
+                    remember_to_find_me = {**remember_to_find_me, **result}
+                    domains_fetched.append(fetch_domain)
+                    domains_to_fetch.remove(fetch_domain)
+                except MastodonError:
+                    logging.error(
+                        f"Error occurred while fetching domain {fetch_domain}")
+                finally:
+                    externals.pop(fetch_domain)
+    await asyncio.gather(*tasks)
 
-        if not trending_posts:
-            logging.warning(f"Couldn't find trending posts on {fetch_domain}")
-            continue
-        for post in trending_posts:
-            post_url: str = post["url"]
-            original = add_post_to_dict(post, fetch_domain)
-            if original:
-                continue
-            parsed_url = parsers.post(post_url)
-            if not parsed_url or not parsed_url[0] or not parsed_url[1]:
-                logging.warning(f"Error parsing post URL {post_url}")
-                continue
-            if parsed_url[0] in domains_to_fetch:
-                if parsed_url[0] not in remember_to_find_me:
-                    remember_to_find_me[parsed_url[0]] = []
-                remember_to_find_me[parsed_url[0]].append(parsed_url[1])
-                continue
-            if parsed_url[0] not in domains_fetched:
-                aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
-            elif not original:
-                remote = api_mastodon.get_status_by_id(
-                    parsed_url[0], parsed_url[1], external_tokens)
-                if remote and remote["url"] == post_url:
-                    original = add_post_to_dict(remote, parsed_url[0])
-                if not original:
-                    logging.warning(f"Couldn't find original for {post_url}")
-        if fetch_domain in remember_to_find_me:
-            msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
+    for fetch_domain in remember_to_find_me.copy():
+        msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
 less popular posts from {fetch_domain}"
-            logging.info(
-                f"\033[1;34m{msg}\033[0m")
-            for status_id in remember_to_find_me[fetch_domain]:
-                if status_id not in trending_posts_dict or \
-                        "original" not in trending_posts_dict[status_id]:
-                    original_post = api_mastodon.get_status_by_id(
-                        fetch_domain, status_id, external_tokens)
-                    if original_post:
-                        add_post_to_dict(original_post, fetch_domain)
-                    else:
-                        logging.warning(
-                            f"Couldn't find {status_id} from {fetch_domain}")
-            remember_to_find_me.pop(fetch_domain)
+        logging.info(
+            f"\033[1;34m{msg}\033[0m")
+        for status_id in remember_to_find_me[fetch_domain]:
+            if status_id not in trending_posts_dict or \
+                    "original" not in trending_posts_dict[status_id]:
+                original_post = api_mastodon.get_status_by_id(
+                    fetch_domain, status_id, external_tokens)
+                if original_post:
+                    add_post_to_dict(original_post, fetch_domain)
+                else:
+                    logging.warning(
+                        f"Couldn't find {status_id} from {fetch_domain}")
+        remember_to_find_me.pop(fetch_domain)
 
     logging.info("Fetching aux posts")
     await aux_domain_fetcher.do_aux_fetches()
@@ -203,7 +193,8 @@ class AuxDomainFetch:
         if parsed_url[0] not in self.domains_fetched:
             if parsed_url[0] not in self.aux_fetches:
                 self.aux_fetches[parsed_url[0]] = []
-            self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
+            if (parsed_url, post_url) not in self.aux_fetches[parsed_url[0]]:
+                self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
 
     async def do_aux_fetches(self) -> None:
         """Do all the queued aux fetches."""
@@ -219,6 +210,52 @@ less popular posts from {fetch_domain}"
                     if not original:
                         logging.warning(f"Couldn't find original for {post_url}")
             self.aux_fetches.pop(fetch_domain)
+
+async def fetch_trending_from_domain(  # noqa: C901, PLR0913
+        external_tokens : dict[str, str],
+        add_post_to_dict,  # noqa: ANN001
+        domains_to_fetch : list[str],
+        domains_fetched : list[str],
+        remember_to_find_me : dict[str, list[str]],
+        aux_domain_fetcher : AuxDomainFetch,
+        fetch_domain : str,
+        ) -> dict[str, list[str]]:
+    """Fetch trending posts from a domain."""
+    msg = f"Fetching trending posts from {fetch_domain}"
+    logging.info(f"\033[1;34m{msg}\033[0m")
+    trending_posts = await api_mastodon.get_trending_posts(
+            fetch_domain, external_tokens.get(fetch_domain), 120)
+    remember_to_find_me_updates : dict[str, list[str]] = {}
+
+    if trending_posts:
+        for post in trending_posts:
+            post_url: str = post["url"]
+            original = add_post_to_dict(post, fetch_domain)
+            if original:
+                continue
+            parsed_url = parsers.post(post_url)
+            if not parsed_url or not parsed_url[0] or not parsed_url[1]:
+                logging.warning(f"Error parsing post URL {post_url}")
+                continue
+            if parsed_url[0] in domains_to_fetch:
+                if parsed_url[0] not in remember_to_find_me or \
+                            parsed_url[1] not in remember_to_find_me[parsed_url[0]]:
+                    if parsed_url[0] not in remember_to_find_me_updates:
+                        remember_to_find_me_updates[parsed_url[0]] = []
+                    remember_to_find_me_updates[parsed_url[0]].append(parsed_url[1])
+                continue
+            if parsed_url[0] not in domains_fetched:
+                aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
+            elif not original:
+                remote = api_mastodon.get_status_by_id(
+                        parsed_url[0], parsed_url[1], external_tokens)
+                if remote and remote["url"] == post_url:
+                    original = add_post_to_dict(remote, parsed_url[0])
+                if not original:
+                    logging.warning(f"Couldn't find original for {post_url}")
+    else:
+        logging.warning(f"Couldn't find trending posts on {fetch_domain}")
+    return remember_to_find_me_updates
 
 async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
