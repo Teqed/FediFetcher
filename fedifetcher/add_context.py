@@ -95,7 +95,8 @@ async def add_post_with_context(
                     getter_wrappers.get_all_known_context_urls(
                     server, iter((post,)), parsed_urls, external_tokens, pgupdater,
                     access_token, status_id_cache)
-                (await add_context_urls(server, access_token, known_context_urls, seen_urls))
+                (await add_context_urls(
+                    server, access_token, known_context_urls, seen_urls))
         return True
 
     return False
