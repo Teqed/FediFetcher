@@ -627,8 +627,14 @@ async def get_trending_posts(
 
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
-    got_trending_posts = cast(list[dict[str, str]],
-                        mastodon(server, token).trending_statuses(limit=40))
+    got_trending_posts: list[dict[str, str]] = []
+    try:
+        got_trending_posts = cast(list[dict[str, str]],
+                            mastodon(server, token).trending_statuses(limit=40))
+    except Exception:
+        logging.exception(
+            f"Error getting trending posts for {server}")
+        return []
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(filter_language(got_trending_posts, "en"))
     offset = 40
