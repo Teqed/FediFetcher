@@ -637,24 +637,21 @@ async def get_trending_posts(
         return []
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(filter_language(got_trending_posts, "en"))
-    offset = 40
-    offset_list = [offset+i*40 for i in range(5)]
-    tasks = [get_trending_posts_async(server, token, off) for off in offset_list]
-    tasks = [asyncio.create_task(task) for task in tasks]
-
+    offset_list = [40+i*40 for i in range(5)]
+    tasks = [asyncio.create_task(
+        get_trending_posts_async(server, token, off)) for off in offset_list]
     highest_offset = max(offset_list)
     while tasks:
-        done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             result = task.result()
             if result == 0:  # or whatever your error condition is
-                tasks = [t for t in tasks if not t.done()]  # remove completed tasks
                 break  # stop processing results
             logging.info(f"Got {len(trending_posts)} trending posts...")
             highest_offset += 40
             new_task = asyncio.create_task(
                 get_trending_posts_async(server, token, highest_offset)) # create a task
-            tasks.add(new_task)  # add it to the set
+            tasks.append(new_task)  # add it to the set
         tasks = [t for t in tasks if not t.done()]  # remove
 
     logging.info(f"Found {len(trending_posts)} trending posts")
