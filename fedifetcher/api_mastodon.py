@@ -636,7 +636,7 @@ async def get_trending_posts(
         return []
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(filter_language(got_trending_posts, "en"))
-    offset_list = [40+i*40 for i in range(5)]
+    offset_list = [40+i*40 for i in range(3)]
     tasks = [asyncio.create_task(
         get_trending_posts_async(
             server, token, off)) for off in offset_list]
