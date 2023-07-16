@@ -207,6 +207,7 @@ class AuxDomainFetch:
 
     async def do_aux_fetches(self) -> None:
         """Do all the queued aux fetches."""
+        aux_fetch_jobs = []
         for fetch_domain in self.aux_fetches.copy():
             msg = f"Fetching {len(self.aux_fetches[fetch_domain])} \
 less popular posts from {fetch_domain}"
@@ -214,11 +215,10 @@ less popular posts from {fetch_domain}"
                 f"\033[1;34m{msg}\033[0m")
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 if parsed_url[0] not in self.domains_fetched:
-                    original = await aux_domain_fetch(self.external_tokens,
-                self.add_post_to_dict, self.domains_fetched, post_url, parsed_url)
-                    if not original:
-                        logging.warning(f"Couldn't find original for {post_url}")
+                    aux_fetch_jobs.append(aux_domain_fetch(self.external_tokens,
+                self.add_post_to_dict, self.domains_fetched, post_url, parsed_url))
             self.aux_fetches.pop(fetch_domain)
+        await asyncio.gather(*aux_fetch_jobs)
 
 async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
