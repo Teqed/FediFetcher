@@ -95,12 +95,12 @@ async def add_post_with_context(
                     getter_wrappers.get_all_known_context_urls(
                     server, iter((post,)), parsed_urls, external_tokens, pgupdater,
                     access_token, status_id_cache)
-                (add_context_urls(server, access_token, known_context_urls, seen_urls))
+                (await add_context_urls(server, access_token, known_context_urls, seen_urls))
         return True
 
     return False
 
-def add_context_urls(
+async def add_context_urls(
         server : str,
         access_token : str,
         context_urls : Iterable[str],
@@ -127,7 +127,7 @@ def add_context_urls(
                     and (f"{server,url}") in status_id_cache:
                 added = True
             else:
-                added = api_mastodon.add_context_url(url, server, access_token)
+                added = await api_mastodon.add_context_url(url, server, access_token)
                 if status_id_cache is not None and isinstance(added, Status) \
                         and added.url:
                     status_id_cache[f"{server,added.url}"] = str(added.id)

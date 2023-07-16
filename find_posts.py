@@ -236,7 +236,7 @@ with replies seen")
             )
             context_urls = await context_urls_coroutine
             logging.debug("Found context URLs, adding context URLs")
-            add_context.add_context_urls(
+            await add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 context_urls,
@@ -306,7 +306,7 @@ context URLs")
                 status_id_cache,
                 )
             logging.debug("Found known context URLs, getting context URLs")
-            add_context.add_context_urls(
+            await add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 known_context_urls,
