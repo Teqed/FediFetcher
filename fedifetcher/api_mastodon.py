@@ -645,10 +645,12 @@ async def get_trending_posts(
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             result = task.result()
-            if len(result) == 0:  # or whatever your error condition is
+            if len(result) == 0:
                 break  # stop processing results
             trending_posts.extend(result)
             logging.info(f"Got {len(trending_posts)} trending posts...")
+            if len(trending_posts) >= limit:
+                break
             highest_offset += 40
             new_task = asyncio.create_task(
                 get_trending_posts_async(
