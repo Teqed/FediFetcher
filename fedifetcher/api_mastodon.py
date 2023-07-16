@@ -615,15 +615,14 @@ async def get_trending_posts(
             server : str,
             token : str | None = None,
             offset : int = 0,
-            ) -> int:
+            ) -> list[dict[str, str]]:
         """Get a page of trending posts and return it asynchronously."""
         got_trending_posts = cast(list[dict[str, str]],
                             mastodon(server, token).trending_statuses(
                                 limit=40,
                                 offset=offset,
                                 ))
-        trending_posts.extend(filter_language(got_trending_posts, "en"))
-        return len(got_trending_posts)
+        return list(filter_language(got_trending_posts, "en"))
 
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
@@ -639,18 +638,21 @@ async def get_trending_posts(
     trending_posts.extend(filter_language(got_trending_posts, "en"))
     offset_list = [40+i*40 for i in range(5)]
     tasks = [asyncio.create_task(
-        get_trending_posts_async(server, token, off)) for off in offset_list]
+        get_trending_posts_async(
+            server, token, off)) for off in offset_list]
     highest_offset = max(offset_list)
     while tasks:
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             result = task.result()
-            if result == 0:  # or whatever your error condition is
+            if len(result) == 0:  # or whatever your error condition is
                 break  # stop processing results
+            trending_posts.extend(result)
             logging.info(f"Got {len(trending_posts)} trending posts...")
             highest_offset += 40
             new_task = asyncio.create_task(
-                get_trending_posts_async(server, token, highest_offset)) # create a task
+                get_trending_posts_async(
+                    server, token, highest_offset)) # create a task
             tasks.append(new_task)  # add it to the set
         tasks = [t for t in tasks if not t.done()]  # remove
 
