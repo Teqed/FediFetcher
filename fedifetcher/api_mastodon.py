@@ -640,6 +640,8 @@ async def get_trending_posts(
     offset = 40
     offset_list = [offset+i*40 for i in range(5)]
     tasks = [get_trending_posts_async(server, token, off) for off in offset_list]
+    tasks = [asyncio.create_task(task) for task in tasks]
+
     highest_offset = max(offset_list)
     while tasks:
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -650,10 +652,9 @@ async def get_trending_posts(
                 break  # stop processing results
             logging.info(f"Got {len(trending_posts)} trending posts...")
             highest_offset += 40
-            new_task = asyncio.ensure_future(
-                get_trending_posts_async(server, token, highest_offset))
-            tasks = [t for t in tasks if not t.done()]  # remove all done tasks
-            tasks.append(asyncio.ensure_future(new_task)) # appending the new task
+            new_task = asyncio.create_task(
+                get_trending_posts_async(server, token, highest_offset)) # create a task
+            tasks.add(new_task)  # add it to the set
         tasks = [t for t in tasks if not t.done()]  # remove
 
     logging.info(f"Found {len(trending_posts)} trending posts")
