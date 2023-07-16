@@ -11,7 +11,7 @@ from mastodon.types import Status
 from . import getters, helpers
 
 
-def add_user_posts( # noqa: PLR0913
+async def add_user_posts( # noqa: PLR0913
         server: str,
         access_token: str,
         followings: list,
@@ -37,7 +37,7 @@ def add_user_posts( # noqa: PLR0913
     """
     for user in followings:
         if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{server}/"):
-            posts = getters.get_user_posts(
+            posts = await getters.get_user_posts(
                 user, know_followings, server, external_tokens)
 
             if posts is not None:
@@ -46,7 +46,7 @@ def add_user_posts( # noqa: PLR0913
                 for post in posts:
                     if post.get("reblog") is None and isinstance(post.get("url"), str) \
                             and str(post.get("url")) not in seen_urls:
-                        added = add_post_with_context(
+                        added = await add_post_with_context(
                             post, server, access_token, seen_urls,
                             external_tokens, pgupdater, status_id_cache)
                         if added is True:

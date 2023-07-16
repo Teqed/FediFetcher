@@ -2,6 +2,7 @@
 
 
 import asyncio
+import functools
 import logging
 import re
 
@@ -87,28 +88,28 @@ Copy: {t_post_url}\033[0m")
     remember_to_find_me : dict[str, list[str]] = {}
     aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
                                         domains_fetched)
+    def on_task_done(task, domain, externals, remember_to_find_me, domains_fetched, domains_to_fetch):
+        try:
+            result = task.result()
+            remember_to_find_me.update(result)
+            domains_fetched.append(domain)
+            domains_to_fetch.remove(domain)
+        except MastodonError:
+            logging.error(
+                f"Error occurred while fetching domain {domain}")
+        finally:
+            del externals[domain]
+
     externals = {}
-    tasks = []
     for fetch_domain in external_feeds.copy():
         task = asyncio.create_task(fetch_trending_from_domain(external_tokens,
             add_post_to_dict, domains_to_fetch, domains_fetched, remember_to_find_me,
             aux_domain_fetcher, fetch_domain))
-        tasks.append(task)
-        externals.update({fetch_domain: task})
-    while externals:
-        for fetch_domain, task in externals.copy().items():
-            if task.done():
-                try:
-                    result = task.result()
-                    remember_to_find_me = {**remember_to_find_me, **result}
-                    domains_fetched.append(fetch_domain)
-                    domains_to_fetch.remove(fetch_domain)
-                except MastodonError:
-                    logging.error(
-                        f"Error occurred while fetching domain {fetch_domain}")
-                finally:
-                    externals.pop(fetch_domain)
-    await asyncio.gather(*tasks)
+        task.add_done_callback(functools.partial(on_task_done, domain=fetch_domain,
+                externals=externals, remember_to_find_me=remember_to_find_me,
+                domains_fetched=domains_fetched, domains_to_fetch=domains_to_fetch))
+        externals[fetch_domain] = task
+    await asyncio.gather(*externals.values())
 
     for fetch_domain in remember_to_find_me.copy():
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
@@ -118,7 +119,7 @@ less popular posts from {fetch_domain}"
         for status_id in remember_to_find_me[fetch_domain]:
             if status_id not in trending_posts_dict or \
                     "original" not in trending_posts_dict[status_id]:
-                original_post = api_mastodon.get_status_by_id(
+                original_post = await api_mastodon.get_status_by_id(
                     fetch_domain, status_id, external_tokens)
                 if original_post:
                     add_post_to_dict(original_post, fetch_domain)
@@ -175,9 +176,9 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
 class AuxDomainFetch:
     """A class for storing aux domain fetches."""
 
-    def __init__(self, external_tokens : dict[str, str],
+    def __init__(self, external_tokens: dict[str, str],
                 add_post_to_dict,  # noqa: ANN001
-                domains_fetched : list[str],
+                domains_fetched: list[str],
                 ) -> None:
         """Initialize the AuxDomainFetch."""
         self.external_tokens = external_tokens
@@ -185,10 +186,10 @@ class AuxDomainFetch:
         self.domains_fetched = domains_fetched
         self.aux_fetches = {}
 
-    def queue_aux_fetch(self,
-                        parsed_url : tuple[str | None, str | None],
-                        post_url : str,
-                        ) -> None:
+    async def queue_aux_fetch(self,
+                            parsed_url: tuple[str | None, str | None],
+                            post_url: str,
+                            ) -> None:
         """Queue an aux fetch to be processed later."""
         if parsed_url[0] not in self.domains_fetched:
             if parsed_url[0] not in self.aux_fetches:
@@ -197,19 +198,25 @@ class AuxDomainFetch:
                 self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
 
     async def do_aux_fetches(self) -> None:
-        """Do all the queued aux fetches."""
-        for fetch_domain in self.aux_fetches.copy():
-            msg = f"Fetching {len(self.aux_fetches[fetch_domain])} \
-less popular posts from {fetch_domain}"
-            logging.info(
-                f"\033[1;34m{msg}\033[0m")
+        """Do all the queued aux fetches asynchronously."""
+
+        async def fetching_domain(fetch_domain: str) -> None:
+            msg = f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts \
+from {fetch_domain}"
+            logging.info(f"\033[1;34m{msg}\033[0m")
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 if parsed_url[0] not in self.domains_fetched:
                     original = await aux_domain_fetch(self.external_tokens,
-                self.add_post_to_dict, self.domains_fetched, post_url, parsed_url)
+                            self.add_post_to_dict, self.domains_fetched,
+                            post_url, parsed_url)
                     if not original:
                         logging.warning(f"Couldn't find original for {post_url}")
-            self.aux_fetches.pop(fetch_domain)
+
+        tasks = [fetching_domain(
+            fetchable_domain) for fetchable_domain in self.aux_fetches.copy()]
+        await asyncio.gather(*tasks)
+        # Once all tasks are done, clear the aux_fetches
+        self.aux_fetches.clear()
 
 async def fetch_trending_from_domain(  # noqa: C901, PLR0913
         external_tokens : dict[str, str],
@@ -245,9 +252,9 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                     remember_to_find_me_updates[parsed_url[0]].append(parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
-                aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
+                await aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
             elif not original:
-                remote = api_mastodon.get_status_by_id(
+                remote = await api_mastodon.get_status_by_id(
                         parsed_url[0], parsed_url[1], external_tokens)
                 if remote and remote["url"] == post_url:
                     original = add_post_to_dict(remote, parsed_url[0])

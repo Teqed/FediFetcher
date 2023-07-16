@@ -20,7 +20,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import helpers, parsers
 
 
-def get_notification_users(
+async def get_notification_users(
         server : str,
         access_token : str,
         known_users : OrderedSet,
@@ -44,7 +44,7 @@ def get_notification_users(
     """
     since = datetime.now(
         datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
-    notifications = api_mastodon.get_notifications(
+    notifications = await api_mastodon.get_notifications(
         server,
         access_token,
         int(since.timestamp()),
@@ -65,7 +65,7 @@ f"Found {len(notification_users)} users in notifications, \
     return [user["account"] for user in filter_known_users(
                                             notification_users, known_users)]
 
-def get_new_follow_requests(
+async def get_new_follow_requests(
         server : str,
         access_token : str,
         limit : int, # = 40,
@@ -85,7 +85,7 @@ def get_new_follow_requests(
     -------
     list[dict]: A list of follow requests.
     """
-    follow_requests = list(api_mastodon.get_follow_requests(
+    follow_requests = list(await api_mastodon.get_follow_requests(
         server,
         access_token,
         limit,
@@ -100,7 +100,7 @@ def get_new_follow_requests(
 
     return new_follow_requests
 
-def get_new_followers(
+async def get_new_followers(
         server : str,
         token: str | None,
         user_id : str,
@@ -123,7 +123,7 @@ def get_new_followers(
     -------
     list[dict]: A list of followers.
     """
-    followers = list(api_mastodon.get_followers(server, token, user_id, limit))
+    followers = list(await api_mastodon.get_followers(server, token, user_id, limit))
 
     # Remove any we already know about
     new_followers = filter_known_users(
@@ -134,7 +134,7 @@ f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
     return new_followers
 
-def get_new_followings(
+async def get_new_followings(
         server : str,
         token: str | None,
         user_id : str,
@@ -156,7 +156,7 @@ def get_new_followings(
     -------
     list[dict]: A list of followings.
     """
-    following = list(api_mastodon.get_following(server, token, user_id, limit))
+    following = list(await api_mastodon.get_following(server, token, user_id, limit))
 
     # Remove any we already know about
     new_followings = filter_known_users(
@@ -167,13 +167,13 @@ f"Got {len(following)} followings, {len(new_followings)} of which are new")
 
     return new_followings
 
-def get_all_reply_toots(
+async def get_all_reply_toots(
     server: str,
     user_ids: Iterable[str],
     access_token: str,
     seen_urls: OrderedSet,
     reply_interval_hours: int,
-) -> Iterator[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Get all replies to other users by the given users in the last day.
 
     Args:
@@ -184,9 +184,9 @@ def get_all_reply_toots(
     seen_urls (OrderedSet[str]): The URLs that have already been seen.
     reply_interval_hours (int): The number of hours to look back for replies.
 
-    Yields:
-    ------
-    dict[str, Any]: A toot.
+    Returns:
+    -------
+    list[dict[str, Any]]: A list of toots.
 
     Raises:
     ------
@@ -195,8 +195,9 @@ def get_all_reply_toots(
     Exception: If the server returns an unexpected status code.
     """
     replies_since = datetime.now(UTC) - timedelta(hours=reply_interval_hours)
+    all_replies = []
     for user_id in user_ids:
-        replies = api_mastodon.get_reply_posts_from_id(
+        replies = await api_mastodon.get_reply_posts_from_id(
             user_id,
             server,
             access_token,
@@ -204,7 +205,8 @@ def get_all_reply_toots(
             replies_since,
         )
         if replies is not None:
-            yield from replies
+            all_replies.extend(replies)
+    return all_replies
 
 
 async def get_all_known_context_urls(  # noqa: C901, PLR0912
@@ -296,7 +298,7 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912
 
 def get_all_replied_toot_server_ids(
     server: str,
-    reply_toots: Iterator[dict[str, Any]],
+    reply_toots: list[dict[str, Any]],
     replied_toot_server_ids: dict[str, str | None],
     parsed_urls: dict[str, tuple[str | None, str | None]],
 ) -> Iterable[tuple[str | None, str | None]]:
@@ -305,7 +307,7 @@ def get_all_replied_toot_server_ids(
     Args:
     ----
     server (str): The server to get the replied toots from.
-    reply_toots (Iterator[dict[str, Any]]): The toots to get the replied toots for.
+    reply_toots (list[dict[str, Any]]): The toots to get the replied toots for.
     replied_toot_server_ids (dict[str, str | None]): The server and ID of the toots \
         that have already been replied to.
     parsed_urls (dict[str, dict[str, str] | None]): The parsed URLs of the toots.

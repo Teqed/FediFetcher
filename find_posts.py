@@ -189,7 +189,7 @@ with replies seen")
         pgupdater = PostgreSQLUpdater(conn)
         try:
             logging.info("Getting active user IDs")
-            user_ids = list(api_mastodon.get_active_user_ids(
+            user_ids = list(await api_mastodon.get_active_user_ids(
                 helpers.arguments.server,
                 admin_token,
                 helpers.arguments.reply_interval_in_hours,
@@ -199,7 +199,7 @@ with replies seen")
             original server, and add them to the local server."""
             logging.info("Pulling context toots for replies")
             logging.debug("Found user ID, getting reply toots")
-            reply_toots = getter_wrappers.get_all_reply_toots(
+            reply_toots = await getter_wrappers.get_all_reply_toots(
                 helpers.arguments.server,
                 user_ids,
                 admin_token,

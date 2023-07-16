@@ -1,5 +1,4 @@
 """Functions to get data from Fediverse servers."""
-import asyncio
 import logging
 import re
 
@@ -9,7 +8,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import api_lemmy, api_mastodon, parsers
 
 
-def get_user_posts(
+async def get_user_posts(
         user: dict[str, str],
         know_followings: OrderedSet,
         server: str,
@@ -47,7 +46,7 @@ def get_user_posts(
         logging.info(f"Getting user ID for user {user['acct']}")
         _external_token = external_tokens.get(parsed_url[0]) \
             if external_tokens else None
-        user_id = api_mastodon.get_user_id(
+        user_id = await api_mastodon.get_user_id(
             parsed_url[1], parsed_url[0], _external_token)
         logging.debug(f"User ID: {user_id}")
     except Exception:
@@ -57,7 +56,7 @@ def get_user_posts(
     if not parsed_url[0] or not user_id:
         return None
 
-    return api_mastodon.get_user_posts_from_id(user_id, parsed_url[0])
+    return await api_mastodon.get_user_posts_from_id(user_id, parsed_url[0])
 
 async def get_post_context(  # noqa: PLR0913, D417
         server: str,
@@ -90,12 +89,11 @@ async def get_post_context(  # noqa: PLR0913, D417
         if toot_url.find("/post/") != -1:
             return api_lemmy.get_comments_urls(server, toot_id, toot_url)
 
-        context = await api_mastodon.get_toot_context(
+        return await api_mastodon.get_toot_context(
             server, toot_id, external_token, pgupdater,
             home_server, home_server_token, status_id_cache,
         )
 
-        return context
 
     except Exception as ex:
         logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
