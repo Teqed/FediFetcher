@@ -65,7 +65,7 @@ mentioned users")
             for toot in timeline_toots:
                 logging.debug(f"Checking toot: {toot}")
                 these_users = []
-                toot_created_at = parser.parse(toot["created_at"])
+                toot_created_at = cast(datetime, toot["created_at"])
                 user_limit = {
                     "precutoff": 10,
                     "postcutoff": 30,
