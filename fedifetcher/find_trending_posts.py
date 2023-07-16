@@ -90,7 +90,7 @@ Copy: {t_post_url}\033[0m")
         msg = f"Fetching trending posts from {fetch_domain}"
         logging.info(f"\033[1;34m{msg}\033[0m")
         trending_posts = await api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 5600)
+            fetch_domain, external_tokens.get(fetch_domain), 80)
         domains_fetched.append(fetch_domain)
         domains_to_fetch.remove(fetch_domain)
 
@@ -169,7 +169,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
     original = False
     if parsed_url[0] is not None and parsed_url[1] is not None:
         trending = await api_mastodon.get_trending_posts(
-                        parsed_url[0], external_tokens.get(parsed_url[0]), 5600)
+                        parsed_url[0], external_tokens.get(parsed_url[0]), 80)
         domains_fetched.append(parsed_url[0])
         if trending:
             for t_post in trending:
