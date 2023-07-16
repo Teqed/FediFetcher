@@ -83,7 +83,7 @@ async def add_post_with_context(
     -------
     bool: True if the post was added successfully, False otherwise.
     """
-    added = api_mastodon.add_context_url(post["url"], server, access_token)
+    added = await api_mastodon.add_context_url(post["url"], server, access_token)
     if added is not False:
         seen_urls.add(post["url"])
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
