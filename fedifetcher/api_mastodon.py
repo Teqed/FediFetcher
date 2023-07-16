@@ -590,9 +590,13 @@ async def add_context_url(
     dict[str, str] | bool: The status of the request, or False if the \
         request fails.
     """
-    result = (await mastodon(server, access_token)).search_v2(
-        q = url,
-    )
+    try:
+        result = (await mastodon(server, access_token)).search_v2(
+            q = url,
+        )
+    except MastodonAPIError:
+        logging.exception(f"Error adding context url {url} to {server}")
+        return False
     if result.statuses:
         for _status in result.statuses:
             if _status.url == url:
