@@ -280,7 +280,6 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
                             pgupdater,
                             server,
                             home_server_token,
-                            status_id_cache,
                         ))
                     except Exception as ex:
                         logging.error(f"Error getting context for toot {url} : {ex}")

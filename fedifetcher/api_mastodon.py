@@ -741,8 +741,9 @@ async def get_status_id_from_url(
         result: SearchV2 = await response.json()
     # If statuses has a length of at least 1, then the toot was found.
     # Let's check the returned toots until we find the one with the correct URL.
-    if result.statuses:
-        for status in result.statuses:
+    statuses: list[Status] | None = result.get("statuses")
+    if statuses:
+        for status in statuses:
             if isinstance(status, Status) and status.url == url:
                 pgupdater.cache_status(status)
                 return str(status.get("id"))
