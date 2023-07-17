@@ -1,12 +1,12 @@
 """Add context toots to the server."""
-import asyncio
 import logging
 from collections.abc import Iterable
+
+from mastodon.types import Status
 
 from fedifetcher import api_mastodon, getter_wrappers, parsers
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
-from mastodon.types import Status
 
 from . import getters, helpers
 
@@ -34,6 +34,9 @@ async def add_user_posts( # noqa: PLR0913
     seen_urls: The list of all URLs we have already seen.
     external_tokens: A dict of external tokens, keyed by server. If None, no \
         external tokens will be used.
+    pgupdater: The PostgreSQL updater.
+    status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
+        IDs will be cached.
     """
     for user in followings:
         if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{server}/"):
@@ -61,7 +64,7 @@ async def add_user_posts( # noqa: PLR0913
                     know_followings.add(user["acct"])
                     all_known_users.add(user["acct"])
 
-async def add_post_with_context(
+async def add_post_with_context(  # noqa: PLR0913
         post : dict[str, str],
         server : str,
         access_token : str,
@@ -78,6 +81,11 @@ async def add_post_with_context(
     server: The server to add the post to.
     access_token: The access token to use to add the post.
     seen_urls: The list of all URLs we have already seen.
+    external_tokens: A dict of external tokens, keyed by server. If None, no \
+        external tokens will be used.
+    pgupdater: The PostgreSQL updater.
+    status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
+        IDs will be cached.
 
     Returns:
     -------

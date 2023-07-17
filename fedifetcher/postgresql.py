@@ -9,18 +9,18 @@ from psycopg2 import Error, OperationalError
 class PostgreSQLUpdater:
     """A class for updating the PostgreSQL database."""
 
-    def __init__(self, conn) -> None: # noqa: ANN101, ANN001
+    def __init__(self, conn) -> None: # noqa: ANN001
         """Initialize the PostgreSQLUpdater."""
         self.conn = conn
         self.updates = []
 
-    def queue_update(self, # noqa: ANN101
+    def queue_update(self,
                     status_id: int, reblogs_count: int, favourites_count: int) -> None:
         """Queue an update to be processed later."""
         if reblogs_count > 0 or favourites_count > 0:
             self.updates.append((status_id, reblogs_count, favourites_count))
 
-    def commit_updates(self) -> None: # noqa: ANN101
+    def commit_updates(self) -> None:
         """Commit all queued updates to the database."""
         if len(self.updates) == 0:
             return

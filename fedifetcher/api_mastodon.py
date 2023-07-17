@@ -3,7 +3,7 @@ import asyncio
 import functools
 import inspect
 import logging
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar, cast
 

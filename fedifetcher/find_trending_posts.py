@@ -7,13 +7,13 @@ import logging
 import re
 
 import aiohttp
+from mastodon.errors import MastodonError
 
 from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
-from mastodon.errors import MastodonError
 
 
-async def find_trending_posts(  # noqa: C901, PLR0915, PLR0912, PLR0913
+async def find_trending_posts(  # noqa: C901, PLR0915, PLR0913
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -88,7 +88,13 @@ Copy: {t_post_url}\033[0m")
     remember_to_find_me : dict[str, list[str]] = {}
     aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
                                         domains_fetched)
-    def on_task_done(task, domain, externals, remember_to_find_me, domains_fetched, domains_to_fetch):
+    def on_task_done(task : asyncio.Task,  # noqa: PLR0913
+                    domain : str,
+                    externals : dict[str, asyncio.Task],
+                    remember_to_find_me : dict[str, list[str]],
+                    domains_fetched : list[str],
+                    domains_to_fetch : list[str],
+                    ) -> None:
         try:
             result = task.result()
             remember_to_find_me.update(result)
@@ -151,7 +157,7 @@ less popular posts from {fetch_domain}"
         updated_trending_posts_dict.values(), "en"))
 
 async def aux_domain_fetch(external_tokens : dict[str, str],
-                    add_post_to_dict,
+                    add_post_to_dict,  # noqa: ANN001
                     domains_fetched : list[str],
                     post_url : str,
                     parsed_url : tuple[str | None, str | None],

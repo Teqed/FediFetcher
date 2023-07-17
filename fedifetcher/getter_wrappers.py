@@ -209,7 +209,7 @@ async def get_all_reply_toots(
     return all_replies
 
 
-async def get_all_known_context_urls(  # noqa: C901, PLR0912
+async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
     server: str,
     reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
@@ -222,19 +222,19 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912
 
     Args:
     ----
-    server (str): The home server of the user.
-    reply_toots (Iterator[Optional[Dict[str, Optional[str]]]]): \
-        The toots to get the context toots for.
-    parsed_urls (Dict[str, Optional[Tuple[str, str]]]): \
-        The parsed URL of the toots.
+    server (str): The server to get the context toots from.
+    reply_toots (Iterator[dict[str, str]] | list[dict[str, str]]): The toots to get \
+        the context toots for.
+    parsed_urls (dict[str, tuple[str | None, str | None]]): The parsed URLs of the \
+        toots.
+    external_tokens (dict[str, str]): The access tokens for external servers.
+    pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
+    home_server_token (str): The access token for the home server.
+    status_id_cache (dict[str, str]): The dictionary mapping status IDs to URLs.
 
     Returns:
     -------
-    filter[str]: The URLs of the context toots.
-
-    Raises:
-    ------
-    Exception: If the server returns an unexpected status code.
+    Iterable[str]: The URLs of the context toots of the given toots.
     """
     known_context_urls = []
 
@@ -416,7 +416,7 @@ def get_redirect_url(url : str) -> str | None:
     )
     return None
 
-async def get_all_context_urls(
+async def get_all_context_urls(  # noqa: PLR0913
         server: str,
         replied_toot_ids: Iterable[tuple[str | None, str | None]],
         external_tokens: dict[str, str],
@@ -432,6 +432,11 @@ async def get_all_context_urls(
     server (str): The server to get the context toots from.
     replied_toot_ids (Iterable[tuple[str | None, str | None]]): The server and ID of \
         the toots to get the context toots for.
+    external_tokens (dict[str, str]): The access tokens for external servers.
+    pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
+    home_server (str): The home server.
+    home_server_token (str): The access token for the home server.
+    status_id_cache (dict[str, str]): The dictionary mapping status IDs to URLs.
 
     Returns:
     -------

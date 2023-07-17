@@ -1,11 +1,8 @@
 """Pull posts from a Mastodon server, using a token."""
 
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import cast
-
-from dateutil import parser
 
 from fedifetcher import add_context, api_mastodon, getter_wrappers, helpers
 from fedifetcher.ordered_set import OrderedSet
