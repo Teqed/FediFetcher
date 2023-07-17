@@ -158,13 +158,14 @@ less popular posts from {fetch_domain}"
 async def aux_domain_fetch(external_tokens : dict[str, str],
                     add_post_to_dict,  # noqa: ANN001
                     domains_fetched : list[str],
-                    post_url : str,
+                    post_urls : list[str],
                     parsed_url : tuple[str | None, str | None],
                     ) -> bool:
-    """Fetch a post from an aux domain."""
+    """Fetch posts from an aux domain."""
     msg = f"Finding aux trending posts from {parsed_url[0]}"
     logging.info(f"\033[1;35m{msg}\033[0m")
-    original = False
+    found_all = False
+    posts_to_find = post_urls.copy()
     if parsed_url[0] is not None and parsed_url[1] is not None:
         trending = await api_mastodon.get_trending_posts(
                         parsed_url[0],
@@ -173,9 +174,13 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
         if trending:
             for t_post in trending:
                 add_post_to_dict(t_post, parsed_url[0])
-                if t_post["url"] == post_url:
-                    original = True
-    return original
+                if t_post["url"] in post_urls:
+                    posts_to_find.remove(t_post["url"])
+    for post_url in posts_to_find:
+        logging.warning(f"Couldn't find {post_url} from {parsed_url[0]}")
+    if not posts_to_find:
+        found_all = True
+    return found_all
 
 # Let's define a class to store aux domain fetches. It'll have a function to queue
 # them up, and then we'll do them all at once later.

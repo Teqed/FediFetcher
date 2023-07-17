@@ -630,9 +630,11 @@ async def get_trending_posts(
         """Get a page of trending posts and return it asynchronously."""
         loop = asyncio.get_running_loop()
 
+        mastodon_result = await mastodon(server, token)
+
         # Wrap the synchronous request in a future object
-        future = loop.run_in_executor(None, lambda: (
-            await mastodon(server, token)).trending_statuses(limit=40, offset=offset))
+        future = loop.run_in_executor(
+            None, lambda: mastodon_result.trending_statuses(limit=40, offset=offset))
 
         # Wait for the future to complete
         trending_posts = await future
