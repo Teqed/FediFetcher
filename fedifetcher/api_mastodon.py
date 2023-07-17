@@ -342,7 +342,6 @@ async def get_toot_context(  # noqa: PLR0913, D103
         pgupdater: PostgreSQLUpdater,
         home_server: str,
         home_server_token: str,
-        status_id_cache: dict[str, str],
 ) -> list[str]:
     # Create a list to store the tasks
     tasks = []
@@ -357,7 +356,7 @@ async def get_toot_context(  # noqa: PLR0913, D103
             async with semaphore:
                 status_id = await get_status_id_from_url(
                     home_server, home_server_token, status_url,
-                    status_id_cache, session)
+                    pgupdater, session)
                 if status_id:
                     status_home_id = int(status_id)
                     pgupdater.queue_status_update(
@@ -702,7 +701,7 @@ async def get_status_id_from_url(
         server: str,
         token: str,
         url: str,
-        status_id_cache: dict[str, str],
+        pgupdater: PostgreSQLUpdater,
         session: ClientSession,
 ) -> str | None:
     """Get the status id from a toot URL asynchronously.
@@ -712,7 +711,8 @@ async def get_status_id_from_url(
     server (str): The server to get the status id from.
     token (str): The access token to use for the request.
     url (str): The URL of the toot to get the status id of.
-    status_id_cache (dict[str, str]): A dict of status ids, keyed by "server,URL".
+    pgupdater (PostgreSQLUpdater): The PostgreSQLUpdater instance to use for \
+        caching the status.
     session (ClientSession): The aiohttp ClientSession for making \
         asynchronous HTTP requests.
 
@@ -720,9 +720,11 @@ async def get_status_id_from_url(
     -------
     str | None: The status id of the toot, or None if the toot is not found.
     """
-    if status_id_cache and f"{server,url}" in status_id_cache:
-        logging.debug(f"Getting status id from cache for url {url}")
-        return status_id_cache[f"{server,url}"]
+    cached_status = pgupdater.get_from_cache(url)
+    if cached_status:
+        status_id = cached_status.get("status_id")
+        if status_id:
+            return status_id
     logging.info(f"Asking server to lookup {url}")
     server_api = f"https://{server}/api/v2/search"
     async with session.get(server_api, params={"q": url, "resolve": "true"},
@@ -734,7 +736,7 @@ async def get_status_id_from_url(
     if statuses:
         for status in statuses:
             if status.get("url") == url:
-                status_id_cache[f"{server,url}"] = str(status.get("id"))
+                pgupdater.cache_status(status)
                 return str(status.get("id"))
     return None
 

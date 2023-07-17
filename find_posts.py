@@ -194,7 +194,6 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 pgupdater,
                 helpers.arguments.server,
                 admin_token,
-                status_id_cache,
             )
             context_urls = await context_urls_coroutine
             logging.debug("Found context URLs, adding context URLs")
@@ -238,7 +237,6 @@ provided. Continuing without active user IDs.")
                 external_feeds,
                 external_tokens,
                 pgupdater,
-                status_id_cache,
             )
             logging.info(
 f"Found {len(trending_posts)} trending posts")

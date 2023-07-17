@@ -423,7 +423,6 @@ async def get_all_context_urls(  # noqa: PLR0913
         pgupdater: PostgreSQLUpdater,
         home_server: str,
         home_server_token: str,
-        status_id_cache: dict[str, str],
 ) -> Iterable[str]:
     """Get the URLs of the context toots of the given toots.
 
@@ -447,7 +446,7 @@ async def get_all_context_urls(  # noqa: PLR0913
         try:
             return await get_post_context(
                 server, toot_id, url, external_tokens, pgupdater,
-                home_server, home_server_token, status_id_cache,
+                home_server, home_server_token,
             )
         finally:
             await session.close()

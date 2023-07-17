@@ -146,7 +146,6 @@ mentioned users")
                 pgupdater,
                 helpers.arguments.server,
                 token,
-                status_id_cache,
                 )
             logging.debug("Found context URLs, getting context URLs")
             await add_context.add_context_urls(

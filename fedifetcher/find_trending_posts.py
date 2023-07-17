@@ -13,13 +13,12 @@ from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-async def find_trending_posts(  # noqa: C901, PLR0915, PLR0913
+async def find_trending_posts(  # noqa: C901, PLR0915
         home_server: str,
         home_token: str,
         external_feeds: list[str],
         external_tokens: dict[str, str],
-        pgupdater: PostgreSQLUpdater | None,
-        status_id_cache: dict[str, str],
+        pgupdater: PostgreSQLUpdater,
         ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
     msg = f"Finding trending posts from {len(external_feeds)} domains:"
@@ -139,7 +138,7 @@ less popular posts from {fetch_domain}"
 
     updated_trending_posts_dict = await \
     update_local_status_ids(
-        trending_posts_dict, home_server, home_token, status_id_cache)
+        trending_posts_dict, home_server, home_token, pgupdater)
 
     """Update the status stats with the trending posts."""
     if pgupdater:
@@ -274,14 +273,14 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
 async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
                                 home_token : str,
-                                status_id_cache: dict[str, str],
+                                pgupdater : PostgreSQLUpdater,
                                 ) -> dict[str, dict[str, str]]:
     """Update the local_status_id in the trending_posts_dict."""
     async def fetch_status_id(url : str) -> tuple[str, str]:
         session = aiohttp.ClientSession()
         try:
             local_status_id = await api_mastodon.get_status_id_from_url(
-                home_server, home_token, url, status_id_cache, session)
+                home_server, home_token, url, pgupdater, session)
             return url, local_status_id if local_status_id else ""
         finally:
             await session.close()
