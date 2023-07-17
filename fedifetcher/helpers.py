@@ -1,16 +1,12 @@
 """Helper functions for fedifetcher."""
-import json
 import logging
 import sys
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 
 import colorlog
 import requests
 from dateutil import parser
-
-from fedifetcher.ordered_set import OrderedSet
 
 from .argparser import arguments
 
@@ -80,54 +76,3 @@ Waiting {wait} sec to retry at {response.headers['x-ratelimit-reset']}")
             time.sleep(wait)
             return get(url, headers, timeout, max_tries - 1)
         return response
-
-def write_seen_files(  # noqa: PLR0913
-        SEEN_URLS_FILE : Path,  # noqa: N803
-        REPLIED_TOOT_SERVER_IDS_FILE : Path,  # noqa: N803
-        KNOWN_FOLLOWINGS_FILE : Path,  # noqa: N803
-        RECENTLY_CHECKED_USERS_FILE : Path,  # noqa: N803
-        STATUS_ID_CACHE_FILE : Path,  # noqa: N803
-        TRENDING_POSTS_WITH_REPLIES_SEEN_FILE : Path,  # noqa: N803
-        seen_urls : OrderedSet,
-        replied_toot_server_ids : dict[str, str | None],
-        known_followings : OrderedSet,
-        recently_checked_users : OrderedSet,
-        status_id_cache : dict[str, str],
-        trending_posts_replies_seen : dict[str, str],
-        ) -> None:
-    """Write the seen files to disk."""
-    if known_followings is not None:
-        with Path(KNOWN_FOLLOWINGS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(known_followings)[-50000:]))
-            logging.debug(f"Wrote {len(known_followings)} known followings")
-            file.close()
-    if seen_urls is not None:
-        with Path(SEEN_URLS_FILE).open("w", encoding="utf-8") as file:
-            file.write("\n".join(list(seen_urls)[-50000:]))
-            logging.debug(f"Wrote {len(seen_urls)} seen URLs")
-            file.close()
-    if replied_toot_server_ids is not None:
-        with Path(REPLIED_TOOT_SERVER_IDS_FILE).open("w", encoding="utf-8") as file:
-            json.dump(dict(list(replied_toot_server_ids.items())[-50000:]), file)
-            logging.info(
-                f"Wrote {len(replied_toot_server_ids)} replied toot server IDs")
-            file.close()
-    if recently_checked_users is not None:
-        with Path(RECENTLY_CHECKED_USERS_FILE).open("w", encoding="utf-8") as file:
-            recently_checked_users.to_json(file.name)
-            logging.debug(f"Wrote {len(recently_checked_users)} recently checked users")
-            file.close()
-    if status_id_cache is not None:
-        with Path(STATUS_ID_CACHE_FILE).open("w", encoding="utf-8") as file:
-            json.dump(dict(list(status_id_cache.items())[-50000:]), file)
-            logging.debug(f"Wrote {len(status_id_cache)} status IDs")
-            file.close()
-    if trending_posts_replies_seen is not None:
-        items = list(trending_posts_replies_seen.items())
-        items.sort(key=lambda x: x[1])
-        recent = dict(items[-50000:])
-        with Path(
-            TRENDING_POSTS_WITH_REPLIES_SEEN_FILE).open("w", encoding="utf-8") as file:
-            json.dump(recent, file)
-            logging.debug(f"Wrote {len(recent)} trending posts with replies seen")
-            file.close()

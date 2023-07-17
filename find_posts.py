@@ -16,6 +16,7 @@ from psycopg2 import connect
 from fedifetcher import (
     add_context,
     api_mastodon,
+    cache_manager,
     getter_wrappers,
     helpers,
 )
@@ -25,7 +26,8 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-async def main():
+async def main() -> None:  # noqa: PLR0912, C901, PLR0915
+    """Run FediFetcher."""
     start = datetime.now(UTC)
 
     if(helpers.arguments.config):
@@ -62,18 +64,18 @@ async def main():
 
     if helpers.arguments.lock_file is None:
         helpers.arguments.lock_file = Path(helpers.arguments.state_dir) / "lock.lock"
-    LOCK_FILE = helpers.arguments.lock_file
+    lock_file = helpers.arguments.lock_file
 
-    if( Path(LOCK_FILE).exists()):
-        logging.info(f"Lock file exists at {LOCK_FILE}")
+    if( Path(lock_file).exists()):
+        logging.info(f"Lock file exists at {lock_file}")
 
         try:
-            with Path(LOCK_FILE).open(encoding="utf-8") as file:
+            with Path(lock_file).open(encoding="utf-8") as file:
                 lock_time = parser.parse(file.read())
 
             if (datetime.now(UTC) - lock_time).total_seconds() >= \
                     helpers.arguments.lock_hours * 60 * 60:
-                Path.unlink(LOCK_FILE)
+                Path.unlink(lock_file)
                 logging.info("Lock file has expired. Removed lock file.")
             else:
                 logging.info(f"Lock file age is {datetime.now(UTC) - lock_time} - \
@@ -94,7 +96,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                     logging.error(f"Error getting callback url: {ex}")
             sys.exit(1)
 
-    with Path(LOCK_FILE).open("w", encoding="utf-8") as file:
+    with Path(lock_file).open("w", encoding="utf-8") as file:
         file.write(f"{datetime.now(UTC)}")
 
     seen_urls = OrderedSet()
@@ -105,49 +107,9 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
     trending_posts_replies_seen: dict[str, str] = {}
     try:
         logging.debug("Loading seen files")
-        SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
-        REPLIED_TOOT_SERVER_IDS_FILE = Path(
-            helpers.arguments.state_dir) / "replied_toot_server_ids"
-        KNOWN_FOLLOWINGS_FILE = Path(helpers.arguments.state_dir) / "known_followings"
-        RECENTLY_CHECKED_USERS_FILE = Path(
-            helpers.arguments.state_dir) / "recently_checked_users"
-        STATUS_ID_CACHE_FILE = Path(helpers.arguments.state_dir) / "status_id_cache"
-        TRENDING_POSTS_REPLIES_SEEN_FILE = Path(
-            helpers.arguments.state_dir) / "trending_posts_replies_seen"
-
-        if Path(SEEN_URLS_FILE).exists():
-            with Path(SEEN_URLS_FILE).open(encoding="utf-8") as file:
-                seen_urls = OrderedSet(file.read().splitlines())
-                logging.debug(f"Loaded {len(seen_urls)} seen URLs")
-
-        if Path(REPLIED_TOOT_SERVER_IDS_FILE).exists():
-            with Path(REPLIED_TOOT_SERVER_IDS_FILE).open(encoding="utf-8") as file:
-                replied_toot_server_ids = json.load(file)
-                logging.info(f"Loaded {len(replied_toot_server_ids)} replied toot IDs")
-
-        if Path(KNOWN_FOLLOWINGS_FILE).exists():
-            with Path(KNOWN_FOLLOWINGS_FILE).open(encoding="utf-8") as file:
-                known_followings = OrderedSet(file.read().splitlines())
-                logging.debug(f"Loaded {len(known_followings)} known followings")
-
-        if Path(RECENTLY_CHECKED_USERS_FILE).exists():
-            with Path(RECENTLY_CHECKED_USERS_FILE).open(encoding="utf-8") as file:
-                recently_checked_users = OrderedSet(list(json.load(file)))
-                logging.debug(
-                    f"Loaded {len(recently_checked_users)} recently checked users")
-
-        if Path(STATUS_ID_CACHE_FILE).exists():
-            with Path(STATUS_ID_CACHE_FILE).open(encoding="utf-8") as file:
-                status_id_cache = json.load(file)
-                logging.debug(f"Loaded {len(status_id_cache)} status IDs")
-
-        if Path(TRENDING_POSTS_REPLIES_SEEN_FILE).exists():
-            with Path(TRENDING_POSTS_REPLIES_SEEN_FILE).open(
-                    encoding="utf-8") as file:
-                trending_posts_replies_seen = json.load(file)
-                logging.debug(
-                    f"Loaded {len(trending_posts_replies_seen)} trending posts \
-with replies seen")
+        cache = cache_manager.SeenFilesManager(helpers.arguments.state_dir)
+        seen_urls, replied_toot_server_ids, known_followings, recently_checked_users, \
+            status_id_cache, trending_posts_replies_seen = cache.get_seen_data()
 
         # Remove any users whose last check is too long in the past from the list
         logging.debug("Removing old users from recently checked users")
@@ -315,13 +277,7 @@ context URLs")
             logging.debug("Added context URLs")
 
         logging.info("Writing seen files")
-        helpers.write_seen_files(
-            SEEN_URLS_FILE,
-            REPLIED_TOOT_SERVER_IDS_FILE,
-            KNOWN_FOLLOWINGS_FILE,
-            RECENTLY_CHECKED_USERS_FILE,
-            STATUS_ID_CACHE_FILE,
-            TRENDING_POSTS_REPLIES_SEEN_FILE,
+        cache.write_seen_files(
             seen_urls,
             replied_toot_server_ids,
             known_followings,
@@ -330,7 +286,7 @@ context URLs")
             trending_posts_replies_seen,
             )
 
-        Path.unlink(LOCK_FILE)
+        Path.unlink(lock_file)
 
         if(helpers.arguments.on_done):
             try:
@@ -345,24 +301,9 @@ context URLs")
     except Exception:
         logging.exception("Error running FediFetcher")
         try: # Try to clean up
-            SEEN_URLS_FILE = Path(helpers.arguments.state_dir) / "seen_urls"
-            REPLIED_TOOT_SERVER_IDS_FILE = Path(
-                helpers.arguments.state_dir) / "replied_toot_server_ids"
-            KNOWN_FOLLOWINGS_FILE = Path(
-                helpers.arguments.state_dir) / "known_followings"
-            RECENTLY_CHECKED_USERS_FILE = Path(
-                helpers.arguments.state_dir) / "recently_checked_users"
-            STATUS_ID_CACHE_FILE = Path(
-                helpers.arguments.state_dir) / "status_id_cache"
-            TRENDING_POSTS_REPLIES_SEEN_FILE = Path(
-                helpers.arguments.state_dir) / "trending_posts_replies_seen"
-            helpers.write_seen_files(
-                SEEN_URLS_FILE,
-                REPLIED_TOOT_SERVER_IDS_FILE,
-                KNOWN_FOLLOWINGS_FILE,
-                RECENTLY_CHECKED_USERS_FILE,
-                STATUS_ID_CACHE_FILE,
-                TRENDING_POSTS_REPLIES_SEEN_FILE,
+            parachute_cache = cache_manager.SeenFilesManager(
+                helpers.arguments.state_dir)
+            parachute_cache.write_seen_files(
                 seen_urls,
                 replied_toot_server_ids,
                 known_followings,
@@ -373,7 +314,7 @@ context URLs")
             logging.debug("Successfully wrote seen files.")
         except Exception as ex:
             logging.error(f"Error writing seen files: {ex}")
-        Path.unlink(LOCK_FILE)
+        Path.unlink(lock_file)
         logging.warning(f"Job failed after {datetime.now(UTC) - start}.")
         if(helpers.arguments.on_fail):
             try:
