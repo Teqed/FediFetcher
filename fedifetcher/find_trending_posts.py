@@ -11,7 +11,7 @@ from mastodon.errors import MastodonError
 
 from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
-
+import concurrent.futures
 
 async def find_trending_posts(  # noqa: C901, PLR0915
         home_server: str,
@@ -87,34 +87,37 @@ Copy: {t_post_url}\033[0m")
     remember_to_find_me : dict[str, list[str]] = {}
     aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
                                         domains_fetched)
-    def on_task_done(task : asyncio.Task,  # noqa: PLR0913
-                    domain : str,
-                    externals : dict[str, asyncio.Task],
-                    remember_to_find_me : dict[str, list[str]],
-                    domains_fetched : list[str],
-                    domains_to_fetch : list[str],
-                    ) -> None:
+    def on_task_done(future_conc: concurrent.futures.Future,  # noqa: PLR0913
+                    domain: str,
+                    externals: dict[str, concurrent.futures.Future],
+                    remember_to_find_me: dict[str, list[str]],
+                    domains_fetched: list[str],
+                    domains_to_fetch: list[str]) -> None:
         try:
-            result = task.result()
+            result = future_conc.result()
             remember_to_find_me.update(result)
             domains_fetched.append(domain)
             domains_to_fetch.remove(domain)
         except MastodonError:
-            logging.error(
-                f"Error occurred while fetching domain {domain}")
+            logging.error(f"Error occurred while fetching domain {domain}")
         finally:
             del externals[domain]
 
     externals = {}
+    event_loop = asyncio.get_event_loop()
+
     for fetch_domain in external_feeds.copy():
-        task = asyncio.create_task(fetch_trending_from_domain(external_tokens,
-            add_post_to_dict, domains_to_fetch, domains_fetched, remember_to_find_me,
-            aux_domain_fetcher, fetch_domain))
-        task.add_done_callback(functools.partial(on_task_done, domain=fetch_domain,
-                externals=externals, remember_to_find_me=remember_to_find_me,
-                domains_fetched=domains_fetched, domains_to_fetch=domains_to_fetch))
-        externals[fetch_domain] = task
-    await asyncio.gather(*externals.values())
+        future = asyncio.run_coroutine_threadsafe(
+            fetch_trending_from_domain(external_tokens,
+                add_post_to_dict, domains_to_fetch, domains_fetched,
+                remember_to_find_me, aux_domain_fetcher, fetch_domain),
+            event_loop)
+        future.add_done_callback(functools.partial(on_task_done, domain=fetch_domain,
+                    externals=externals, remember_to_find_me=remember_to_find_me,
+                    domains_fetched=domains_fetched, domains_to_fetch=domains_to_fetch))
+        externals[fetch_domain] = future
+
+    concurrent.futures.wait(externals.values())
 
     for fetch_domain in remember_to_find_me.copy():
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
@@ -175,7 +178,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
             if trending:
                 for t_post in trending:
                     add_post_to_dict(t_post, parsed_url[0])
-                    if t_post["url"] in post_urls:
+                    if t_post["url"] in posts_to_find:
                         posts_to_find.remove(t_post["url"])
     for post_url in posts_to_find:
         logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
@@ -243,7 +246,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
     trending_posts = await api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 120)
+            fetch_domain, external_tokens.get(fetch_domain), 40)
     remember_to_find_me_updates : dict[str, list[str]] = {}
 
     if trending_posts:
