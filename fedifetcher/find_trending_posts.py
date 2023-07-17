@@ -168,7 +168,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
     if parsed_url[0] is not None and parsed_url[1] is not None:
         trending = await api_mastodon.get_trending_posts(
                         parsed_url[0],
-                        external_tokens.get(parsed_url[0]), 120)
+                        external_tokens.get(parsed_url[0]), 40)
         domains_fetched.append(parsed_url[0])
         if trending:
             for t_post in trending:
