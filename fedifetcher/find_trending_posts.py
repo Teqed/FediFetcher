@@ -2,11 +2,10 @@
 
 
 import asyncio
-import concurrent.futures
 import functools
 import logging
 import re
-from typing import Coroutine
+from collections.abc import Callable
 
 import aiohttp
 from mastodon.errors import MastodonError
@@ -15,7 +14,64 @@ from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-async def find_trending_posts(  # noqa: C901, PLR0915
+def increment_count(post_url : str, incrementing_post : dict[str, str],
+                    trending_posts_dict: dict[str, dict[str, str]]) -> None:
+    """Increment the reblogs_count and favourites_count of a post."""
+    if incrementing_post["reblogs_count"] \
+            > trending_posts_dict[post_url]["reblogs_count"]:
+        trending_posts_dict[post_url]["reblogs_count"] \
+            = incrementing_post["reblogs_count"]
+    trending_posts_dict[post_url]["favourites_count"] \
+        += incrementing_post["favourites_count"]
+
+def add_post_to_dict(trending_post : dict[str, str],
+                    fetched_from_domain : str,
+                    trending_posts_dict: dict[str, dict[str, str]],
+                    ) -> bool:
+    """Add a trending post to the trending_posts_dict, if it's not already there.
+
+    Args:
+    ----
+    trending_post (dict[str, str]): The trending post to add.
+    fetched_from_domain (str): The domain the trending post was fetched from.
+    trending_posts_dict (dict[str, dict[str, str]]): The dict to add the post to.
+
+    Returns:
+    -------
+    bool: True if the post was original, False otherwise.
+    """
+    t_post_url = trending_post["url"]
+    original = re.search(
+        r"https?://([a-zA-Z0-9_-]+\.)*(?:" + re.escape(fetched_from_domain) \
+            + ")(?:/.*)?", t_post_url)
+    if original:
+        logging.info(
+f"Reblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']} \
+From: {t_post_url}")
+        trending_posts_dict[t_post_url] = trending_post
+        trending_posts_dict[t_post_url]["original"] = "Yes"
+        return True
+    if t_post_url in trending_posts_dict:
+        if "original" not in trending_posts_dict[t_post_url]:
+            logging.debug(
+f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']} \
+Copy: {t_post_url}\033[0m")
+            increment_count(t_post_url, trending_post, trending_posts_dict)
+            return False
+        logging.debug(
+            f"Already seen {t_post_url} from origin")
+        return True # We already have the original
+    logging.debug(
+f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
+Favourites: {trending_post['favourites_count']} \
+Copy: {t_post_url}\033[0m")
+    trending_posts_dict[t_post_url] = trending_post
+    return False
+
+
+async def find_trending_posts(  # noqa: C901
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -29,58 +85,6 @@ async def find_trending_posts(  # noqa: C901, PLR0915
     # For each key in external_tokens, query its mastodon API for trending posts.
     # Later, we're going to compare these results to each other.
     trending_posts_dict: dict[str, dict[str, str]] = {}
-
-    def add_post_to_dict(trending_post : dict[str, str],
-                        fetched_from_domain : str) -> bool:
-        """Add a trending post to the trending_posts_dict, if it's not already there.
-
-        Args:
-        ----
-        trending_post (dict[str, str]): The trending post to add.
-        fetched_from_domain (str): The domain the trending post was fetched from.
-
-        Returns:
-        -------
-        bool: True if the post was original, False otherwise.
-        """
-        t_post_url = trending_post["url"]
-        original = re.search(
-            r"https?://([a-zA-Z0-9_-]+\.)*(?:" + re.escape(fetched_from_domain) \
-                + ")(?:/.*)?", t_post_url)
-        if original:
-            logging.info(
-f"Reblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']} \
-From: {t_post_url}")
-            trending_posts_dict[t_post_url] = trending_post
-            trending_posts_dict[t_post_url]["original"] = "Yes"
-            return True
-        if t_post_url in trending_posts_dict:
-            if "original" not in trending_posts_dict[t_post_url]:
-                logging.debug(
-f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']} \
-Copy: {t_post_url}\033[0m")
-                increment_count(t_post_url, trending_post)
-                return False
-            logging.debug(
-                f"Already seen {t_post_url} from origin")
-            return True # We already have the original
-        logging.debug(
-f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']} \
-Copy: {t_post_url}\033[0m")
-        trending_posts_dict[t_post_url] = trending_post
-        return False
-
-    def increment_count(post_url : str, incrementing_post : dict[str, str]) -> None:
-        """Increment the reblogs_count and favourites_count of a post."""
-        if incrementing_post["reblogs_count"] \
-                > trending_posts_dict[post_url]["reblogs_count"]:
-            trending_posts_dict[post_url]["reblogs_count"] \
-                = incrementing_post["reblogs_count"]
-        trending_posts_dict[post_url]["favourites_count"] \
-            += incrementing_post["favourites_count"]
 
     domains_to_fetch = external_feeds.copy()
     for domain in domains_to_fetch:
@@ -129,7 +133,7 @@ less popular posts from {fetch_domain}"
                 original_post = await api_mastodon.get_status_by_id(
                     fetch_domain, status_id, external_tokens)
                 if original_post:
-                    add_post_to_dict(original_post, fetch_domain)
+                    add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
                 else:
                     logging.warning(
                         f"Couldn't find {status_id} from {fetch_domain}")
@@ -158,7 +162,7 @@ less popular posts from {fetch_domain}"
         updated_trending_posts_dict.values(), "en"))
 
 async def aux_domain_fetch(external_tokens : dict[str, str],
-                    add_post_to_dict : find_trending_posts.add_post_to_dict,
+                    add_post_to_dict : Callable[[dict[str, str], str], bool],
                     domains_fetched : list[str],
                     post_urls : list[str],
                     parsed_urls : list[tuple[str | None, str | None]],
