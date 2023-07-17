@@ -654,33 +654,35 @@ async def get_trending_posts(
     logging.info(f"Got {len(got_trending_posts)} trending posts for {server}")
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(got_trending_posts)
-    offset_list = [40+i*40 for i in range(3)]
-    tasks = [asyncio.create_task(
-        get_trending_posts_async(
-            server, token, off)) for off in offset_list]
-    highest_offset = max(offset_list)
-    while tasks:
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for task in done:
-            try:
-                result = task.result()
-                if len(result) == 0:
-                    break  # stop processing results
-                trending_posts.extend(result)
-                logging.info(
-                    f"Got {len(trending_posts)} trending posts for {server} ...")
-                if len(trending_posts) >= limit:
+    if limit > 40:  # noqa: PLR2004
+        offset_list = [40+i*40 for i in range(3)]
+        tasks = [asyncio.create_task(
+            get_trending_posts_async(
+                server, token, off)) for off in offset_list]
+        highest_offset = max(offset_list)
+        while tasks:
+            done, pending = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                try:
+                    result = task.result()
+                    if len(result) == 0:
+                        break  # stop processing results
+                    trending_posts.extend(result)
+                    logging.info(
+                        f"Got {len(trending_posts)} trending posts for {server} ...")
+                    if len(trending_posts) >= limit:
+                        break
+                    highest_offset += 40
+                    new_task = asyncio.create_task(
+                        get_trending_posts_async(
+                            server, token, highest_offset)) # create a task
+                    tasks.append(new_task)  # add it to the set
+                except MastodonError:
+                    logging.exception(
+                        f"Error getting trending posts for {server}")
                     break
-                highest_offset += 40
-                new_task = asyncio.create_task(
-                    get_trending_posts_async(
-                        server, token, highest_offset)) # create a task
-                tasks.append(new_task)  # add it to the set
-            except MastodonError:
-                logging.exception(
-                    f"Error getting trending posts for {server}")
-                break
-        tasks = [t for t in tasks if not t.done()]  # remove
+            tasks = [t for t in tasks if not t.done()]  # remove
 
     logging.info(f"Found {len(trending_posts)} trending posts for {server}")
     return trending_posts
