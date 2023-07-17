@@ -623,23 +623,28 @@ async def get_trending_posts(
         request fails.
     """
     async def get_trending_posts_async(
-            server : str,
-            token : str | None = None,
-            offset : int = 0,
-            ) -> list[dict[str, str]]:
+            server: str,
+            token: str | None = None,
+            offset: int = 0,
+    ) -> list[dict[str, str]]:
         """Get a page of trending posts and return it asynchronously."""
-        return cast(list[dict[str, str]],
-                            (await mastodon(server, token)).trending_statuses(
-                                limit=40,
-                                offset=offset,
-                                ))
+        loop = asyncio.get_running_loop()
+
+        # Wrap the synchronous request in a future object
+        future = loop.run_in_executor(None, lambda: (
+            await mastodon(server, token)).trending_statuses(limit=40, offset=offset))
+
+        # Wait for the future to complete
+        trending_posts = await future
+
+        return cast(list[dict[str, str]], trending_posts)
 
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
     got_trending_posts: list[dict[str, str]] = []
     try:
-        got_trending_posts = cast(list[dict[str, str]],
-                            (await mastodon(server, token)).trending_statuses(limit=40))
+        got_trending_posts = await get_trending_posts_async(
+            server, token, 0)
     except Exception:
         logging.exception(
             f"Error getting trending posts for {server}")

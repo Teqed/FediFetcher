@@ -207,19 +207,21 @@ class AuxDomainFetch:
         """Do all the queued aux fetches asynchronously."""
 
         async def fetching_domain(fetch_domain: str) -> None:
-            msg = f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts \
-from {fetch_domain}"
+            msg = \
+    f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
             logging.info(f"\033[1;34m{msg}\033[0m")
+            # Queue up tasks for each post
+            tasks = []
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 if parsed_url[0] not in self.domains_fetched:
-                    original = await aux_domain_fetch(self.external_tokens,
-                            self.add_post_to_dict, self.domains_fetched,
-                            post_url, parsed_url)
-                    if not original:
-                        logging.warning(f"Couldn't find original for {post_url}")
+                    tasks.append(aux_domain_fetch(self.external_tokens,
+                        self.add_post_to_dict, self.domains_fetched, post_url,
+                        parsed_url))
+            # Wait for all posts to be fetched
+            await asyncio.gather(*tasks)
 
-        tasks = [fetching_domain(
-            fetchable_domain) for fetchable_domain in self.aux_fetches.copy()]
+        tasks = [fetching_domain(fetchable_domain) \
+                for fetchable_domain in self.aux_fetches.copy()]
         await asyncio.gather(*tasks)
         # Once all tasks are done, clear the aux_fetches
         self.aux_fetches.clear()
