@@ -115,7 +115,7 @@ async def find_trending_posts(  # noqa: C901
     for fetch_domain in external_feeds.copy():
         task = asyncio.create_task(fetch_trending_from_domain(external_tokens,
             add_post_to_dict, domains_to_fetch, domains_fetched, remember_to_find_me,
-            aux_domain_fetcher, fetch_domain))
+            aux_domain_fetcher, fetch_domain, trending_posts_dict))
         task.add_done_callback(functools.partial(on_task_done, domain=fetch_domain,
                 externals=externals, remember_to_find_me=remember_to_find_me,
                 domains_fetched=domains_fetched, domains_to_fetch=domains_to_fetch))
@@ -237,12 +237,14 @@ class AuxDomainFetch:
 
 async def fetch_trending_from_domain(  # noqa: C901, PLR0913
         external_tokens : dict[str, str],
-        add_post_to_dict,  # noqa: ANN001
+        add_post_to_dict : Callable[[dict[str, str], str,
+                                    dict[str, dict[str, str]]], bool],
         domains_to_fetch : list[str],
         domains_fetched : list[str],
         remember_to_find_me : dict[str, list[str]],
         aux_domain_fetcher : AuxDomainFetch,
         fetch_domain : str,
+        trending_posts_dict : dict[str, dict[str, str]],
         ) -> dict[str, list[str]]:
     """Fetch trending posts from a domain."""
     msg = f"Fetching trending posts from {fetch_domain}"
@@ -254,7 +256,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     if trending_posts:
         for post in trending_posts:
             post_url: str = post["url"]
-            original = add_post_to_dict(post, fetch_domain)
+            original = add_post_to_dict(post, fetch_domain, trending_posts_dict)
             if original:
                 continue
             parsed_url = parsers.post(post_url)
@@ -274,7 +276,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                 remote = await api_mastodon.get_status_by_id(
                         parsed_url[0], parsed_url[1], external_tokens)
                 if remote and remote["url"] == post_url:
-                    original = add_post_to_dict(remote, parsed_url[0])
+                    original = add_post_to_dict(remote, parsed_url[0], trending_posts_dict)
                 if not original:
                     logging.warning(f"Couldn't find original for {post_url}")
     else:
