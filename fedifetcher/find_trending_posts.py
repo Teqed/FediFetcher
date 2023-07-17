@@ -159,25 +159,26 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
                     add_post_to_dict,  # noqa: ANN001
                     domains_fetched : list[str],
                     post_urls : list[str],
-                    parsed_url : tuple[str | None, str | None],
+                    parsed_urls : list[tuple[str | None, str | None]],
                     ) -> bool:
     """Fetch posts from an aux domain."""
-    msg = f"Finding aux trending posts from {parsed_url[0]}"
+    msg = f"Finding aux trending posts from {parsed_urls[0][0]}"
     logging.info(f"\033[1;35m{msg}\033[0m")
     found_all = False
     posts_to_find = post_urls.copy()
-    if parsed_url[0] is not None and parsed_url[1] is not None:
-        trending = await api_mastodon.get_trending_posts(
-                        parsed_url[0],
-                        external_tokens.get(parsed_url[0]), 40)
-        domains_fetched.append(parsed_url[0])
-        if trending:
-            for t_post in trending:
-                add_post_to_dict(t_post, parsed_url[0])
-                if t_post["url"] in post_urls:
-                    posts_to_find.remove(t_post["url"])
+    for parsed_url in parsed_urls:
+        if parsed_url[0] is not None and parsed_url[1] is not None:
+            trending = await api_mastodon.get_trending_posts(
+                            parsed_url[0],
+                            external_tokens.get(parsed_url[0]), 40)
+            domains_fetched.append(parsed_url[0])
+            if trending:
+                for t_post in trending:
+                    add_post_to_dict(t_post, parsed_url[0])
+                    if t_post["url"] in post_urls:
+                        posts_to_find.remove(t_post["url"])
     for post_url in posts_to_find:
-        logging.warning(f"Couldn't find {post_url} from {parsed_url[0]}")
+        logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
     if not posts_to_find:
         found_all = True
     return found_all
@@ -215,15 +216,13 @@ class AuxDomainFetch:
             msg = \
     f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
             logging.info(f"\033[1;34m{msg}\033[0m")
-            # Queue up tasks for each post
-            tasks = []
+            list_of_posts = []
+            list_of_parsed_urls = []
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
-                if parsed_url[0] not in self.domains_fetched:
-                    tasks.append(aux_domain_fetch(self.external_tokens,
-                        self.add_post_to_dict, self.domains_fetched, post_url,
-                        parsed_url))
-            # Wait for all posts to be fetched
-            await asyncio.gather(*tasks)
+                list_of_posts.append(post_url)
+                list_of_parsed_urls.append(parsed_url)
+            await aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
+                            self.domains_fetched, list_of_posts, list_of_parsed_urls)
 
         tasks = [fetching_domain(fetchable_domain) \
                 for fetchable_domain in self.aux_fetches.copy()]
