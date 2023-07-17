@@ -2,6 +2,7 @@
 
 
 import asyncio
+import concurrent.futures
 import functools
 import logging
 import re
@@ -11,7 +12,7 @@ from mastodon.errors import MastodonError
 
 from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
-import concurrent.futures
+
 
 async def find_trending_posts(  # noqa: C901, PLR0915
         home_server: str,
