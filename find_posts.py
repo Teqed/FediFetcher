@@ -176,7 +176,6 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 external_tokens,
                 pgupdater,
                 admin_token,
-                status_id_cache,
                 )
             logging.debug("Found known context URLs, getting replied toot IDs")
             seen_urls.update(known_context_urls)
@@ -263,7 +262,6 @@ context URLs")
                 external_tokens,
                 pgupdater,
                 admin_token,
-                status_id_cache,
                 )
             logging.debug("Found known context URLs, getting context URLs")
             await add_context.add_context_urls(

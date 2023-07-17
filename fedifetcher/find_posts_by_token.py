@@ -40,7 +40,6 @@ async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: di
             external_tokens,
             pgupdater,
             token,
-            status_id_cache,
             )
         logging.debug("Found known context URLs, getting context URLs")
         await add_context.add_context_urls(
@@ -128,7 +127,6 @@ mentioned users")
                 external_tokens,
                 pgupdater,
                 token,
-                status_id_cache,
                 )
             logging.debug("Found known context URLs, getting context URLs")
             seen_urls.update(known_context_urls)
@@ -260,7 +258,6 @@ mentioned users")
                                 external_tokens,
                                 pgupdater,
                                 token,
-                                status_id_cache,
                                 )
         logging.debug("Got known context URLs, getting context URLs")
         await add_context.add_context_urls(
@@ -286,7 +283,6 @@ mentioned users")
                                 external_tokens,
                                 pgupdater,
                                 token,
-                                status_id_cache,
                                 )
         logging.debug("Got known context URLs, getting context URLs")
         await add_context.add_context_urls(

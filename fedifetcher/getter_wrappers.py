@@ -216,7 +216,6 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
     external_tokens: dict[str, str],
     pgupdater: PostgreSQLUpdater,
     home_server_token: str,
-    status_id_cache: dict[str, str],
 ) -> Iterable[str]:
     """Get the context toots of the given toots from their original server.
 

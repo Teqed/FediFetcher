@@ -111,12 +111,13 @@ async def mastodon(server: str, token: str | None = None) -> Mastodon:
         session.headers.update({
             "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",
         })
+        rate_limit_method = "wait" if not mastodon.sessions else "throw"
         mastodon.sessions[server] = Mastodon(
             access_token=token if token else None,
             api_base_url=server if server else helpers.arguments.server,
             session=session,
             debug_requests=False,
-            ratelimit_method="throw",
+            ratelimit_method=rate_limit_method,
             ratelimit_pacefactor=1.1,
             request_timeout=20,
             version_check_mode="none",
