@@ -727,20 +727,19 @@ async def get_status_id_from_url(
     """
     cached_status = pgupdater.get_from_cache(url)
     if cached_status:
-        status_id = cached_status.get("status_id")
-        if status_id:
+        status_id = cached_status.id
+        if status_id is not None:
             return status_id
     logging.info(f"Asking server to lookup {url}")
     server_api = f"https://{server}/api/v2/search"
     async with session.get(server_api, params={"q": url, "resolve": "true"},
                         headers={"Authorization": f"Bearer {token}"}) as response:
         result: SearchV2 = await response.json()
-    statuses = result.get("statuses")
     # If statuses has a length of at least 1, then the toot was found.
     # Let's check the returned toots until we find the one with the correct URL.
-    if statuses:
-        for status in statuses:
-            if status.get("url") == url:
+    if result.statuses:
+        for status in result.statuses:
+            if isinstance(status, Status) and status.url == url:
                 pgupdater.cache_status(status)
                 return str(status.get("id"))
     return None
