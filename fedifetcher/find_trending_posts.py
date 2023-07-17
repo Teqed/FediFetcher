@@ -146,12 +146,12 @@ less popular posts from {fetch_domain}"
         for _url, post in trending_posts_dict.items():
             local_status_id = post["local_status_id"]
             if local_status_id:
-                pgupdater.queue_update(
+                pgupdater.queue_status_update(
                     int(local_status_id),
                     int(post["reblogs_count"]),
                     int(post["favourites_count"]),
                 )
-        pgupdater.commit_updates()
+        pgupdater.commit_status_updates()
 
     return list(api_mastodon.filter_language(
         updated_trending_posts_dict.values(), "en"))

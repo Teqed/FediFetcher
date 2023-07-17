@@ -360,7 +360,7 @@ async def get_toot_context(  # noqa: PLR0913, D103
                     status_id_cache, session)
                 if status_id:
                     status_home_id = int(status_id)
-                    pgupdater.queue_update(
+                    pgupdater.queue_status_update(
                         status_home_id,
                         _status.reblogs_count,
                         _status.favourites_count,
@@ -374,7 +374,7 @@ async def get_toot_context(  # noqa: PLR0913, D103
             if _status.url:
                 tasks.append(asyncio.ensure_future(process_status(_status.url)))
         await asyncio.gather(*tasks)
-    pgupdater.commit_updates()
+    pgupdater.commit_status_updates()
     context_urls: list[str] = [toot["url"] for toot in context["ancestors"]] + \
                             [toot["url"] for toot in context["descendants"]]
     return context_urls
