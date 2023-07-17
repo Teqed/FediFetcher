@@ -629,12 +629,11 @@ async def get_trending_posts(
             offset : int = 0,
             ) -> list[dict[str, str]]:
         """Get a page of trending posts and return it asynchronously."""
-        got_trending_posts = cast(list[dict[str, str]],
+        return cast(list[dict[str, str]],
                             (await mastodon(server, token)).trending_statuses(
                                 limit=40,
                                 offset=offset,
                                 ))
-        return list(filter_language(got_trending_posts, "en"))
 
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
@@ -646,8 +645,9 @@ async def get_trending_posts(
         logging.exception(
             f"Error getting trending posts for {server}")
         return []
+    logging.info(f"Got {len(got_trending_posts)} trending posts for {server}")
     trending_posts: list[dict[str, str]] = []
-    trending_posts.extend(filter_language(got_trending_posts, "en"))
+    trending_posts.extend(got_trending_posts)
     offset_list = [40+i*40 for i in range(3)]
     tasks = [asyncio.create_task(
         get_trending_posts_async(
@@ -676,7 +676,7 @@ async def get_trending_posts(
                 break
         tasks = [t for t in tasks if not t.done()]  # remove
 
-    logging.info(f"Found {len(trending_posts)} trending posts")
+    logging.info(f"Found {len(trending_posts)} trending posts for {server}")
     return trending_posts
 
 def filter_language(

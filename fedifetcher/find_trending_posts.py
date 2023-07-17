@@ -147,7 +147,8 @@ less popular posts from {fetch_domain}"
                 )
         pgupdater.commit_updates()
 
-    return list(updated_trending_posts_dict.values())
+    return list(api_mastodon.filter_language(
+        updated_trending_posts_dict.values(), "en"))
 
 async def aux_domain_fetch(external_tokens : dict[str, str],
                     add_post_to_dict,
