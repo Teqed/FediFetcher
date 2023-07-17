@@ -140,7 +140,7 @@ less popular posts from {fetch_domain}"
         remember_to_find_me.pop(fetch_domain)
 
     logging.info("Fetching aux posts")
-    await aux_domain_fetcher.do_aux_fetches()
+    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict)
 
     updated_trending_posts_dict = await \
     update_local_status_ids(
@@ -161,11 +161,13 @@ less popular posts from {fetch_domain}"
     return list(api_mastodon.filter_language(
         updated_trending_posts_dict.values(), "en"))
 
-async def aux_domain_fetch(external_tokens : dict[str, str],
-                    add_post_to_dict : Callable[[dict[str, str], str], bool],
+async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
+                    add_post_to_dict : Callable[[dict[str, str], str,
+                                                dict[str, dict[str, str]]], bool],
                     domains_fetched : list[str],
                     post_urls : list[str],
                     parsed_urls : list[tuple[str | None, str | None]],
+                    trending_post_dict : dict[str, dict[str, str]],
                     ) -> bool:
     """Fetch posts from an aux domain."""
     msg = f"Finding aux trending posts from {parsed_urls[0][0]}"
@@ -181,7 +183,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],
             for t_post in trending:
                 if t_post["url"] in posts_to_find:
                     posts_to_find.remove(t_post["url"])
-                add_post_to_dict(t_post, parsed_urls[0][0])
+                add_post_to_dict(t_post, parsed_urls[0][0], trending_post_dict)
     for post_url in posts_to_find:
         logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
     if not posts_to_find:
@@ -214,10 +216,13 @@ class AuxDomainFetch:
             if (parsed_url, post_url) not in self.aux_fetches[parsed_url[0]]:
                 self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
 
-    async def do_aux_fetches(self) -> None:
+    async def do_aux_fetches(self,
+                            trending_post_dict: dict[str, dict[str, str]],
+                            ) -> None:
         """Do all the queued aux fetches asynchronously."""
 
-        async def fetching_domain(fetch_domain: str) -> None:
+        async def fetching_domain(fetch_domain: str,
+                                trending_post_dict: dict[str, dict[str, str]]) -> None:
             msg = \
     f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
             logging.info(f"\033[1;34m{msg}\033[0m")
@@ -227,9 +232,10 @@ class AuxDomainFetch:
                 list_of_posts.append(post_url)
                 list_of_parsed_urls.append(parsed_url)
             await aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
-                            self.domains_fetched, list_of_posts, list_of_parsed_urls)
+                self.domains_fetched, list_of_posts,
+                    list_of_parsed_urls, trending_post_dict)
 
-        tasks = [fetching_domain(fetchable_domain) \
+        tasks = [fetching_domain(fetchable_domain, trending_post_dict) \
                 for fetchable_domain in self.aux_fetches.copy()]
         await asyncio.gather(*tasks)
         # Once all tasks are done, clear the aux_fetches
