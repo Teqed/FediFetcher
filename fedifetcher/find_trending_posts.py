@@ -282,7 +282,8 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                 remote = await api_mastodon.get_status_by_id(
                         parsed_url[0], parsed_url[1], external_tokens)
                 if remote and remote["url"] == post_url:
-                    original = add_post_to_dict(remote, parsed_url[0], trending_posts_dict)
+                    original = add_post_to_dict(
+                        remote, parsed_url[0], trending_posts_dict)
                 if not original:
                     logging.warning(f"Couldn't find original for {post_url}")
     else:
