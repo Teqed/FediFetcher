@@ -249,6 +249,7 @@ f"Found {len(trending_posts)} trending posts")
                     trending_posts_changed.append(post)
                     if cached:
                         cached[0]["replies_count"] = new_reply_count
+                        cached[0]["id"] = post.get("id")
                         pgupdater.cache_status(cached[0])
                     else:
                         status = Status(

@@ -86,7 +86,6 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         """
         # First, make sure our required fields are present.
         required_attributes = [
-            "id",
             "uri",
             "url",
             "created_at",
@@ -112,7 +111,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             original = False
             status_id = None
             status_id_original = None
-            if status_id_fetched == url.split("/")[-1]:
+            if (status_id_fetched == url.split("/")[-1]):
                 logging.debug(f"Status {url} is original")
                 original = True
                 status_id_original = status_id_fetched
