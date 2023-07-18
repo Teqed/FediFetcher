@@ -266,7 +266,8 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                 if result is not None:
                     columns = [column[0] for column in cursor.description]
                     result = dict(zip(columns, result, strict=False))
-                    logging.info(f"Got status from cache: {url}")
+                    logging.info(f"Got status from cache: {url} \
+Original: {result.get('original')} ID: {result.get('status_id')}")
                     return Status(
                         id=result.get("status_id"),
                         uri=result.get("uri"),
