@@ -42,10 +42,14 @@ async def add_user_posts( # noqa: PLR0913
             if posts is not None:
                 count = 0
                 failed = 0
+                already_added = 0
                 for post in posts:
                     post_url = post.get("url")
-                    if post.get("reblog") is None and post_url \
-                            and not pgupdater.get_from_cache(post_url):
+                    if post_url and pgupdater.get_from_cache(post_url):
+                        already_added += 1
+                        logging.debug(f"Already added {post_url}")
+                        continue
+                    if post.get("reblog") is None:
                         added = await add_post_with_context(
                             post, server, access_token,
                             external_tokens, pgupdater)
@@ -88,7 +92,8 @@ async def add_user_posts( # noqa: PLR0913
                         else:
                             failed += 1
                 logging.info(
-                    f"Added {count} posts for user {user['acct']} with {failed} errors",
+f"Added {count} posts for user {user['acct']} with {failed} errors and \
+{already_added} already seen",
                 )
                 if failed == 0:
                     know_followings.add(user["acct"])

@@ -57,7 +57,7 @@ mentioned users")
                 datetime.now(UTC).astimezone().tzinfo) - timedelta(minutes=60)
             logging.debug(f"Cut off: {cut_off}")
             for toot in timeline_toots:
-                logging.debug(f"Checking toot: {toot}")
+                logging.debug(f"Checking toot: {toot.get('url')}")
                 these_users = []
                 toot_created_at = cast(datetime, toot["created_at"])
                 user_limit = {
@@ -81,10 +81,10 @@ mentioned users")
                             logging.debug("Found reblog mentions")
                             these_users += _mentions
                 for user in these_users:
-                    logging.debug(f"Checking user: {user}")
+                    logging.debug(f"Checking user: {user.get('acct')}")
                     if user not in mentioned_users and \
                             user["acct"] not in all_known_users:
-                        logging.debug(f"Adding user: {user}")
+                        logging.debug(f"Adding user: {user.get('acct')}")
                         mentioned_users.append(user)
             logging.debug(f"Mentioned users: {len(mentioned_users)}")
             await add_context.add_user_posts(
