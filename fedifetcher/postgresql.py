@@ -288,4 +288,5 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                     )
         except (OperationalError, Error) as e:
             logging.error(f"Error getting status from cache: {e}")
+        logging.debug(f"Status not found in cache: {url}")
         return None
