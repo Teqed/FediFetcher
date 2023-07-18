@@ -24,6 +24,7 @@ from fedifetcher.find_posts_by_token import find_posts_by_token
 from fedifetcher.find_trending_posts import find_trending_posts
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
+from mastodon.types import Status
 
 
 async def main() -> None:  # noqa: PLR0912, C901, PLR0915
@@ -99,17 +100,14 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
     with Path(lock_file).open("w", encoding="utf-8") as file:
         file.write(f"{datetime.now(UTC)}")
 
-    seen_urls = OrderedSet()
     replied_toot_server_ids: dict[str, str | None] = {}
     known_followings = OrderedSet([])
     recently_checked_users = OrderedSet({})
-    status_id_cache: dict[str, str] = {}
-    trending_posts_replies_seen: dict[str, str] = {}
     try:
         logging.debug("Loading seen files")
         cache = cache_manager.SeenFilesManager(helpers.arguments.state_dir)
-        seen_urls, replied_toot_server_ids, known_followings, recently_checked_users, \
-            status_id_cache, trending_posts_replies_seen = cache.get_seen_data()
+        replied_toot_server_ids, known_followings, recently_checked_users \
+                = cache.get_seen_data()
 
         # Remove any users whose last check is too long in the past from the list
         logging.debug("Removing old users from recently checked users")
@@ -165,11 +163,11 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 helpers.arguments.server,
                 user_ids,
                 admin_token,
-                seen_urls,
+                pgupdater,
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting known context URLs")
-            known_context_urls = await getter_wrappers.get_all_known_context_urls(
+            await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -178,7 +176,6 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 admin_token,
                 )
             logging.debug("Found known context URLs, getting replied toot IDs")
-            seen_urls.update(known_context_urls)
             replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
                 helpers.arguments.server,
                 reply_toots,
@@ -200,7 +197,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 helpers.arguments.server,
                 admin_token,
                 context_urls,
-                seen_urls,
+                pgupdater,
             )
             logging.debug("Added context URLs")
         except Exception:
@@ -214,7 +211,6 @@ provided. Continuing without active user IDs.")
 {len(helpers.arguments.access_token)}")
             await find_posts_by_token(
                 _token,
-                seen_urls,
                 parsed_urls,
                 replied_toot_server_ids,
                 all_known_users,
@@ -222,7 +218,6 @@ provided. Continuing without active user IDs.")
                 known_followings,
                 external_tokens,
                 pgupdater,
-                status_id_cache,
             )
 
         if external_tokens and helpers.arguments.external_feeds:
@@ -245,13 +240,50 @@ f"Found {len(trending_posts)} trending posts")
             ]
             trending_posts_changed = []
             for post in trending_posts:
-                post_id: str = str(post["id"])
+                post_url: str = post["url"]
                 new_reply_count = post["replies_count"]
-                old_reply_count = trending_posts_replies_seen.get(
-                    post_id, None)
-                if old_reply_count is None or new_reply_count > old_reply_count:
+                cached = pgupdater.get_from_cache(post_url) or None
+                old_reply_count = cached.get("replies_count") if cached else None
+                if ((old_reply_count is None) or (new_reply_count > old_reply_count)):
                     trending_posts_changed.append(post)
-                    trending_posts_replies_seen[post_id] = new_reply_count
+                    if cached:
+                        cached["replies_count"] = new_reply_count
+                        pgupdater.cache_status(cached)
+                    else:
+                        status = Status(
+                                id=post.get("id"),
+                                uri=post.get("uri"),
+                                url=post.get("url"),
+                                account=post.get("account"),
+                                in_reply_to_id=post.get("in_reply_to_id"),
+                                in_reply_to_account_id=post.get(
+                                    "in_reply_to_account_id"),
+                                reblog=post.get("reblog"),
+                                content=post.get("content"),
+                                created_at=post.get("created_at"),
+                                reblogs_count=post.get("reblogs_count"),
+                                favourites_count=post.get("favourites_count"),
+                                reblogged=post.get("reblogged"),
+                                favourited=post.get("favourited"),
+                                sensitive=post.get("sensitive"),
+                                spoiler_text=post.get("spoiler_text"),
+                                visibility=post.get("visibility"),
+                                mentions=post.get("mentions"),
+                                media_attachments=post.get(
+                                    "media_attachments"),
+                                emojis=post.get("emojis"),
+                                tags=post.get("tags"),
+                                bookmarked=post.get("bookmarked"),
+                                application=post.get("application"),
+                                language=post.get("language"),
+                                muted=post.get("muted"),
+                                pinned=post.get("pinned"),
+                                replies_count=post.get("replies_count"),
+                                card=post.get("card"),
+                                poll=post.get("poll"),
+                                edited_at=post.get("edited_at"),
+                            )
+                        pgupdater.cache_status(status)
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
@@ -268,18 +300,15 @@ context URLs")
                 helpers.arguments.server,
                 admin_token,
                 known_context_urls,
-                seen_urls,
+                pgupdater,
                 )
             logging.debug("Added context URLs")
 
         logging.info("Writing seen files")
         cache.write_seen_files(
-            seen_urls,
             replied_toot_server_ids,
             known_followings,
             recently_checked_users,
-            status_id_cache,
-            trending_posts_replies_seen,
             )
 
         Path.unlink(lock_file)
@@ -300,12 +329,9 @@ context URLs")
             parachute_cache = cache_manager.SeenFilesManager(
                 helpers.arguments.state_dir)
             parachute_cache.write_seen_files(
-                seen_urls,
                 replied_toot_server_ids,
                 known_followings,
                 recently_checked_users,
-                status_id_cache,
-                trending_posts_replies_seen,
                 )
             logging.debug("Successfully wrote seen files.")
         except Exception as ex:

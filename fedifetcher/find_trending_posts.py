@@ -174,7 +174,6 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
     logging.info(f"\033[1;35m{msg}\033[0m")
     found_all = False
     posts_to_find = post_urls.copy()
-    return False # Debug
     if parsed_urls[0][0] is not None:
         trending = await api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
@@ -257,7 +256,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
     trending_posts = await api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 40)
+            fetch_domain, external_tokens.get(fetch_domain), 120)
     remember_to_find_me_updates : dict[str, list[str]] = {}
 
     if trending_posts:

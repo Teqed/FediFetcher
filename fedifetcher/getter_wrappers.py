@@ -171,7 +171,7 @@ async def get_all_reply_toots(
     server: str,
     user_ids: Iterable[str],
     access_token: str,
-    seen_urls: OrderedSet,
+    pgupdater: PostgreSQLUpdater,
     reply_interval_hours: int,
 ) -> list[dict[str, Any]]:
     """Get all replies to other users by the given users in the last day.
@@ -181,7 +181,7 @@ async def get_all_reply_toots(
     server (str): The server to get the toots from.
     user_ids (Iterable[str]): The user IDs to get the toots from.
     access_token (str): The access token to use for authentication.
-    seen_urls (OrderedSet[str]): The URLs that have already been seen.
+    pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
     reply_interval_hours (int): The number of hours to look back for replies.
 
     Returns:
@@ -201,7 +201,7 @@ async def get_all_reply_toots(
             user_id,
             server,
             access_token,
-            seen_urls,
+            pgupdater,
             replies_since,
         )
         if replies is not None:
@@ -229,7 +229,6 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
     external_tokens (dict[str, str]): The access tokens for external servers.
     pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
     home_server_token (str): The access token for the home server.
-    status_id_cache (dict[str, str]): The dictionary mapping status IDs to URLs.
 
     Returns:
     -------
@@ -433,7 +432,6 @@ async def get_all_context_urls(  # noqa: PLR0913
     pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
     home_server (str): The home server.
     home_server_token (str): The access token for the home server.
-    status_id_cache (dict[str, str]): The dictionary mapping status IDs to URLs.
 
     Returns:
     -------

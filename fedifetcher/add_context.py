@@ -17,10 +17,8 @@ async def add_user_posts( # noqa: PLR0913
         followings: list,
         know_followings: OrderedSet,
         all_known_users: OrderedSet,
-        seen_urls: OrderedSet,
         external_tokens: dict[str, str],
         pgupdater: PostgreSQLUpdater,
-        status_id_cache: dict[str, str],
 ) -> None:
     """Add the given user's posts to the server.
 
@@ -31,12 +29,9 @@ async def add_user_posts( # noqa: PLR0913
     followings: The list of users to add the posts of.
     know_followings: The list of users whose posts we already know.
     all_known_users: The list of all users whose posts we already know.
-    seen_urls: The list of all URLs we have already seen.
     external_tokens: A dict of external tokens, keyed by server. If None, no \
         external tokens will be used.
     pgupdater: The PostgreSQL updater.
-    status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
-        IDs will be cached.
     """
     for user in followings:
         if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{server}/"):
@@ -47,13 +42,47 @@ async def add_user_posts( # noqa: PLR0913
                 count = 0
                 failed = 0
                 for post in posts:
-                    if post.get("reblog") is None and isinstance(post.get("url"), str) \
-                            and str(post.get("url")) not in seen_urls:
+                    post_url = post.get("url")
+                    if post.get("reblog") is None and post_url \
+                            and not pgupdater.get_from_cache(post_url):
                         added = await add_post_with_context(
-                            post, server, access_token, seen_urls,
-                            external_tokens, pgupdater, status_id_cache)
+                            post, server, access_token,
+                            external_tokens, pgupdater)
                         if added is True:
-                            seen_urls.add(str(post["url"]))
+                            status = Status(
+                                id=post.get("id"),
+                                uri=post.get("uri"),
+                                url=post.get("url"),
+                                account=post.get("account"),
+                                in_reply_to_id=post.get("in_reply_to_id"),
+                                in_reply_to_account_id=post.get(
+                                    "in_reply_to_account_id"),
+                                reblog=post.get("reblog"),
+                                content=post.get("content"),
+                                created_at=post.get("created_at"),
+                                reblogs_count=post.get("reblogs_count"),
+                                favourites_count=post.get("favourites_count"),
+                                reblogged=post.get("reblogged"),
+                                favourited=post.get("favourited"),
+                                sensitive=post.get("sensitive"),
+                                spoiler_text=post.get("spoiler_text"),
+                                visibility=post.get("visibility"),
+                                mentions=post.get("mentions"),
+                                media_attachments=post.get(
+                                    "media_attachments"),
+                                emojis=post.get("emojis"),
+                                tags=post.get("tags"),
+                                bookmarked=post.get("bookmarked"),
+                                application=post.get("application"),
+                                language=post.get("language"),
+                                muted=post.get("muted"),
+                                pinned=post.get("pinned"),
+                                replies_count=post.get("replies_count"),
+                                card=post.get("card"),
+                                poll=post.get("poll"),
+                                edited_at=post.get("edited_at"),
+                            )
+                            pgupdater.cache_status(status)
                             count += 1
                         else:
                             failed += 1
@@ -64,14 +93,12 @@ async def add_user_posts( # noqa: PLR0913
                     know_followings.add(user["acct"])
                     all_known_users.add(user["acct"])
 
-async def add_post_with_context(  # noqa: PLR0913
+async def add_post_with_context(
         post : dict[str, str],
         server : str,
         access_token : str,
-        seen_urls : OrderedSet,
         external_tokens : dict[str, str],
         pgupdater : PostgreSQLUpdater,
-        status_id_cache : dict[str, str],
         ) -> bool:
     """Add the given post to the server.
 
@@ -80,12 +107,9 @@ async def add_post_with_context(  # noqa: PLR0913
     post: The post to add.
     server: The server to add the post to.
     access_token: The access token to use to add the post.
-    seen_urls: The list of all URLs we have already seen.
     external_tokens: A dict of external tokens, keyed by server. If None, no \
         external tokens will be used.
     pgupdater: The PostgreSQL updater.
-    status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
-        IDs will be cached.
 
     Returns:
     -------
@@ -93,7 +117,7 @@ async def add_post_with_context(  # noqa: PLR0913
     """
     added = await api_mastodon.add_context_url(post["url"], server, access_token)
     if added is not False:
-        seen_urls.add(post["url"])
+        pgupdater.cache_status(added)
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
             parsed_urls : dict[str, tuple[str | None, str | None]] = {}
@@ -104,7 +128,7 @@ async def add_post_with_context(  # noqa: PLR0913
                     server, iter((post,)), parsed_urls, external_tokens, pgupdater,
                     access_token)
                 (await add_context_urls(
-                    server, access_token, known_context_urls, seen_urls))
+                    server, access_token, known_context_urls, pgupdater))
         return True
 
     return False
@@ -113,8 +137,7 @@ async def add_context_urls(
         server : str,
         access_token : str,
         context_urls : Iterable[str],
-        seen_urls : OrderedSet,
-        status_id_cache : dict[str, str] | None = None,
+        pgupdater : PostgreSQLUpdater,
         ) -> None:
     """Add the given toot URLs to the server.
 
@@ -123,29 +146,27 @@ async def add_context_urls(
     server: The server to add the toots to.
     access_token: The access token to use to add the toots.
     context_urls: The list of toot URLs to add.
-    seen_urls: The list of all URLs we have already seen.
-    status_id_cache: A dict of status IDs, keyed by URL. If None, no status \
-        IDs will be cached.
+    pgupdater: The PostgreSQL updater.
     """
     logging.debug("Adding statuses to server...")
     count = 0
     failed = 0
+    already_added = 0
     for url in context_urls:
-        if url not in seen_urls:
-            if status_id_cache is not None \
-                    and (f"{server,url}") in status_id_cache:
-                added = True
-            else:
-                added = await api_mastodon.add_context_url(url, server, access_token)
-                if status_id_cache is not None and isinstance(added, Status) \
-                        and added.url:
-                    status_id_cache[f"{server,added.url}"] = str(added.id)
-            if added is not False:
-                logging.info(f"Added {url}")
-                seen_urls.add(url)
+        cached_status = pgupdater.get_from_cache(url)
+        if cached_status and cached_status.get("status_id"):
+            already_added += 1
+        else:
+            status_added = await api_mastodon.add_context_url(
+                url, server, access_token)
+            if status_added:
+                pgupdater.cache_status(status_added)
                 count += 1
+                logging.info(f"Added {url}")
             else:
+                failed += 1
                 logging.warning(f"Failed {url}")
                 failed += 1
 
-    logging.info(f"\033[1mAdded {count} new statuses (with {failed} failures)\033[0m")
+    logging.info(f"\033[1mAdded {count} new statuses (with {failed} failures, \
+{already_added} already seen)\033[0m")

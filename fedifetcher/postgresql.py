@@ -67,7 +67,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.status_stats: {e}")
 
-    def cache_status(self, status: Status) -> bool:
+    def cache_status(self, status: Status) -> bool:  # noqa: C901, PLR0915
         """Cache a status in the database.
 
         We'll be using a table named public.fetched_statuses to store the
@@ -90,91 +90,101 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             "uri",
             "url",
             "created_at",
-            "edited_at",
-            "replies_count",
-            "reblogs_count",
-            "favourites_count",
         ]
         for attribute in required_attributes:
-            if not hasattr(status, attribute):
+            if not status.get(attribute):
                 logging.error(
                     f"Status missing required attribute: {attribute}")
                 return False
         # Cast these variables to the correct types.
-        status_id_fetched = int(status.id)
-        uri = str(status.uri)
-        url = str(status.url)
-        created_at_original = status.created_at
-        edited_at_original = status.edited_at
-        replies_count = int(status.replies_count)
-        reblogs_count = int(status.reblogs_count)
-        favourites_count = int(status.favourites_count)
+        status_id_fetched = str(status.get("id"))
+        uri = str(status.get("uri"))
+        url = str(status.get("url"))
+        created_at_original = status.get("created_at")
+        edited_at_original = status.get("edited_at")
+        replies_count = int(status.get("replies_count"))
+        reblogs_count = int(status.get("reblogs_count"))
+        favourites_count = int(status.get("favourites_count"))
         # We can determine the originality of the status by comparing the ID in the URL
         # to the ID in the status.
         try:
-            logging.debug(f"Caching status {status.id}")
+            logging.debug(f"Caching status {url}")
             original = False
             status_id = None
             status_id_original = None
-            if status_id_fetched == int(url.split("/")[-1]):
+            if status_id_fetched == url.split("/")[-1]:
+                logging.debug(f"Status {url} is original")
                 original = True
                 status_id_original = status_id_fetched
+            else:
+                logging.debug(f"Status {url} is not from origin")
             now = datetime.now(UTC)
-            query = """
-            SELECT EXISTS (
-                SELECT 1
+            query_exists = """
+                SELECT *
                 FROM public.fetched_statuses
-                WHERE uri = %s
-            );
+                WHERE uri = %s;
             """
             data = (uri,)
             with self.conn.cursor() as cursor:
-                cursor.execute(query, data)
-                exists = cursor.fetchone()[0]
-                if exists:
-                    if not original:
-                        if exists["original"]:
-                            logging.debug(
-                                f"Already have original status for {uri}, skipping")
-                            return False
-                        reblogs_count = max(reblogs_count, exists["reblogs_count"])
-                        favourites_count = (
-                            favourites_count + exists["favourites_count"])
+                cursor.execute(query_exists, data)
+                row = cursor.fetchone()
+                if row:  # Check if row exists
+                    columns = [column[0] for column in cursor.description]
+                    row = dict(zip(columns, row, strict=False))
+                if row:
+                    try:
+                        if not original:
+                            if row.get("original"):
+                                logging.debug(
+                                    f"Already have original status for {uri}, skipping")
+                                return False
+                            logging.debug("No original status found, caching")
+                            got_reblogs_count = row.get("reblogs_count")
+                            if got_reblogs_count:
+                                reblogs_count = max(reblogs_count, got_reblogs_count)
+                            got_favourites_count = row.get("favourites_count")
+                            if got_favourites_count:
+                                favourites_count = max(
+                                    favourites_count, got_favourites_count)
+                    except AttributeError:
+                        logging.warning(f"Attribute error for {uri}")
+                        logging.warning(row)
+                        return False
                     # Check public.statuses to see if we already have a local id.
-                    query = """
+                    query_statuses = """
                     SELECT id
                     FROM public.statuses
                     WHERE uri = %s
                     LIMIT 1;
                     """
                     data = (uri,)
-                    cursor.execute(query, data)
+                    cursor.execute(query_statuses, data)
                     result = cursor.fetchone()
                     if result is not None:
-                        status_id = result["id"]
+                        columns = [column[0] for column in cursor.description]
+                        result = dict(zip(columns, result, strict=False))
+                        status_id = result.get("id")
                     query = """
                     UPDATE public.fetched_statuses
                     SET text = %s, updated_at = %s, in_reply_to_id_original = %s,
                     reblog_of_id_original = %s, spoiler_text = %s, reply = %s,
-                    language = %s, original = %s, account_id = %s,
-                    in_reply_to_account_id_original = %s, poll_id_original = %s,
+                    language = %s, original = %s, poll_id_original = %s,
                     created_at_original = %s, edited_at_original = %s,
                     status_id = %s, status_id_original = %s,
                     replies_count = %s, reblogs_count = %s, favourites_count = %s
                     WHERE uri = %s;
                     """
                     data = (
-                        status.content,
+                        status.get("content"),
                         now,
-                        status.in_reply_to_id,
-                        status.reblog_of_id,
-                        status.spoiler_text,
-                        status.reply,
-                        status.language,
+                        status.get("in_reply_to_id"),
+                        status.get("reblog_of_id"),
+                        status.get("spoiler_text"),
+                        status.get("reply"),
+                        status.get("language"),
                         original,
-                        status.account.id,
-                        status.in_reply_to_account_id_original,
-                        status.poll.id if status.poll is not None else None,
+                        status.get("poll").get("id") \
+                            if status.get("poll") is not None else None,
                         created_at_original,
                         edited_at_original,
                         status_id,
@@ -184,34 +194,33 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         favourites_count,
                         uri,
                     )
+                    logging.debug(f"Updating status {url}")
                 else:
                     query = """
                     INSERT INTO public.fetched_statuses
                     (uri, text, created_at, updated_at, in_reply_to_id_original,
                     reblog_of_id_original, url, spoiler_text, reply, language,
-                    conversation_id, original, account_id, application_id,
-                    in_reply_to_account_id_original, poll_id_original,
+                    original, poll_id_original,
                     created_at_original, edited_at_original, status_id,
                     status_id_original, replies_count, reblogs_count,
                     favourites_count)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Null, %s, %s,
-                    Null, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s);
                     """
                     data = (
                         uri,
-                        status.content,
+                        status.get("content"),
                         now,
                         now,
-                        status.in_reply_to_id,
-                        status.reblog_of_id,
+                        status.get("in_reply_to_id"),
+                        status.get("reblog_of_id"),
                         url,
-                        status.spoiler_text,
-                        status.reply,
-                        status.language,
+                        status.get("spoiler_text"),
+                        status.get("reply"),
+                        status.get("language"),
                         original,
-                        status.account.id,
-                        status.in_reply_to_account_id_original,
-                        status.poll.id if status.poll is not None else None,
+                        status.get("poll").get("id") \
+                            if status.get("poll") is not None else None,
                         created_at_original,
                         edited_at_original,
                         status_id,
@@ -220,9 +229,10 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         reblogs_count,
                         favourites_count,
                     )
+                    logging.debug(f"Inserting status {url}")
                 cursor.execute(query, data)
                 self.conn.commit()
-                logging.debug(f"Status {status.id} cached")
+                logging.debug(f"Status {url} cached")
                 return True
         except (OperationalError, Error) as e:
             logging.error(f"Error caching status: {e}")
@@ -254,24 +264,27 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                 cursor.execute(query, data)
                 result = cursor.fetchone()
                 if result is not None:
+                    columns = [column[0] for column in cursor.description]
+                    result = dict(zip(columns, result, strict=False))
+                    logging.info(f"Got status from cache: {url}")
                     return Status(
-                        id=result["status_id"],
-                        uri=result["uri"],
-                        url=result["url"],
-                        created_at=result["created_at_original"],
-                        edited_at=result["edited_at_original"],
-                        replies_count=result["replies_count"],
-                        reblogs_count=result["reblogs_count"],
-                        favourites_count=result["favourites_count"],
-                        content=result["text"],
-                        in_reply_to_id=result["in_reply_to_id_original"],
-                        reblog_of_id=result["reblog_of_id_original"],
-                        spoiler_text=result["spoiler_text"],
-                        reply=result["reply"],
-                        language=result["language"],
-                        in_reply_to_account_id=result["in_reply_to_account_id_original"],
-                        poll_id=result["poll_id_original"],
-                        account_id=result["account_id"],
+                        id=result.get("status_id"),
+                        uri=result.get("uri"),
+                        url=result.get("url"),
+                        created_at=result.get("created_at_original"),
+                        edited_at=result.get("edited_at_original"),
+                        replies_count=result.get("replies_count"),
+                        reblogs_count=result.get("reblogs_count"),
+                        favourites_count=result.get("favourites_count"),
+                        content=result.get("text"),
+                        in_reply_to_id=result.get("in_reply_to_id_original"),
+                        reblog_of_id=result.get("reblog_of_id_original"),
+                        spoiler_text=result.get("spoiler_text"),
+                        reply=result.get("reply"),
+                        language=result.get("language"),
+                        in_reply_to_account_id=result.get("in_reply_to_account_id_original"),
+                        poll_id=result.get("poll_id_original"),
+                        account_id=result.get("account_id"),
                     )
         except (OperationalError, Error) as e:
             logging.error(f"Error getting status from cache: {e}")

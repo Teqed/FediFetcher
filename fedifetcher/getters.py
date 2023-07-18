@@ -95,5 +95,5 @@ async def get_post_context(  # noqa: PLR0913, D417
 
 
     except Exception as ex:
-        logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
+        logging.exception(f"Error getting context for toot {toot_url}. Exception: {ex}")
         return []

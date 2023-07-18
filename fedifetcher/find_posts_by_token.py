@@ -11,7 +11,6 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 
 async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
         token: str,
-        seen_urls: OrderedSet,
         parsed_urls : dict[str, tuple[str | None, str | None]],
         replied_toot_server_ids: dict[str, str | None],
         all_known_users : OrderedSet,
@@ -19,8 +18,7 @@ async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: di
         known_followings : OrderedSet,
         external_tokens: dict[str, str],
         pgupdater: PostgreSQLUpdater,
-        status_id_cache: dict[str, str],
-        ) -> OrderedSet:
+        ) -> None:
     """Pull posts from a Mastodon server, using a token."""
     logging.info("Finding posts for provided token")
     if helpers.arguments.home_timeline_length > 0:
@@ -46,7 +44,7 @@ async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: di
             helpers.arguments.server,
             token,
             known_context_urls,
-            seen_urls,
+            pgupdater,
             )
         logging.debug("Added context URLs")
         # Backfill any post authors, and any mentioned users
@@ -98,10 +96,8 @@ mentioned users")
                     ),
                 recently_checked_users,
                 all_known_users,
-                seen_urls,
                 external_tokens,
                 pgupdater,
-                status_id_cache,
                 )
     token_user_id = await api_mastodon.get_me(helpers.arguments.server, token)
     if not token_user_id:
@@ -116,11 +112,11 @@ mentioned users")
                 helpers.arguments.server,
                 [token_user_id],
                 token,
-                seen_urls,
+                pgupdater,
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting context URLs")
-            known_context_urls = await getter_wrappers.get_all_known_context_urls(
+            await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -129,7 +125,6 @@ mentioned users")
                 token,
                 )
             logging.debug("Found known context URLs, getting context URLs")
-            seen_urls.update(known_context_urls)
             replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
                 helpers.arguments.server,
                 reply_toots,
@@ -150,7 +145,7 @@ mentioned users")
                 helpers.arguments.server,
                 token,
                 context_urls,
-                seen_urls,
+                pgupdater,
                 )
             logging.debug("Added context URLs")
         if helpers.arguments.max_followings > 0:
@@ -169,10 +164,8 @@ mentioned users")
                 token, followings,
                 known_followings,
                 all_known_users,
-                seen_urls,
                 external_tokens,
                 pgupdater,
-                status_id_cache,
                 )
             logging.debug("Added context URLs")
         if helpers.arguments.max_followers > 0:
@@ -192,10 +185,8 @@ mentioned users")
                 followers,
                 recently_checked_users,
                 all_known_users,
-                seen_urls,
                 external_tokens,
                 pgupdater,
-                status_id_cache,
                 )
             logging.debug("Added context URLs")
     if helpers.arguments.max_follow_requests > 0:
@@ -214,10 +205,8 @@ mentioned users")
             follow_requests,
             recently_checked_users,
             all_known_users,
-            seen_urls,
             external_tokens,
             pgupdater,
-            status_id_cache,
             )
         logging.debug("Added context URLs")
     if helpers.arguments.from_notifications > 0:
@@ -236,10 +225,8 @@ mentioned users")
             notification_users,
             recently_checked_users,
             all_known_users,
-            seen_urls,
             external_tokens,
             pgupdater,
-            status_id_cache,
             )
         logging.debug("Added context URLs")
     if helpers.arguments.max_bookmarks > 0:
@@ -264,7 +251,7 @@ mentioned users")
             helpers.arguments.server,
             token,
             known_context_urls,
-            seen_urls,
+            pgupdater,
             )
         logging.debug("Added context URLs")
     if helpers.arguments.max_favourites > 0:
@@ -289,7 +276,6 @@ mentioned users")
             helpers.arguments.server,
             token,
             known_context_urls,
-            seen_urls,
+            pgupdater,
             )
         logging.debug("Added context URLs")
-    return seen_urls

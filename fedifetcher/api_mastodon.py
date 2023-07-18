@@ -302,7 +302,7 @@ async def get_reply_posts_from_id(
     user_id: str,
     server: str,
     token: str,
-    seen_urls: OrderedSet,
+    pgupdater: PostgreSQLUpdater,
     reply_since: datetime,
 ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user.
@@ -312,7 +312,7 @@ async def get_reply_posts_from_id(
     user_id (str): The user id of the user to get the posts from.
     server (str): The server to get the posts from.
     token (str): The access token to use for the request.
-    seen_urls (OrderedSet[str]): The URLs that have already been seen.
+    pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
     reply_since (datetime): The datetime to get replies since.
 
     Returns:
@@ -328,7 +328,7 @@ async def get_reply_posts_from_id(
                 for toot in all_statuses
                 if toot["in_reply_to_id"]
                 and cast(datetime, toot["created_at"]).astimezone(UTC) > reply_since
-                and toot["url"] not in seen_urls
+                and pgupdater.get_from_cache(toot["url"]) is None
             ]
     except Exception:
         logging.exception(f"Error getting user posts for user {user_id}")
@@ -745,7 +745,7 @@ async def get_status_id_from_url(
     statuses: list[Status] | None = result.get("statuses")
     if statuses:
         for status in statuses:
-            if isinstance(status, Status) and status.url == url:
+            if status.get("url") == url:
                 pgupdater.cache_status(status)
                 return str(status.get("id"))
     return None

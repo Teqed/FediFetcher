@@ -18,11 +18,8 @@ class SeenFilesManager:
     -------
     __init__(self, base_dir: str) -> None
         Constructor to initialize SeenFilesManager.
-    write_seen_files(self, seen_urls: OrderedSet,
         replied_toot_server_ids: dict[str, str | None],
         known_followings: OrderedSet, recently_checked_users: OrderedSet,
-        status_id_cache: dict[str, str],
-        trending_posts_replies_seen: dict[str, str]) -> None
         Write the seen files to the storage.
     get_seen_data(self) -> tuple[OrderedSet, dict[str, str| None], OrderedSet,
         OrderedSet, dict[str, str], dict[str, str]]:
@@ -76,20 +73,16 @@ class SeenFilesManager:
                 json.dump(dict(list(data.items())[-50000:]), file)
                 logging.debug(f"Wrote {len(data)} {file_name}")
 
-    def write_seen_files(  # noqa: PLR0913
+    def write_seen_files(
         self,
-        seen_urls: OrderedSet,
         replied_toot_server_ids: dict[str, str | None],
         known_followings: OrderedSet,
         recently_checked_users: OrderedSet,
-        status_id_cache: dict[str, str],
-        trending_posts_replies_seen: dict[str, str],
     ) -> None:
         """Write the seen files to disk.
 
         Parameters
         ----------
-        seen_urls : OrderedSet
             The set of seen URLs.
         replied_toot_server_ids : dict[str, str | None]
             The dictionary mapping toot server IDs to replied toot IDs.
@@ -97,24 +90,17 @@ class SeenFilesManager:
             The set of known followings.
         recently_checked_users : OrderedSet
             The set of recently checked users.
-        status_id_cache : dict[str, str]
             The dictionary mapping status IDs to URLs.
-        trending_posts_replies_seen : dict[str, str]
-            The dictionary mapping trending posts IDs to replied toot IDs.
 
         """
         self._write_file("known_followings", known_followings)
-        self._write_file("seen_urls", seen_urls)
         self._write_file("replied_toot_server_ids", replied_toot_server_ids)
         self._write_file("recently_checked_users", recently_checked_users)
-        self._write_file("status_id_cache", status_id_cache)
-        self._write_file("trending_posts_replies_seen", trending_posts_replies_seen)
 
     def get_seen_data(
         self,
     ) -> tuple[
-        OrderedSet, dict[str, str | None], OrderedSet, OrderedSet,
-        dict[str, str], dict[str, str],
+        dict[str, str | None], OrderedSet, OrderedSet,
     ]:
         """Load seen files from disk.
 
@@ -124,20 +110,14 @@ class SeenFilesManager:
             A tuple containing the loaded seen files data.
 
         """
-        seen_urls = OrderedSet()
         replied_toot_server_ids = {}
         known_followings = OrderedSet()
         recently_checked_users = OrderedSet()
-        status_id_cache = {}
-        trending_posts_replies_seen = {}
 
         file_data = [
             ("known_followings", known_followings),
-            ("seen_urls", seen_urls),
             ("replied_toot_server_ids", replied_toot_server_ids),
             ("recently_checked_users", recently_checked_users),
-            ("status_id_cache", status_id_cache),
-            ("trending_posts_replies_seen", trending_posts_replies_seen),
         ]
 
         for file_name, data in file_data:
@@ -152,10 +132,7 @@ class SeenFilesManager:
                         logging.debug(f"Loaded {len(data)} {file_name}")
 
         return (
-            seen_urls,
             replied_toot_server_ids,
             known_followings,
             recently_checked_users,
-            status_id_cache,
-            trending_posts_replies_seen,
         )
