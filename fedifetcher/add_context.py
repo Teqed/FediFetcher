@@ -1,5 +1,4 @@
 """Add context toots to the server."""
-from functools import cache
 import logging
 from collections.abc import Iterable
 
