@@ -194,7 +194,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         favourites_count,
                         uri,
                     )
-                    logging.debug(f"Updating status {url}")
+                    logging.info(f"Updating status {url}")
                 else:
                     query = """
                     INSERT INTO public.fetched_statuses
@@ -229,7 +229,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         reblogs_count,
                         favourites_count,
                     )
-                    logging.debug(f"Inserting status {url}")
+                    logging.info(f"Inserting status {url}")
                 cursor.execute(query, data)
                 self.conn.commit()
                 logging.debug(f"Status {url} cached")
