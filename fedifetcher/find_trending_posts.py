@@ -174,18 +174,25 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
     logging.info(f"\033[1;35m{msg}\033[0m")
     found_all = False
     posts_to_find = post_urls.copy()
-    if parsed_urls[0][0] is not None:
-        trending = await api_mastodon.get_trending_posts(
-                        parsed_urls[0][0],
-                        external_tokens.get(parsed_urls[0][0]), 40)
-        domains_fetched.append(parsed_urls[0][0])
-        if trending:
-            for t_post in trending:
-                if t_post["url"] in posts_to_find:
-                    posts_to_find.remove(t_post["url"])
-                add_post_to_dict(t_post, parsed_urls[0][0], trending_post_dict)
+    # if parsed_urls[0][0] is not None:
+    #     trending = await api_mastodon.get_trending_posts(
+    #                     parsed_urls[0][0],
+    #                     external_tokens.get(parsed_urls[0][0]), 40)
+    #     domains_fetched.append(parsed_urls[0][0])
+    #     if trending:
+    #         for t_post in trending:
+    #             if t_post["url"] in posts_to_find:
+    #                 posts_to_find.remove(t_post["url"])
+    #             add_post_to_dict(t_post, parsed_urls[0][0], trending_post_dict)
     for post_url in posts_to_find:
-        logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
+        parsed = parsers.post(post_url)
+        if parsed and parsed[0] and parsed[0] == parsed_urls[0][0] and parsed[1]:
+            remote = await api_mastodon.get_status_by_id(
+                    parsed[0], parsed[1], external_tokens)
+            if remote and remote["url"] == post_url:
+                add_post_to_dict(remote, parsed[0], trending_post_dict)
+        else:
+            logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
     if not posts_to_find:
         found_all = True
     return found_all
