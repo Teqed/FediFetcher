@@ -3,7 +3,7 @@ import asyncio
 import functools
 import inspect
 import logging
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Awaitable, Callable, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar, cast
 
@@ -21,27 +21,29 @@ from mastodon import (
 )
 from mastodon.types import Context, SearchV2, Status
 
-from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers
 
 T = TypeVar("T")
 def handle_mastodon_errors(  # noqa: C901
-        default_return_value: T) -> Callable: # type: ignore # noqa: PGH003
+        default_return_value: T, # type: ignore  # noqa: PGH003
+        ) -> Callable:
     """Handle Mastodon errors."""
-    def decorator(  # noqa: C901
-            func: Callable[..., T | None]) -> Callable[..., T | None]:
+    def decorator(  # noqa: C901, ANN202
+            func: Callable[..., Awaitable[T]],
+            ):
         sig = inspect.signature(func)
 
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T | None:  # noqa: ANN401, PLR0911
+        async def wrapper(  # noqa: PLR0911
+            *args: Any, **kwargs: Any) -> T | None:  # noqa: ANN401
             bound = sig.bind(*args, **kwargs)
 
             server = bound.arguments.get("server", "Unknown")
 
             try:
-                return func(*args, **kwargs)
+                return await func(*args, **kwargs)
             except MastodonNotFoundError:
                 logging.error(
                     f"Error with Mastodon API on server {server}. Status code: 404. "
@@ -53,7 +55,6 @@ def handle_mastodon_errors(  # noqa: C901
                     f"Error with Mastodon API on server {server}. Status code: 429. "
                     "You are being rate limited. Try again later.",
                 )
-                return default_return_value
                 return default_return_value
             except MastodonUnauthorizedError:
                 logging.error(
