@@ -155,8 +155,10 @@ async def add_context_urls(
     for url in context_urls:
         cached_status = pgupdater.get_from_cache(url)
         if cached_status and cached_status.get("status_id"):
+            logging.debug(f"Already added {url}")
             already_added += 1
         else:
+            logging.info(f"Fetching {url} through {server}")
             status_added = await api_mastodon.add_context_url(
                 url, server, access_token)
             if status_added:
