@@ -45,10 +45,12 @@ async def add_user_posts( # noqa: PLR0913
                 already_added = 0
                 for post in posts:
                     post_url = post.get("url")
-                    if post_url and pgupdater.get_from_cache(post_url):
-                        already_added += 1
-                        logging.debug(f"Already added {post_url}")
-                        continue
+                    if post_url:
+                        cached = pgupdater.get_from_cache(post_url)
+                        if cached and cached[1]:
+                            already_added += 1
+                            logging.debug(f"Already added {post_url}")
+                            continue
                     if post.get("reblog") is None:
                         added = await add_post_with_context(
                             post, server, access_token,
@@ -160,11 +162,8 @@ async def add_context_urls(
     already_added = 0
     for url in context_urls:
         cached_status = pgupdater.get_from_cache(url)
-        logging.debug(cached_status)
-        if cached_status:
-            logging.debug("Status previously cached")
-            cached_status_id = cached_status.get("status_id")
-            logging.debug(cached_status_id)
+        if cached_status and cached_status[0]:
+            cached_status_id = cached_status[1]
             if cached_status_id:
                 logging.debug(f"Already added {url}")
                 already_added += 1

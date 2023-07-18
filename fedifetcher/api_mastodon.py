@@ -355,7 +355,7 @@ async def get_toot_context(  # noqa: PLR0913, D103
         # Define an async function to process each status
         async def process_status(status_url: str) -> None:
             async with semaphore:
-                status_id = await get_status_id_from_url(
+                status_id = await get_home_status_id_from_url(
                     home_server, home_server_token, status_url,
                     pgupdater, session)
                 if status_id:
@@ -707,7 +707,7 @@ def filter_language(
         lambda toot: toot.get("language") == language, toots)
 
 @handle_mastodon_errors(None)
-async def get_status_id_from_url(
+async def get_home_status_id_from_url(
         server: str,
         token: str,
         url: str,
@@ -732,9 +732,12 @@ async def get_status_id_from_url(
     """
     cached_status = pgupdater.get_from_cache(url)
     if cached_status:
-        status_id = cached_status.id
+        logging.debug(f"Found cached status for {url}")
+        status_id = cached_status[1]
         if status_id is not None:
+            logging.debug(f"Found status id {status_id} for {url}")
             return status_id
+        logging.debug(f"Status id for {url} is None")
     logging.info(f"Asking server to lookup {url}")
     server_api = f"https://{server}/api/v2/search"
     async with session.get(server_api, params={"q": url, "resolve": "true"},

@@ -238,7 +238,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             logging.error(f"Error caching status: {e}")
         return False
 
-    def get_from_cache(self, url: str) -> Status | None:
+    def get_from_cache(self, url: str) -> tuple[Status, str | None] | None:
         """Get a status from the cache.
 
         Parameters
@@ -268,7 +268,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                     result = dict(zip(columns, result, strict=False))
                     logging.info(f"Got status from cache: {url} \
 Original: {result.get('original')} ID: {result.get('status_id')}")
-                    return Status(
+                    status = Status(
                         id=result.get("status_id"),
                         uri=result.get("uri"),
                         url=result.get("url"),
@@ -287,6 +287,8 @@ Original: {result.get('original')} ID: {result.get('status_id')}")
                         poll_id=result.get("poll_id_original"),
                         account_id=result.get("account_id"),
                     )
+                    status_id = result.get("status_id")
+                    return (status, status_id if status_id else None)
         except (OperationalError, Error) as e:
             logging.error(f"Error getting status from cache: {e}")
         logging.debug(f"Status not found in cache: {url}")

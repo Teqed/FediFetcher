@@ -306,7 +306,7 @@ async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]]
     async def fetch_status_id(url : str) -> tuple[str, str]:
         session = aiohttp.ClientSession()
         try:
-            local_status_id = await api_mastodon.get_status_id_from_url(
+            local_status_id = await api_mastodon.get_home_status_id_from_url(
                 home_server, home_token, url, pgupdater, session)
             return url, local_status_id if local_status_id else ""
         finally:
