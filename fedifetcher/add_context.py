@@ -1,4 +1,5 @@
 """Add context toots to the server."""
+from functools import cache
 import logging
 from collections.abc import Iterable
 
@@ -154,9 +155,14 @@ async def add_context_urls(
     already_added = 0
     for url in context_urls:
         cached_status = pgupdater.get_from_cache(url)
-        if cached_status and cached_status.get("status_id"):
-            logging.debug(f"Already added {url}")
-            already_added += 1
+        logging.debug(cached_status)
+        if cached_status:
+            logging.debug("Status previously cached")
+            cached_status_id = cached_status.get("status_id")
+            logging.debug(cached_status_id)
+            if cached_status_id:
+                logging.debug(f"Already added {url}")
+                already_added += 1
         else:
             logging.info(f"Fetching {url} through {server}")
             status_added = await api_mastodon.add_context_url(
