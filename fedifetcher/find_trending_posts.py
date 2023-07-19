@@ -206,8 +206,8 @@ less popular posts from {fetch_domain}"
 
     """Update the status stats with the trending posts."""
     if pgupdater:
-        for _url, post in trending_posts_dict.items():
-            local_status_id = post["local_status_id"]
+        for post in updated_trending_posts_dict.values():
+            local_status_id = post.get("local_status_id")
             if local_status_id:
                 pgupdater.queue_status_update(
                     int(local_status_id),
