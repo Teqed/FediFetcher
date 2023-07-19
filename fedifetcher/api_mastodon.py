@@ -348,9 +348,11 @@ async def get_toot_context(  # noqa: PLR0913
     context_statuses = list(context["ancestors"] + context["descendants"])
     # Sort by server
     context_statuses.sort(key=lambda status: status["url"].split("/")[2])
+    context_statuses_url_list = [status["url"] for status in context_statuses]
+    home_status_list: dict[str, str] = await get_home_status_id_from_url_list(
+        home_server, home_server_token, context_statuses_url_list, pgupdater)
     for status in context_statuses:
-        home_status_id = await get_home_status_id_from_url(
-            home_server, home_server_token, status["url"], pgupdater)
+        home_status_id = home_status_list.get(status["url"])
         if home_status_id:
             pgupdater.queue_status_update(
                 int(home_status_id),
@@ -723,6 +725,44 @@ async def get_home_status_id_from_url(
                     pgupdater.cache_status(status)
                 return str(status.get("id"))
     return None
+
+@handle_mastodon_errors(None)
+async def get_home_status_id_from_url_list(
+        server: str,
+        token: str,
+        urls: list[str],
+        pgupdater: PostgreSQLUpdater,
+) -> dict[str, str]:
+    """Get the status ids from a list of toot URLs asynchronously.
+
+    Args:
+    ----
+    server (str): The server to get the status id from.
+    token (str): The access token to use for the request.
+    urls (list[str]): The URLs of the toots to get the status ids of.
+    pgupdater (PostgreSQLUpdater): The PostgreSQLUpdater instance to use for \
+        caching the status.
+
+    Returns:
+    -------
+    dict[str, str]: A dict of status ids, keyed by toot URL.
+    """
+    status_ids = {}
+    cached_statuses: list[tuple[Status, str | None] | None] = \
+        pgupdater.get_list_from_cache(urls)
+    for url in urls:
+        if cached_statuses:
+            for cached_status in cached_statuses:
+                if cached_status and cached_status[0].url == url:
+                    status_id = cached_status[1]
+                    if status_id:
+                        status_ids.update({url: status_id})
+                        continue
+        status_id = await get_home_status_id_from_url(
+            server, token, url, pgupdater)
+        if status_id:
+            status_ids.update({url: status_id})
+    return status_ids
 
 @handle_mastodon_errors(None)
 async def get_status_by_id(

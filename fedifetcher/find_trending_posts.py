@@ -395,19 +395,11 @@ async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]]
                                 pgupdater : PostgreSQLUpdater,
                                 ) -> dict[str, dict[str, str]]:
     """Update the local_status_id in the trending_posts_dict."""
-    async def fetch_status_id(url : str) -> tuple[str, str]:
-        local_status_id = await api_mastodon.get_home_status_id_from_url(
-            home_server, home_token, url, pgupdater)
-        return url, local_status_id if local_status_id else ""
-
-    tasks = [fetch_status_id(url) for url in trending_posts_dict]
-
-    # Wait for all the tasks to complete
-    results = await asyncio.gather(*tasks)
-
-    # Update the local_status_id in the trending_posts_dict
-    for url, local_status_id in results:
+    list_of_trending_posts_urls = [
+        trending_post["url"] for trending_post in trending_posts_dict.values()]
+    home_status_list = await api_mastodon.get_home_status_id_from_url_list(
+        home_server, home_token, list_of_trending_posts_urls, pgupdater)
+    for url, local_status_id in home_status_list:
         trending_posts_dict[url]["local_status_id"] = \
             local_status_id if local_status_id else ""
-
     return trending_posts_dict
