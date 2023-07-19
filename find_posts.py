@@ -293,17 +293,17 @@ f"Found {len(trending_posts)} trending posts")
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
-            known_context_urls = await getter_wrappers.get_all_known_context_urls(
-                helpers.arguments.server,
-                trending_posts_changed,
-                parsed_urls,
-                external_tokens,
-                pgupdater,
-                admin_token,
-                )
-            logging.debug("Found known context URLs, getting context URLs")
             get_context_urls = False # TODO: Make this configurable
             if get_context_urls:
+                known_context_urls = await getter_wrappers.get_all_known_context_urls(
+                    helpers.arguments.server,
+                    trending_posts_changed,
+                    parsed_urls,
+                    external_tokens,
+                    pgupdater,
+                    admin_token,
+                    )
+                logging.debug("Found known context URLs, getting context URLs")
                 await add_context.add_context_urls(
                     helpers.arguments.server,
                     admin_token,
