@@ -120,7 +120,7 @@ async def mastodon(server: str, token: str | None = None) -> Mastodon:
             debug_requests=False,
             ratelimit_method=rate_limit_method,
             ratelimit_pacefactor=1.1,
-            request_timeout=5,
+            request_timeout=7,
             version_check_mode="none",
         )
     return mastodon.sessions[server]
