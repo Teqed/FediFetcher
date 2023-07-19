@@ -708,13 +708,10 @@ async def get_home_status_id_from_url(
     """
     cached_status = pgupdater.get_from_cache(url)
     if cached_status:
-        logging.debug(f"Found cached status for {url}")
         status_id = cached_status[1]
         if status_id is not None:
-            logging.debug(f"Found status id {status_id} for {url}")
             return status_id
-        logging.debug(f"Status id for {url} is None")
-    logging.info(f"Fetching status id for {url} from {server}")
+    logging.debug(f"Fetching status id for {url} from {server}")
     result = await add_context_url(url, server, token)
     if isinstance(result, dict):
         statuses: list[Status] | None = result.get("statuses")
