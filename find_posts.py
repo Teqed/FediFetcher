@@ -257,14 +257,14 @@ f"Found {len(trending_posts)} trending posts")
                         None,
                     )
                 )
-                old_reply_count = cached[0].get("replies_count") if cached else None
+                old_reply_count = cached.get("replies_count") if cached else None
                 if ((old_reply_count is None) or (new_reply_count > old_reply_count)) \
                     and cached:
                     trending_posts_changed.append(post)
                     if cached:
-                        cached[0]["replies_count"] = new_reply_count
-                        cached[0]["id"] = post.get("id")
-                        pgupdater.cache_status(cached[0])
+                        cached["replies_count"] = new_reply_count
+                        cached["id"] = post.get("id")
+                        pgupdater.cache_status(cached)
                     else:
                         status = Status(
                                 id=post.get("id"),

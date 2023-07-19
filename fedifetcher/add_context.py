@@ -44,16 +44,17 @@ async def add_user_posts( # noqa: PLR0913
                 already_added = 0
                 list_of_post_urls = [post.get("url") for post in posts]
                 list_of_post_urls = [url for url in list_of_post_urls if url]
-                cached_posts: list[tuple[Status, str | None] | None] = pgupdater.get_list_from_cache(list_of_post_urls)
+                cached_posts: list[Status | None] = pgupdater.get_list_from_cache(
+                                                                    list_of_post_urls)
                 for post in posts:
                     post_url = post.get("url")
                     if post_url:
                         cached = None
                         for cached_post in cached_posts:
-                            if cached_post and cached_post[0].url == post_url:
+                            if cached_post and cached_post.url == post_url:
                                 cached = cached_post
                                 break
-                        if cached and cached[1]:
+                        if cached:
                             already_added += 1
                             logging.debug(f"Already added {post_url}")
                             continue
