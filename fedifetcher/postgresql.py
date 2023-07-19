@@ -351,10 +351,6 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                     for result in results:
                         status_dict = dict(zip(columns, result, strict=False))
                         status_id = status_dict.get("status_id")
-                        if not status_id:
-                            logging.warning(f"Problem with {status_dict}")
-                            logging.debug(result)
-                            continue
                         url = status_dict.get("url")
                         if not url:
                             logging.warning(f"Problem with {status_dict}")
