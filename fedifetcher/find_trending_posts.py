@@ -180,7 +180,9 @@ async def find_trending_posts(
     domains_fetched = var_manip.get_domains_fetched()
     domains_to_fetch = var_manip.get_domains_to_fetch()
 
-    for fetch_domain in remember_to_find_me.copy():
+    logging.debug(f"Remembering: {remember_to_find_me}")
+
+    for fetch_domain in remember_to_find_me:
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
 less popular posts from {fetch_domain}"
         logging.info(
@@ -196,7 +198,6 @@ less popular posts from {fetch_domain}"
                 else:
                     logging.warning(
                         f"Couldn't find {status_id} from {fetch_domain}")
-        remember_to_find_me.pop(fetch_domain)
 
     logging.info("Fetching aux posts")
     await aux_domain_fetcher.do_aux_fetches(trending_posts_dict)
