@@ -292,6 +292,7 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
             if context:
                 logging.info(f"Got {len(context)} context posts for {url}")
                 known_context_urls.extend(context)
+        await session.close()
     return filter(
         lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
 
