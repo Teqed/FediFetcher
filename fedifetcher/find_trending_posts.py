@@ -10,7 +10,7 @@ from collections.abc import Callable
 import aiohttp
 from mastodon.errors import MastodonError
 
-from fedifetcher import api_mastodon, parsers
+from fedifetcher import api_mastodon, asyncio_executor_thread, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
@@ -168,10 +168,7 @@ async def find_trending_posts(  # noqa: C901
                     trending_posts_dict,
                     var_manip,
                     aux_domain_fetcher,
-                    fetch_domain,
-                ),
-            )
-        concurrent.futures.wait(futures)
+                    fetch_domain))
 
     for fetch_domain in remember_to_find_me.copy():
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
@@ -212,17 +209,17 @@ less popular posts from {fetch_domain}"
     return list(api_mastodon.filter_language(
         updated_trending_posts_dict.values(), "en"))
 
-async def fetch_and_return_missing(external_tokens : dict[str, str],
+def fetch_and_return_missing(external_tokens : dict[str, str],
             trending_posts_dict : dict[str, dict[str, str]],
             var_manip,  # noqa: ANN001
             aux_domain_fetcher,  # noqa: ANN001
             fetch_domain : str,
             ) -> None:
     """Fetch posts from a domain."""
-    remembering = await fetch_trending_from_domain(external_tokens,
+    remembering = asyncio.run(fetch_trending_from_domain(external_tokens,
         add_post_to_dict, var_manip.get_domains_to_fetch(),
         var_manip.get_domains_fetched(), var_manip.get_remember_to_find_me(),
-        aux_domain_fetcher, fetch_domain, trending_posts_dict)
+        aux_domain_fetcher, fetch_domain, trending_posts_dict))
     try:
         var_manip.add_to_remembering(remembering)
         var_manip.add_to_fetched(fetch_domain)
