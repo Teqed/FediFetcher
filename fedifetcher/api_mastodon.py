@@ -24,7 +24,6 @@ from mastodon.types import Context, SearchV2, Status
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers
-from concurrent.futures import ThreadPoolExecutor
 
 T = TypeVar("T")
 def handle_mastodon_errors(  # noqa: C901
@@ -346,21 +345,22 @@ async def get_toot_context(  # noqa: PLR0913
     # Get the context of a toot
     context: Context = (await mastodon(server, token)).status_context(id=toot_id)
     # List of status URLs
-    status_urls = [status["url"] \
-                for status in context["ancestors"] + context["descendants"]]
-    # Create tasks
-    tasks = [get_home_status_id_from_url(
-        home_server, home_server_token, url, pgupdater, session) for url in status_urls]
+    context_statuses = list(context["ancestors"] + context["descendants"])
+    # Create tasks as properties of the context statuses
+    for status in context_statuses:
+        status["task"] = get_home_status_id_from_url(
+            home_server, home_server_token, status["url"], pgupdater, session)
     # Process all tasks concurrently
-    results = await asyncio.gather(*tasks)
-    # Update statuses with results
-    for r in results:
-        if r:
+    await asyncio.gather(*[status["task"] for status in context_statuses])
+    # If we got a status id as result, queue status update
+    for status in context_statuses:
+        if status["task"].result():
             pgupdater.queue_status_update(
-                int(r[0]), r[1].reblogs_count, r[1].favourites_count)
+                status["task"].result(),
+                status.get("reblogs_count"), status.get("favourites_count"))
     # Commit status updates
     pgupdater.commit_status_updates()
-    return status_urls
+    return [status["url"] for status in context_statuses]
 
 @handle_mastodon_errors([])
 async def get_notifications(
