@@ -717,13 +717,10 @@ async def get_home_status_id_from_url(
     msg = f"Fetching status id for {url} from {server}"
     logging.info(f"\033[1;33m{msg}\033[0m")
     result = await add_context_url(url, server, token)
-    if isinstance(result, dict):
-        statuses: list[Status] | None = result.get("statuses")
-        if statuses:
-            for status in statuses:
-                if status.get("url") == url:
-                    pgupdater.cache_status(status)
-                return str(status.get("id"))
+    if isinstance(result, dict | Status):
+        if result.get("url") == url:
+            pgupdater.cache_status(result)
+        return str(result.get("id"))
     return None
 
 @handle_mastodon_errors(None)
