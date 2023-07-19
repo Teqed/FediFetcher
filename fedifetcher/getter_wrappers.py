@@ -9,6 +9,7 @@ from typing import Any, cast
 
 import aiohttp
 import requests
+from aiohttp import ClientSession
 
 from fedifetcher import api_mastodon
 from fedifetcher.getters import (
@@ -18,7 +19,7 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers, parsers
-from aiohttp import ClientSession
+
 
 async def get_notification_users(
         server : str,
