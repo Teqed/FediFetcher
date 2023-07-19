@@ -2,6 +2,7 @@
 
 
 import asyncio
+import concurrent.futures
 import functools
 import logging
 import re
@@ -242,10 +243,28 @@ class AuxDomainFetch:
                 self.domains_fetched, list_of_posts,
                     list_of_parsed_urls, trending_post_dict)
 
-        tasks = [fetching_domain(fetchable_domain, trending_post_dict) \
-                for fetchable_domain in self.aux_fetches.copy()]
-        await asyncio.gather(*tasks)
-        # Once all tasks are done, clear the aux_fetches
+        # for fetchable_domain in self.aux_fetches.copy():
+        # Convert to using threads instead of asyncio tasks.
+        # This is because we're doing a lot of I/O, and asyncio tasks are
+        # not good for I/O.
+
+        # Create a thread pool executor
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Create a list of futures
+            futures = []
+            for fetchable_domain in self.aux_fetches.copy():
+                # Submit the function to the executor
+                futures.append(
+                    executor.submit(
+                        fetching_domain,
+                        fetchable_domain,
+                        trending_post_dict,
+                    ),
+                )
+            # Wait for all the futures to complete
+            concurrent.futures.wait(futures)
+
+
         self.aux_fetches.clear()
 
 async def fetch_trending_from_domain(  # noqa: C901, PLR0913
