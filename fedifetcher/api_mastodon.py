@@ -711,7 +711,7 @@ async def get_home_status_id_from_url(
     """
     cached_status = pgupdater.get_from_cache(url)
     if cached_status:
-        status_id = cached_status[1]
+        status_id = cached_status.get("id")
         if status_id is not None:
             return status_id
     msg = f"Fetching status id for {url} from {server}"

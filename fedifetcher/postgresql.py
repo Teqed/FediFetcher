@@ -235,7 +235,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             logging.error(f"Error caching status: {e}")
         return False
 
-    def get_from_cache(self, url: str) -> tuple[Status, str | None] | None:
+    def get_from_cache(self, url: str) -> Status | None:
         """Get a status from the cache.
 
         Parameters
@@ -312,7 +312,7 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                         else:
                             logging.warning(
                                 f"Status {url} not found in public.statuses")
-                    return (status, status_id if status_id else None)
+                    return status
         except (OperationalError, Error) as e:
             logging.error(f"Error getting status from cache: {e}")
         logging.debug(f"Status not found in cache: {url}")
