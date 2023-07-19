@@ -270,7 +270,6 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
         # Sort the toots by server
         toots_to_get_context_for = sorted(
             toots_to_get_context_for, key=lambda x: x[0][0])
-        session = aiohttp.ClientSession()
         for post in toots_to_get_context_for:
             parsed_url = post[0]
             url = post[1]
@@ -283,7 +282,6 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
                     pgupdater,
                     server,
                     home_server_token,
-                    session,
                 )
             except Exception as ex:
                 logging.error(f"Error getting context for toot {url} : {ex}")
@@ -293,7 +291,6 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
             if context:
                 logging.info(f"Got {len(context)} context posts for {url}")
                 known_context_urls.extend(context)
-        await session.close()
     return filter(
         lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
 
@@ -448,7 +445,7 @@ async def get_all_context_urls(  # noqa: PLR0913
         try:
             return await get_post_context(
                 server, toot_id, url, external_tokens, pgupdater,
-                home_server, home_server_token, session,
+                home_server, home_server_token,
             )
         finally:
             await session.close()

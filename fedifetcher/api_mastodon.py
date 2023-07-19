@@ -340,7 +340,7 @@ async def get_reply_posts_from_id(
 async def get_toot_context(  # noqa: PLR0913
         server: str, toot_id: str, token: str | None,
         pgupdater: PostgreSQLUpdater, home_server: str,
-        home_server_token: str, session: ClientSession) -> list[str]:
+        home_server_token: str) -> list[str]:
     """Get the URLs of the context toots of the given toot asynchronously."""
     # Get the context of a toot
     context: Context = (await mastodon(server, token)).status_context(id=toot_id)
@@ -349,7 +349,7 @@ async def get_toot_context(  # noqa: PLR0913
     # If we got a status id as result, queue status update
     for status in context_statuses:
         home_status_id = await get_home_status_id_from_url(
-            home_server, home_server_token, status["url"], pgupdater, session)
+            home_server, home_server_token, status["url"], pgupdater)
         if home_status_id:
             pgupdater.queue_status_update(
                 int(home_status_id),

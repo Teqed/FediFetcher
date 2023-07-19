@@ -68,7 +68,6 @@ async def get_post_context(  # noqa: PLR0913, D417
         pgupdater: PostgreSQLUpdater,
         home_server: str,
         home_server_token: str,
-        session: ClientSession,
 ) -> list[str]:
     """Get the URLs of the context toots of the given toot asynchronously.
 
@@ -93,7 +92,7 @@ async def get_post_context(  # noqa: PLR0913, D417
 
         return await api_mastodon.get_toot_context(
             server, toot_id, external_token, pgupdater,
-            home_server, home_server_token, session,
+            home_server, home_server_token,
         )
 
 
