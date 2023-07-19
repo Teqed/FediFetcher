@@ -158,7 +158,7 @@ async def find_trending_posts(
         domains_fetched, domains_to_fetch, remember_to_find_me)
 
     with concurrent.futures.ThreadPoolExecutor(
-            max_workers=10, thread_name_prefix="fetcher",
+            thread_name_prefix="fetcher",
     ) as executor:
         futures = []
         for fetch_domain in external_feeds.copy():
@@ -321,7 +321,7 @@ class AuxDomainFetch:
                     list_of_parsed_urls, trending_post_dict))
         # Create a thread pool executor
         with concurrent.futures.ThreadPoolExecutor(
-                max_workers=10, thread_name_prefix="aux_fetcher",
+                thread_name_prefix="aux_fetcher",
         ) as executor:
             # Create a list of futures
             futures = []
