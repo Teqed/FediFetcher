@@ -181,7 +181,9 @@ async def find_trending_posts(
     domains_fetched = var_manip.get_domains_fetched()
     domains_to_fetch = var_manip.get_domains_to_fetch()
 
-    logging.debug(f"Remembering: {remember_to_find_me}")
+    for fetch_domain in remember_to_find_me.copy():
+        if not remember_to_find_me[fetch_domain]:
+            remember_to_find_me.pop(fetch_domain)
 
     for fetch_domain in remember_to_find_me:
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
