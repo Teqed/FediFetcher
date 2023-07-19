@@ -70,8 +70,68 @@ Copy: {t_post_url}\033[0m")
     trending_posts_dict[t_post_url] = trending_post
     return False
 
+class VariableManipulators:
+    """Takes care of domains_fetched, domains_to_fetch, and remember_to_find_me."""
 
-async def find_trending_posts(  # noqa: C901
+    def __init__(self, domains_fetched : list[str],
+                domains_to_fetch : list[str],
+                remember_to_find_me : dict[str, list[str]],
+                ) -> None:
+        """Initialize the VariableManipulators."""
+        self.domains_fetched = domains_fetched
+        self.domains_to_fetch = domains_to_fetch
+        self.remember_to_find_me = remember_to_find_me
+
+    def add_to_remembering(self, fetch_domain : str,
+                            status_id : str) -> None:
+        """Add a status ID to the remember_to_find_me dict."""
+        if fetch_domain not in self.remember_to_find_me:
+            self.remember_to_find_me[fetch_domain] = []
+        if status_id not in self.remember_to_find_me[fetch_domain]:
+            self.remember_to_find_me[fetch_domain].append(status_id)
+
+    def remove_from_remembering(self, fetch_domain : str,
+                                status_id : str) -> None:
+        """Remove a status ID from the remember_to_find_me dict."""
+        if fetch_domain in self.remember_to_find_me:
+            if status_id in self.remember_to_find_me[fetch_domain]:
+                self.remember_to_find_me[fetch_domain].remove(status_id)
+            if not self.remember_to_find_me[fetch_domain]:
+                self.remember_to_find_me.pop(fetch_domain)
+
+    def get_remembering(self) -> dict[str, list[str]]:
+        """Return the remember_to_find_me dict."""
+        return self.remember_to_find_me
+
+    def add_to_fetched(self, fetch_domain : str) -> None:
+        """Add a domain to the domains_fetched list."""
+        if fetch_domain not in self.domains_fetched:
+            self.domains_fetched.append(fetch_domain)
+
+    def remove_from_fetched(self, fetch_domain : str) -> None:
+        """Remove a domain from the domains_fetched list."""
+        if fetch_domain in self.domains_fetched:
+            self.domains_fetched.remove(fetch_domain)
+
+    def get_domains_fetched(self) -> list[str]:
+        """Return the domains_fetched list."""
+        return self.domains_fetched
+
+    def add_to_fetching(self, fetch_domain : str) -> None:
+        """Add a domain to the domains_to_fetch list."""
+        if fetch_domain not in self.domains_to_fetch:
+            self.domains_to_fetch.append(fetch_domain)
+
+    def remove_from_fetching(self, fetch_domain : str) -> None:
+        """Remove a domain from the domains_to_fetch list."""
+        if fetch_domain in self.domains_to_fetch:
+            self.domains_to_fetch.remove(fetch_domain)
+
+    def get_domains_to_fetch(self) -> list[str]:
+        """Return the domains_to_fetch list."""
+        return self.domains_to_fetch
+
+async def find_trending_posts(
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -94,67 +154,6 @@ async def find_trending_posts(  # noqa: C901
     aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
                                         domains_fetched)
 
-    class VariableManipulators:
-        """Takes care of manipulating domains_fetched, domains_to_fetch, and remember_to_find_me."""
-
-        def __init__(self, domains_fetched : list[str],
-                    domains_to_fetch : list[str],
-                    remember_to_find_me : dict[str, list[str]],
-                    ) -> None:
-            """Initialize the VariableManipulators."""
-            self.domains_fetched = domains_fetched
-            self.domains_to_fetch = domains_to_fetch
-            self.remember_to_find_me = remember_to_find_me
-
-        def add_to_remembering(self, fetch_domain : str,
-                                status_id : str) -> None:
-            """Add a status ID to the remember_to_find_me dict."""
-            if fetch_domain not in self.remember_to_find_me:
-                self.remember_to_find_me[fetch_domain] = []
-            if status_id not in self.remember_to_find_me[fetch_domain]:
-                self.remember_to_find_me[fetch_domain].append(status_id)
-
-        def remove_from_remembering(self, fetch_domain : str,
-                                    status_id : str) -> None:
-            """Remove a status ID from the remember_to_find_me dict."""
-            if fetch_domain in self.remember_to_find_me:
-                if status_id in self.remember_to_find_me[fetch_domain]:
-                    self.remember_to_find_me[fetch_domain].remove(status_id)
-                if not self.remember_to_find_me[fetch_domain]:
-                    self.remember_to_find_me.pop(fetch_domain)
-
-        def get_remembering(self) -> dict[str, list[str]]:
-            """Return the remember_to_find_me dict."""
-            return self.remember_to_find_me
-
-        def add_to_fetched(self, fetch_domain : str) -> None:
-            """Add a domain to the domains_fetched list."""
-            if fetch_domain not in self.domains_fetched:
-                self.domains_fetched.append(fetch_domain)
-
-        def remove_from_fetched(self, fetch_domain : str) -> None:
-            """Remove a domain from the domains_fetched list."""
-            if fetch_domain in self.domains_fetched:
-                self.domains_fetched.remove(fetch_domain)
-
-        def get_domains_fetched(self) -> list[str]:
-            """Return the domains_fetched list."""
-            return self.domains_fetched
-
-        def add_to_fetching(self, fetch_domain : str) -> None:
-            """Add a domain to the domains_to_fetch list."""
-            if fetch_domain not in self.domains_to_fetch:
-                self.domains_to_fetch.append(fetch_domain)
-
-        def remove_from_fetching(self, fetch_domain : str) -> None:
-            """Remove a domain from the domains_to_fetch list."""
-            if fetch_domain in self.domains_to_fetch:
-                self.domains_to_fetch.remove(fetch_domain)
-
-        def get_domains_to_fetch(self) -> list[str]:
-            """Return the domains_to_fetch list."""
-            return self.domains_to_fetch
-
     var_manip = VariableManipulators(
         domains_fetched, domains_to_fetch, remember_to_find_me)
 
@@ -170,6 +169,14 @@ async def find_trending_posts(  # noqa: C901
                     aux_domain_fetcher,
                     fetch_domain))
         concurrent.futures.wait(futures)
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                logging.debug(f"Remembering {result}")
+
+    remember_to_find_me = var_manip.get_remembering()
+    domains_fetched = var_manip.get_domains_fetched()
+    domains_to_fetch = var_manip.get_domains_to_fetch()
 
     for fetch_domain in remember_to_find_me.copy():
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
@@ -330,6 +337,10 @@ class AuxDomainFetch:
                 )
             # Wait for all the futures to complete
             concurrent.futures.wait(futures)
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result:
+                    logging.debug(f"Remembering {result}")
 
 
         self.aux_fetches.clear()
