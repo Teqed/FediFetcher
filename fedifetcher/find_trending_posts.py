@@ -296,7 +296,7 @@ class AuxDomainFetch:
                             ) -> None:
         """Do all the queued aux fetches asynchronously."""
 
-        async def fetching_domain(fetch_domain: str,
+        def fetching_domain(fetch_domain: str,
                                 trending_post_dict: dict[str, dict[str, str]]) -> None:
             msg = \
     f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
@@ -306,9 +306,9 @@ class AuxDomainFetch:
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 list_of_posts.append(post_url)
                 list_of_parsed_urls.append(parsed_url)
-            await aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
+            asyncio.run(aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
                 self.domains_fetched, list_of_posts,
-                    list_of_parsed_urls, trending_post_dict)
+                    list_of_parsed_urls, trending_post_dict))
 
         # for fetchable_domain in self.aux_fetches.copy():
         # Convert to using threads instead of asyncio tasks.
