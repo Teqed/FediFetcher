@@ -723,10 +723,10 @@ async def get_home_status_id_from_url(
         if result.get("url") == url:
             pgupdater.cache_status(result)
             return str(status_id)
-            logging.error(
-                f"Something went wrong fetching: {url} from {server} , \
+        logging.error(
+            f"Something went wrong fetching: {url} from {server} , \
 did not match {result.get('url')}")
-            logging.debug(result)
+        logging.debug(result)
     elif result is False:
         logging.warning(f"Failed to get status id for {url} on {server}")
     logging.error(f"Status id for {url} not found")
