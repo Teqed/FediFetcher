@@ -169,6 +169,7 @@ async def add_context_urls(
         pgupdater.get_dict_from_cache(list_of_context_urls)
     logging.debug(f"Got {len(cached_posts)} cached posts")
     for url in context_urls:
+        logging.debug(f"Checking {url}")
         cached = cached_posts.get(url)
         if cached:
             cached_status_id = cached.get("id")
@@ -178,9 +179,11 @@ async def add_context_urls(
                 logging.debug(f"Got status with no ID: {cached}")
                 posts_to_fetch.append(url)
         else:
+            logging.debug(f"Didn't get status for {url} from cache")
             posts_to_fetch.append(url)
 
     if posts_to_fetch:
+        logging.debug(f"Fetching {len(posts_to_fetch)} posts")
         for url in posts_to_fetch:
             logging.info(f"Fetching {url} through {server}")
             status_added = await api_mastodon.add_context_url(

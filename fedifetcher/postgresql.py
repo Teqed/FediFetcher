@@ -85,6 +85,9 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             True if the status was newly cached or changed, False otherwise.
         """
         # First, make sure our required fields are present.
+        if status is None:
+            logging.error("Status is None")
+            return False
         required_attributes = [
             "uri",
             "url",
