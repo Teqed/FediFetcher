@@ -318,8 +318,8 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
         logging.debug(f"Status not found in cache: {url}")
         return None
 
-    def get_list_from_cache(
-            self, urls: list[str]) -> list[Status | None]:
+    def get_dict_from_cache(
+            self, urls: list[str]) -> dict[str, Status | None]:
         """Get a list of statuses from the cache.
 
         Parameters
@@ -347,21 +347,23 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                 results = cursor.fetchall().copy()
                 columns = [column[0] for column in cursor.description]
                 if results is not None:
-                    statuses = []
+                    statuses = {}
                     for result in results:
-                        # Convert the result to a dict.
                         status_dict = dict(zip(columns, result, strict=False))
+                        status_id = status_dict.get("status_id")
+                        if not status_id:
+                            logging.warning(f"Problem with {status_dict}")
+                            logging.debug(result)
+                            continue
                         url = status_dict.get("url")
-                        logging.info(f"Got status from cache: {url} \
-Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
                         if not url:
                             logging.warning(f"Problem with {status_dict}")
                             logging.debug(result)
                             continue
-                        status: Status = Status(
-                            id=status_dict.get("status_id"),
+                        status = Status(
+                            id=status_id,
                             uri=status_dict.get("uri"),
-                            url=status_dict.get("url"),
+                            url=url,
                             created_at=status_dict.get("created_at_original"),
                             edited_at=status_dict.get("edited_at_original"),
                             replies_count=status_dict.get("replies_count"),
@@ -377,7 +379,6 @@ Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
                             poll_id=status_dict.get("poll_id_original"),
                             account_id=status_dict.get("account_id"),
                         )
-                        status_id = status_dict.get("status_id")
                         if not status_id:
                             query_statuses = """
                             SELECT id
@@ -410,9 +411,9 @@ Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
                             else:
                                 logging.warning(
                                     f"Status {url} not found in public.statuses")
-                        statuses.append(status)
+                        statuses[url] = status
                     return statuses
         except (OperationalError, Error) as e:
             logging.error(f"Error getting statuses from cache: {e}")
         logging.debug(f"Statuses not found in cache: {urls}")
-        return [None] * len(urls)
+        return {}

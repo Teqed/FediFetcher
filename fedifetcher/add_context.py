@@ -44,16 +44,12 @@ async def add_user_posts( # noqa: PLR0913
                 already_added = 0
                 list_of_post_urls = [post.get("url") for post in posts]
                 list_of_post_urls = [url for url in list_of_post_urls if url]
-                cached_posts: list[Status | None] = pgupdater.get_list_from_cache(
+                cached_posts: dict[str, Status | None] = pgupdater.get_dict_from_cache(
                                                                     list_of_post_urls)
                 for post in posts:
                     post_url = post.get("url")
                     if post_url:
-                        cached = None
-                        for cached_post in cached_posts:
-                            if cached_post and cached_post.url == post_url:
-                                cached = cached_post
-                                break
+                        cached = cached_posts.get(post_url)
                         if cached:
                             already_added += 1
                             logging.debug(f"Already added {post_url}")
@@ -168,14 +164,10 @@ async def add_context_urls(
     failed = 0
     already_added = 0
     posts_to_fetch = []
-    cached_posts: list[Status | None] = \
-        pgupdater.get_list_from_cache(list(context_urls))
+    cached_posts: dict[str, Status | None] = \
+        pgupdater.get_dict_from_cache(list(context_urls))
     for url in context_urls:
-        cached = None
-        for cached_post in cached_posts:
-            if cached_post and cached_post.url == url:
-                cached = cached_post
-                break
+        cached = cached_posts.get(url)
         if cached:
             cached_status_id = cached.get("id")
             if cached_status_id:

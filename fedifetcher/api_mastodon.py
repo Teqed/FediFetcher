@@ -748,16 +748,16 @@ async def get_home_status_id_from_url_list(
     dict[str, str]: A dict of status ids, keyed by toot URL.
     """
     status_ids = {}
-    cached_statuses: list[Status | None] = \
-        pgupdater.get_list_from_cache(urls)
+    cached_statuses: dict[str, Status | None] = \
+        pgupdater.get_dict_from_cache(urls)
     for url in urls:
         if cached_statuses:
-            for cached_status in cached_statuses:
-                if cached_status and cached_status.get("url") == url:
-                    status_id = cached_status.get("id")
-                    if status_id:
-                        status_ids.update({url: status_id})
-                        continue
+            cached_status = cached_statuses.get(url)
+            if cached_status:
+                status_id = cached_status.get("id")
+                if status_id:
+                    status_ids.update({url: status_id})
+                    continue
         status_id = await get_home_status_id_from_url(
             server, token, url, pgupdater)
         if status_id:
