@@ -231,13 +231,15 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
             fetch_domain : str,
             ) -> None:
     """Fetch posts from a domain."""
-    remembering : dict[str, list[str]] = asyncio.run(
+    asyncio.run(
         fetch_trending_from_domain(external_tokens,
-        add_post_to_dict, var_manip.get_domains_to_fetch(),
-        var_manip.get_domains_fetched(), var_manip.get_remembering(),
+        add_post_to_dict,
+        var_manip.get_domains_to_fetch(),
+        var_manip.get_domains_fetched(),
+        var_manip.add_to_remembering,
+        var_manip.get_remembering,
         aux_domain_fetcher, fetch_domain, trending_posts_dict))
     try:
-        var_manip.add_to_remembering(fetch_domain, remembering)
         var_manip.add_to_fetched(fetch_domain)
         var_manip.remove_from_fetching(fetch_domain)
     except MastodonError:
@@ -354,17 +356,17 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                                     dict[str, dict[str, str]]], bool],
         domains_to_fetch : list[str],
         domains_fetched : list[str],
-        remember_to_find_me : dict[str, list[str]],
+        add_to_remembering : Callable[[str, str], None],
+        get_remembering : Callable[[], dict[str, list[str]]],
         aux_domain_fetcher : AuxDomainFetch,
         fetch_domain : str,
         trending_posts_dict : dict[str, dict[str, str]],
-        ) -> dict[str, list[str]]:
+        ):
     """Fetch trending posts from a domain."""
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
     trending_posts = await api_mastodon.get_trending_posts(
             fetch_domain, external_tokens.get(fetch_domain), 40)
-    remember_to_find_me_updates : dict[str, list[str]] = {}
 
     if trending_posts:
         for post in trending_posts:
@@ -377,9 +379,10 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                 logging.warning(f"Error parsing post URL {post_url}")
                 continue
             if parsed_url[0] in domains_to_fetch:
-                if parsed_url[0] not in remember_to_find_me or \
-                            parsed_url[1] not in remember_to_find_me[parsed_url[0]]:
-                    remember_to_find_me_updates[parsed_url[0]].append(parsed_url[1])
+                remembering = get_remembering()
+                if parsed_url[0] not in remembering or \
+                            parsed_url[1] not in remembering[parsed_url[0]]:
+                    add_to_remembering(parsed_url[0], parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
                 await aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
@@ -393,7 +396,6 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                     logging.warning(f"Couldn't find original for {post_url}")
     else:
         logging.warning(f"Couldn't find trending posts on {fetch_domain}")
-    return remember_to_find_me_updates
 
 async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
