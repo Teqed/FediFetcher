@@ -324,12 +324,10 @@ async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]]
     """Update the local_status_id in the trending_posts_dict."""
     async def fetch_status_id(url : str) -> tuple[str, str]:
         session = aiohttp.ClientSession()
-        try:
-            local_status_id = await api_mastodon.get_home_status_id_from_url(
-                home_server, home_token, url, pgupdater, session)
-            return url, local_status_id if local_status_id else ""
-        finally:
-            await session.close()
+        local_status_id = await api_mastodon.get_home_status_id_from_url(
+            home_server, home_token, url, pgupdater, session)
+        await session.close()
+        return url, local_status_id if local_status_id else ""
 
     tasks = [fetch_status_id(url) for url in trending_posts_dict]
 
