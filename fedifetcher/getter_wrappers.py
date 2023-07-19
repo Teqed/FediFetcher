@@ -472,6 +472,7 @@ async def get_all_context_urls(  # noqa: PLR0913
 
     # Wait for all the tasks to complete
     results = await asyncio.gather(*tasks)
+    await session.close()
 
     # Flatten the list of context URLs
     context_urls = list(itertools.chain.from_iterable(results))
