@@ -346,7 +346,8 @@ async def get_toot_context(  # noqa: PLR0913
     context: Context = (await mastodon(server, token)).status_context(id=toot_id)
     # List of status URLs
     context_statuses = list(context["ancestors"] + context["descendants"])
-    # If we got a status id as result, queue status update
+    # Sort by server
+    context_statuses.sort(key=lambda status: status["url"].split("/")[2])
     for status in context_statuses:
         home_status_id = await get_home_status_id_from_url(
             home_server, home_server_token, status["url"], pgupdater)

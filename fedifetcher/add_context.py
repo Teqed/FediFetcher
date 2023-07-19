@@ -165,7 +165,6 @@ async def add_context_urls(
         if cached_status and cached_status[0]:
             cached_status_id = cached_status[1]
             if cached_status_id:
-                logging.debug(f"Already added {url}")
                 already_added += 1
         else:
             posts_to_fetch.append(url)
