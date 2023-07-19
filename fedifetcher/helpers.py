@@ -54,7 +54,7 @@ def get(
         headers = {}
     h = headers.copy()
     if "User-Agent" not in h:
-        h["User-Agent"] = "FediFetcher (https://go.thms.uk/mgr)"
+        h["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0"
 
     if timeout == 0:
         timeout = arguments.http_timeout

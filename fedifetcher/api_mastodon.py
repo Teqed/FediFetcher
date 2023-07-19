@@ -110,7 +110,7 @@ async def mastodon(server: str, token: str | None = None) -> Mastodon:
             logging.info(f"\033[1;33m{msg}\033[0m")
         session = requests.Session()
         session.headers.update({
-            "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",
         })
         rate_limit_method = "wait" if not mastodon.sessions else "throw"
         mastodon.sessions[server] = Mastodon(

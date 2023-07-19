@@ -398,7 +398,7 @@ def get_redirect_url(url : str) -> str | None:
     """
     try:
         resp = requests.head(url, allow_redirects=False, timeout=5,headers={
-            "User-Agent": "FediFetcher (https://go.thms.uk/mgr)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",
         })
     except Exception as ex:
         logging.error(f"Error getting redirect URL for URL {url} Exception: {ex}")
