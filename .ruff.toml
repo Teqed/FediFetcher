@@ -1,6 +1,6 @@
 # .ruff.toml
 select = ['ALL']
-ignore = ['TRY400','G004','BLE001', 'TRY002', 'ANN101']
+ignore = ['TRY400','G004','BLE001', 'TRY002', 'ANN101', 'FIX002', 'TD003', 'TD002']
 fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
 exclude = [
     ".bzr",
