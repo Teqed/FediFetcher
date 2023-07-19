@@ -302,12 +302,14 @@ context URLs")
                 admin_token,
                 )
             logging.debug("Found known context URLs, getting context URLs")
-            await add_context.add_context_urls(
-                helpers.arguments.server,
-                admin_token,
-                known_context_urls,
-                pgupdater,
-                )
+            get_context_urls = False # TODO: Make this configurable
+            if get_context_urls:
+                await add_context.add_context_urls(
+                    helpers.arguments.server,
+                    admin_token,
+                    known_context_urls,
+                    pgupdater,
+                    )
             logging.debug("Added context URLs")
 
         logging.info("Writing seen files")
