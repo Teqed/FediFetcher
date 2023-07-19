@@ -186,6 +186,7 @@ less popular posts from {fetch_domain}"
         logging.info(
             f"\033[1;34m{msg}\033[0m")
         for status_id in remember_to_find_me[fetch_domain]:
+            logging.debug(f"Fetching {status_id} from {fetch_domain}")
             if str(status_id) not in trending_posts_dict \
                     or "original" not in trending_posts_dict[str(status_id)]:
                 original_post = await api_mastodon.get_status_by_id(
