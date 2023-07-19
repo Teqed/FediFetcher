@@ -354,6 +354,10 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                         url = status_dict.get("url")
                         logging.info(f"Got status from cache: {url} \
 Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
+                        if not url:
+                            logging.warning(f"Problem with {status_dict}")
+                            logging.debug(result)
+                            continue
                         status: Status = Status(
                             id=status_dict.get("status_id"),
                             uri=status_dict.get("uri"),
@@ -385,9 +389,11 @@ Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
                             cursor.execute(query_statuses, data)
                             public_status = cursor.fetchone()
                             if public_status is not None:
-                                columns = [column[0] for column in cursor.description]
+                                public_status_columns = \
+                                    [column[0] for column in cursor.description]
                                 public_status_result = dict(
-                                    zip(columns, public_status, strict=False))
+                                    zip(public_status_columns, public_status,
+                                        strict=False))
                                 public_status_id = public_status_result.get("id")
                                 logging.debug(
                                     f"Found public.statuses ID: {public_status_id}")
