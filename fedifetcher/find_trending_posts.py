@@ -169,6 +169,7 @@ async def find_trending_posts(  # noqa: C901
                     var_manip,
                     aux_domain_fetcher,
                     fetch_domain))
+        concurrent.futures.wait(futures)
 
     for fetch_domain in remember_to_find_me.copy():
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
