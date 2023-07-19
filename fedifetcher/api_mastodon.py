@@ -711,7 +711,8 @@ async def get_home_status_id_from_url(
         status_id = cached_status[1]
         if status_id is not None:
             return status_id
-    logging.debug(f"Fetching status id for {url} from {server}")
+    msg = f"Fetching status id for {url} from {server}"
+    logging.info(f"\033[1;33m{msg}\033[0m")
     result = await add_context_url(url, server, token)
     if isinstance(result, dict):
         statuses: list[Status] | None = result.get("statuses")
