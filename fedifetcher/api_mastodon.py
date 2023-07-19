@@ -346,17 +346,13 @@ async def get_toot_context(  # noqa: PLR0913
     context: Context = (await mastodon(server, token)).status_context(id=toot_id)
     # List of status URLs
     context_statuses = list(context["ancestors"] + context["descendants"])
-    # Create tasks as properties of the context statuses
-    for status in context_statuses:
-        status["task"] = get_home_status_id_from_url(
-            home_server, home_server_token, status["url"], pgupdater, session)
-    # Process all tasks concurrently
-    await asyncio.gather(*[status["task"] for status in context_statuses])
     # If we got a status id as result, queue status update
     for status in context_statuses:
-        if status["task"].result():
+        home_status_id = await get_home_status_id_from_url(
+            home_server, home_server_token, status["url"], pgupdater, session)
+        if home_status_id:
             pgupdater.queue_status_update(
-                status["task"].result(),
+                int(home_status_id),
                 status.get("reblogs_count"), status.get("favourites_count"))
     # Commit status updates
     pgupdater.commit_status_updates()
