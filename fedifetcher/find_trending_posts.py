@@ -160,16 +160,17 @@ async def find_trending_posts(
     with concurrent.futures.ThreadPoolExecutor(
             thread_name_prefix="fetcher",
     ) as executor:
-        futures = []
-        for fetch_domain in external_feeds.copy():
-            futures.append(
-                executor.submit(
-                    fetch_and_return_missing,
-                    external_tokens,
-                    trending_posts_dict,
-                    var_manip,
-                    aux_domain_fetcher,
-                    fetch_domain))
+        futures = [
+            executor.submit(
+                fetch_and_return_missing,
+                external_tokens,
+                trending_posts_dict,
+                var_manip,
+                aux_domain_fetcher,
+                fetch_domain,
+            )
+            for fetch_domain in external_feeds.copy()
+        ]
         concurrent.futures.wait(futures)
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
@@ -326,16 +327,14 @@ class AuxDomainFetch:
                 thread_name_prefix="aux_fetcher",
         ) as executor:
             # Create a list of futures
-            futures = []
-            for fetchable_domain in self.aux_fetches.copy():
-                # Submit the function to the executor
-                futures.append(
-                    executor.submit(
-                        fetching_domain,
-                        fetchable_domain,
-                        trending_post_dict,
-                    ),
+            futures = [
+                executor.submit(
+                    fetching_domain,
+                    fetchable_domain,
+                    trending_post_dict,
                 )
+                for fetchable_domain in self.aux_fetches.copy()
+            ]
             # Wait for all the futures to complete
             concurrent.futures.wait(futures)
             for future in concurrent.futures.as_completed(futures):
