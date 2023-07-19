@@ -302,6 +302,15 @@ Original: {result.get('original')} ID: {result.get('status_id')}")
                             columns = [column[0] for column in cursor.description]
                             result = dict(zip(columns, result, strict=False))
                             status_id = result.get("id")
+                            # Put it back into public.fetched_statuses
+                            query = """
+                            UPDATE public.fetched_statuses
+                            SET status_id = %s
+                            WHERE url = %s;
+                            """
+                            data = (status_id, url)
+                            cursor.execute(query, data)
+                            self.conn.commit()
                         else:
                             logging.warning(
                                 f"Status {url} not found in public.statuses")
