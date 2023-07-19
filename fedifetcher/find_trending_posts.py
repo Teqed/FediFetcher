@@ -305,6 +305,7 @@ class AuxDomainFetch:
 
         def fetching_domain(fetch_domain: str,
                                 trending_post_dict: dict[str, dict[str, str]]) -> None:
+            """Fetch less popular posts from a domain."""
             msg = \
     f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
             logging.info(f"\033[1;34m{msg}\033[0m")
