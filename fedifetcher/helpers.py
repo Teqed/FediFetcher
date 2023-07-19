@@ -17,8 +17,8 @@ def setup_logging() -> None:
     stdout = colorlog.StreamHandler(stream=sys.stdout)
     fmt = colorlog.ColoredFormatter(
     "%(white)s%(asctime)s%(reset)s | %(log_color)s%(levelname)s%(reset)s | \
-%(threadName) %(name) | %(blue)s%(filename)s:%(lineno)s%(reset)s >>> \
-    %(log_color)s%(message)s%(reset)s")
+%(threadName)s:%(name)s | %(blue)s%(filename)s:%(lineno)s%(reset)s >>> \
+%(log_color)s%(message)s%(reset)s")
     stdout.setFormatter(fmt)
     logger.addHandler(stdout)
     logger.setLevel(arguments.log_level)
