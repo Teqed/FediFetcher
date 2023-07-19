@@ -239,10 +239,23 @@ f"Found {len(trending_posts)} trending posts")
                 if post["replies_count"] != 0 or post["in_reply_to_id"] is not None
             ]
             trending_posts_changed = []
+            trending_post_url_list = [post["url"] for post in trending_posts]
+            trending_posts_with_cache: list[tuple[Status, str | None] | None] = \
+                pgupdater.get_list_from_cache(
+                    trending_post_url_list)
             for post in trending_posts:
                 post_url: str = post["url"]
                 new_reply_count = post["replies_count"]
-                cached = pgupdater.get_from_cache(post_url)
+                cached = (
+                    next(
+                        (
+                            cached_post
+                            for cached_post in trending_posts_with_cache
+                            if cached_post is not None and cached_post[1] == post_url
+                        ),
+                        None,
+                    )
+                )
                 old_reply_count = cached[0].get("replies_count") if cached else None
                 if ((old_reply_count is None) or (new_reply_count > old_reply_count)) \
                     and cached:

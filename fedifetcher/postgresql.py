@@ -317,3 +317,93 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
             logging.error(f"Error getting status from cache: {e}")
         logging.debug(f"Status not found in cache: {url}")
         return None
+
+    def get_list_from_cache(
+            self, urls: list[str]) -> list[tuple[Status, str | None] | None]:
+        """Get a list of statuses from the cache.
+
+        Parameters
+        ----------
+        urls : list[str]
+            The URLs of the statuses.
+
+        Returns
+        -------
+        list[Status | None]
+            The statuses if found, None otherwise.
+        """
+        # This will take a list and make a single query to the database.
+        # This is much faster than querying the database for each status.
+        try:
+            # Lookup the statuses in the cache.
+            query = """
+            SELECT *
+            FROM public.fetched_statuses
+            WHERE url = ANY(%s);
+            """
+            data = (urls,)
+            with self.conn.cursor() as cursor:
+                cursor.execute(query, data)
+                results = cursor.fetchall()
+                if results is not None:
+                    statuses = []
+                    for result in results:
+                        # Convert the result to a dict.
+                        columns = [column[0] for column in cursor.description]
+                        status_dict = dict(zip(columns, result, strict=False))
+                        url = status_dict.get("url")
+                        logging.info(f"Got status from cache: {url} \
+Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
+                        status = Status(
+                            id=status_dict.get("status_id"),
+                            uri=status_dict.get("uri"),
+                            url=status_dict.get("url"),
+                            created_at=status_dict.get("created_at_original"),
+                            edited_at=status_dict.get("edited_at_original"),
+                            replies_count=status_dict.get("replies_count"),
+                            reblogs_count=status_dict.get("reblogs_count"),
+                            favourites_count=status_dict.get("favourites_count"),
+                            content=status_dict.get("text"),
+                            in_reply_to_id=status_dict.get("in_reply_to_id_original"),
+                            reblog_of_id=status_dict.get("reblog_of_id_original"),
+                            spoiler_text=status_dict.get("spoiler_text"),
+                            reply=status_dict.get("reply"),
+                            language=status_dict.get("language"),
+                            in_reply_to_account_id=status_dict.get("in_reply_to_account_id_original"),
+                            poll_id=status_dict.get("poll_id_original"),
+                            account_id=status_dict.get("account_id"),
+                        )
+                        status_id = status_dict.get("status_id")
+                        if not status_id:
+                            query_statuses = """
+                            SELECT id
+                            FROM public.statuses
+                            WHERE uri = %s
+                            LIMIT 1;
+                            """
+                            data = (result.get("uri"),)
+                            cursor.execute(query_statuses, data)
+                            public_status = cursor.fetchone()
+                            if public_status is not None:
+                                columns = [column[0] for column in cursor.description]
+                                public_status_result = dict(
+                                    zip(columns, result, strict=False))
+                                status_id = public_status_result.get("id")
+                                # Put it back into public.fetched_statuses
+                                query = """
+                                UPDATE public.fetched_statuses
+                                SET status_id = %s
+                                WHERE url = %s;
+                                """
+                                data = (status_id, url)
+                                cursor.execute(query, data)
+                                self.conn.commit()
+                            else:
+                                logging.warning(
+                                    f"Status {url} not found in public.statuses")
+                        statuses.append((status, status_id if status_id else None))
+                    return statuses
+        except (OperationalError, Error) as e:
+            logging.error(f"Error getting statuses from cache: {e}")
+        logging.debug(f"Statuses not found in cache: {urls}")
+        return [None] * len(urls)
