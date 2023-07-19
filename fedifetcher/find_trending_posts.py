@@ -10,7 +10,7 @@ from collections.abc import Callable
 import aiohttp
 from mastodon.errors import MastodonError
 
-from fedifetcher import api_mastodon, asyncio_executor_thread, parsers
+from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
@@ -157,7 +157,9 @@ async def find_trending_posts(
     var_manip = VariableManipulators(
         domains_fetched, domains_to_fetch, remember_to_find_me)
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=10, thread_name_prefix="fetcher",
+    ) as executor:
         futures = []
         for fetch_domain in external_feeds.copy():
             futures.append(
@@ -319,7 +321,7 @@ class AuxDomainFetch:
                     list_of_parsed_urls, trending_post_dict))
         # Create a thread pool executor
         with concurrent.futures.ThreadPoolExecutor(
-                max_workers=5, thread_name_prefix="aux_fetcher"
+                max_workers=10, thread_name_prefix="aux_fetcher",
         ) as executor:
             # Create a list of futures
             futures = []
@@ -399,9 +401,10 @@ async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]]
     """Update the local_status_id in the trending_posts_dict."""
     list_of_trending_posts_urls = [
         trending_post["url"] for trending_post in trending_posts_dict.values()]
-    home_status_list = await api_mastodon.get_home_status_id_from_url_list(
+    home_status_dict = await api_mastodon.get_home_status_id_from_url_list(
         home_server, home_token, list_of_trending_posts_urls, pgupdater)
-    for url, local_status_id in home_status_list:
-        trending_posts_dict[url]["local_status_id"] = \
-            local_status_id if local_status_id else ""
+    for trending_post in trending_posts_dict.values():
+        local_status_id = home_status_dict.get(trending_post["url"])
+        if local_status_id:
+            trending_post["local_status_id"] = local_status_id
     return trending_posts_dict
