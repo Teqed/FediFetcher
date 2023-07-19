@@ -3,7 +3,6 @@
 
 import asyncio
 import concurrent.futures
-import functools
 import logging
 import re
 from collections.abc import Callable
@@ -94,34 +93,85 @@ async def find_trending_posts(  # noqa: C901
     remember_to_find_me : dict[str, list[str]] = {}
     aux_domain_fetcher = AuxDomainFetch(external_tokens, add_post_to_dict,
                                         domains_fetched)
-    def on_task_done(task : asyncio.Task,  # noqa: PLR0913
-                    domain : str,
-                    externals : dict[str, asyncio.Task],
-                    remember_to_find_me : dict[str, list[str]],
-                    domains_fetched : list[str],
-                    domains_to_fetch : list[str],
-                    ) -> None:
-        try:
-            result = task.result()
-            remember_to_find_me.update(result)
-            domains_fetched.append(domain)
-            domains_to_fetch.remove(domain)
-        except MastodonError:
-            logging.error(
-                f"Error occurred while fetching domain {domain}")
-        finally:
-            del externals[domain]
 
-    externals = {}
-    for fetch_domain in external_feeds.copy():
-        task = asyncio.create_task(fetch_trending_from_domain(external_tokens,
-            add_post_to_dict, domains_to_fetch, domains_fetched, remember_to_find_me,
-            aux_domain_fetcher, fetch_domain, trending_posts_dict))
-        task.add_done_callback(functools.partial(on_task_done, domain=fetch_domain,
-                externals=externals, remember_to_find_me=remember_to_find_me,
-                domains_fetched=domains_fetched, domains_to_fetch=domains_to_fetch))
-        externals[fetch_domain] = task
-    await asyncio.gather(*externals.values())
+    class VariableManipulators:
+        """Takes care of manipulating domains_fetched, domains_to_fetch, and remember_to_find_me."""
+
+        def __init__(self, domains_fetched : list[str],
+                    domains_to_fetch : list[str],
+                    remember_to_find_me : dict[str, list[str]],
+                    ) -> None:
+            """Initialize the VariableManipulators."""
+            self.domains_fetched = domains_fetched
+            self.domains_to_fetch = domains_to_fetch
+            self.remember_to_find_me = remember_to_find_me
+
+        def add_to_remembering(self, fetch_domain : str,
+                                status_id : str) -> None:
+            """Add a status ID to the remember_to_find_me dict."""
+            if fetch_domain not in self.remember_to_find_me:
+                self.remember_to_find_me[fetch_domain] = []
+            if status_id not in self.remember_to_find_me[fetch_domain]:
+                self.remember_to_find_me[fetch_domain].append(status_id)
+
+        def remove_from_remembering(self, fetch_domain : str,
+                                    status_id : str) -> None:
+            """Remove a status ID from the remember_to_find_me dict."""
+            if fetch_domain in self.remember_to_find_me:
+                if status_id in self.remember_to_find_me[fetch_domain]:
+                    self.remember_to_find_me[fetch_domain].remove(status_id)
+                if not self.remember_to_find_me[fetch_domain]:
+                    self.remember_to_find_me.pop(fetch_domain)
+
+        def get_remembering(self) -> dict[str, list[str]]:
+            """Return the remember_to_find_me dict."""
+            return self.remember_to_find_me
+
+        def add_to_fetched(self, fetch_domain : str) -> None:
+            """Add a domain to the domains_fetched list."""
+            if fetch_domain not in self.domains_fetched:
+                self.domains_fetched.append(fetch_domain)
+
+        def remove_from_fetched(self, fetch_domain : str) -> None:
+            """Remove a domain from the domains_fetched list."""
+            if fetch_domain in self.domains_fetched:
+                self.domains_fetched.remove(fetch_domain)
+
+        def get_domains_fetched(self) -> list[str]:
+            """Return the domains_fetched list."""
+            return self.domains_fetched
+
+        def add_to_fetching(self, fetch_domain : str) -> None:
+            """Add a domain to the domains_to_fetch list."""
+            if fetch_domain not in self.domains_to_fetch:
+                self.domains_to_fetch.append(fetch_domain)
+
+        def remove_from_fetching(self, fetch_domain : str) -> None:
+            """Remove a domain from the domains_to_fetch list."""
+            if fetch_domain in self.domains_to_fetch:
+                self.domains_to_fetch.remove(fetch_domain)
+
+        def get_domains_to_fetch(self) -> list[str]:
+            """Return the domains_to_fetch list."""
+            return self.domains_to_fetch
+
+    var_manip = VariableManipulators(
+        domains_fetched, domains_to_fetch, remember_to_find_me)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for fetch_domain in external_feeds.copy():
+            futures.append(
+                executor.submit(
+                    fetch_and_return_missing,
+                    external_tokens,
+                    trending_posts_dict,
+                    var_manip,
+                    aux_domain_fetcher,
+                    fetch_domain,
+                ),
+            )
+        concurrent.futures.wait(futures)
 
     for fetch_domain in remember_to_find_me.copy():
         msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
@@ -161,6 +211,25 @@ less popular posts from {fetch_domain}"
 
     return list(api_mastodon.filter_language(
         updated_trending_posts_dict.values(), "en"))
+
+async def fetch_and_return_missing(external_tokens : dict[str, str],
+            trending_posts_dict : dict[str, dict[str, str]],
+            var_manip,  # noqa: ANN001
+            aux_domain_fetcher,  # noqa: ANN001
+            fetch_domain : str,
+            ) -> None:
+    """Fetch posts from a domain."""
+    remembering = await fetch_trending_from_domain(external_tokens,
+        add_post_to_dict, var_manip.get_domains_to_fetch(),
+        var_manip.get_domains_fetched(), var_manip.get_remember_to_find_me(),
+        aux_domain_fetcher, fetch_domain, trending_posts_dict)
+    try:
+        var_manip.add_to_remembering(remembering)
+        var_manip.add_to_fetched(fetch_domain)
+        var_manip.remove_from_fetching(fetch_domain)
+    except MastodonError:
+        logging.error(
+            f"Error occurred while fetching domain {fetch_domain}")
 
 async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
                     add_post_to_dict : Callable[[dict[str, str], str,
