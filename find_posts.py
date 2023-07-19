@@ -137,12 +137,12 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             logging.warning("No external tokens found")
         conn = connect(
             host="dreamer", \
-                # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+                # TODO: Make this configurable
             port = 5432,
             database="mastodon_production", \
-                # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+                # TODO: Make this configurable
             user="teq", \
-                # TODO: Make this configurable  # noqa: TD002, TD003, FIX002
+                # TODO: Make this configurable
             password= \
                 helpers.arguments.pgpassword if helpers.arguments.pgpassword else None,
         )
@@ -293,23 +293,21 @@ f"Found {len(trending_posts)} trending posts")
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
-            get_context_urls = False # TODO: Make this configurable
-            if get_context_urls:
-                known_context_urls = await getter_wrappers.get_all_known_context_urls(
-                    helpers.arguments.server,
-                    trending_posts_changed,
-                    parsed_urls,
-                    external_tokens,
-                    pgupdater,
-                    admin_token,
-                    )
-                logging.debug("Found known context URLs, getting context URLs")
-                await add_context.add_context_urls(
-                    helpers.arguments.server,
-                    admin_token,
-                    known_context_urls,
-                    pgupdater,
-                    )
+            known_context_urls = await getter_wrappers.get_all_known_context_urls(
+                helpers.arguments.server,
+                trending_posts_changed,
+                parsed_urls,
+                external_tokens,
+                pgupdater,
+                admin_token,
+                )
+            logging.debug("Found known context URLs, getting context URLs")
+            await add_context.add_context_urls(
+                helpers.arguments.server,
+                admin_token,
+                known_context_urls,
+                pgupdater,
+                )
             logging.debug("Added context URLs")
 
         logging.info("Writing seen files")
