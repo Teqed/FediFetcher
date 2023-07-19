@@ -344,12 +344,12 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
             data = (urls,)
             with self.conn.cursor() as cursor:
                 cursor.execute(query, data)
-                results = cursor.fetchall()
+                results = cursor.fetchall().copy()
+                columns = [column[0] for column in cursor.description]
                 if results is not None:
                     statuses = []
                     for result in results:
                         # Convert the result to a dict.
-                        columns = [column[0] for column in cursor.description]
                         status_dict = dict(zip(columns, result, strict=False))
                         url = status_dict.get("url")
                         logging.info(f"Got status from cache: {url} \
