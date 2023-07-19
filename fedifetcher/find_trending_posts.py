@@ -231,7 +231,8 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
             fetch_domain : str,
             ) -> None:
     """Fetch posts from a domain."""
-    remembering = asyncio.run(fetch_trending_from_domain(external_tokens,
+    remembering : dict[str, list[str]] = asyncio.run(
+        fetch_trending_from_domain(external_tokens,
         add_post_to_dict, var_manip.get_domains_to_fetch(),
         var_manip.get_domains_fetched(), var_manip.get_remembering(),
         aux_domain_fetcher, fetch_domain, trending_posts_dict))
@@ -362,7 +363,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
     trending_posts = await api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 120)
+            fetch_domain, external_tokens.get(fetch_domain), 40)
     remember_to_find_me_updates : dict[str, list[str]] = {}
 
     if trending_posts:
@@ -378,8 +379,6 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
             if parsed_url[0] in domains_to_fetch:
                 if parsed_url[0] not in remember_to_find_me or \
                             parsed_url[1] not in remember_to_find_me[parsed_url[0]]:
-                    if parsed_url[0] not in remember_to_find_me_updates:
-                        remember_to_find_me_updates[parsed_url[0]] = []
                     remember_to_find_me_updates[parsed_url[0]].append(parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:

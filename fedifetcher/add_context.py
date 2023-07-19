@@ -159,19 +159,24 @@ async def add_context_urls(
     context_urls: The list of toot URLs to add.
     pgupdater: The PostgreSQL updater.
     """
-    logging.debug("Adding statuses to server...")
+    list_of_context_urls = list(context_urls)
+    logging.debug(f"Adding {len(list_of_context_urls)} context URLs")
     count = 0
     failed = 0
     already_added = 0
     posts_to_fetch = []
     cached_posts: dict[str, Status | None] = \
-        pgupdater.get_dict_from_cache(list(context_urls))
+        pgupdater.get_dict_from_cache(list_of_context_urls)
+    logging.debug(f"Got {len(cached_posts)} cached posts")
     for url in context_urls:
         cached = cached_posts.get(url)
         if cached:
             cached_status_id = cached.get("id")
             if cached_status_id:
                 already_added += 1
+            else:
+                logging.debug(f"Got status with no ID: {cached}")
+                posts_to_fetch.append(url)
         else:
             posts_to_fetch.append(url)
 
