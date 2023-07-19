@@ -182,7 +182,7 @@ async def find_trending_posts(
     domains_to_fetch = var_manip.get_domains_to_fetch()
 
     for fetch_domain in remember_to_find_me.copy():
-        if not remember_to_find_me[fetch_domain]:
+        if remember_to_find_me[fetch_domain] is False:
             remember_to_find_me.pop(fetch_domain)
 
     for fetch_domain in remember_to_find_me:
