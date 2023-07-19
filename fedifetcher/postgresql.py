@@ -381,7 +381,7 @@ Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
                             WHERE uri = %s
                             LIMIT 1;
                             """
-                            data = (result.get("uri"),)
+                            data = (status_dict.get("uri"),)
                             cursor.execute(query_statuses, data)
                             public_status = cursor.fetchone()
                             if public_status is not None:
