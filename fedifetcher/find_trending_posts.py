@@ -226,7 +226,7 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
     """Fetch posts from a domain."""
     remembering = asyncio.run(fetch_trending_from_domain(external_tokens,
         add_post_to_dict, var_manip.get_domains_to_fetch(),
-        var_manip.get_domains_fetched(), var_manip.get_remember_to_find_me(),
+        var_manip.get_domains_fetched(), var_manip.get_remembering(),
         aux_domain_fetcher, fetch_domain, trending_posts_dict))
     try:
         var_manip.add_to_remembering(remembering)
