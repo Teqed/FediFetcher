@@ -287,6 +287,24 @@ Original: {result.get('original')} ID: {result.get('status_id')}")
                         account_id=result.get("account_id"),
                     )
                     status_id = result.get("status_id")
+                    if not status_id:
+                        # Check public.statuses to see if we already have a local id.
+                        query_statuses = """
+                        SELECT id
+                        FROM public.statuses
+                        WHERE uri = %s
+                        LIMIT 1;
+                        """
+                        data = (result.get("uri"),)
+                        cursor.execute(query_statuses, data)
+                        result = cursor.fetchone()
+                        if result is not None:
+                            columns = [column[0] for column in cursor.description]
+                            result = dict(zip(columns, result, strict=False))
+                            status_id = result.get("id")
+                        else:
+                            logging.warning(
+                                f"Status {url} not found in public.statuses")
                     return (status, status_id if status_id else None)
         except (OperationalError, Error) as e:
             logging.error(f"Error getting status from cache: {e}")
