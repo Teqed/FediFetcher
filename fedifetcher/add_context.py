@@ -128,7 +128,6 @@ async def add_post_with_context(
     """
     added = await api_mastodon.add_context_url(post["url"], server, access_token)
     if added is not False:
-        pgupdater.cache_status(added)
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
             parsed_urls : dict[str, tuple[str | None, str | None]] = {}
@@ -160,6 +159,8 @@ async def add_context_urls(
     pgupdater: The PostgreSQL updater.
     """
     list_of_context_urls = list(context_urls)
+    if len(list_of_context_urls) == 0:
+        return
     logging.debug(f"Adding {len(list_of_context_urls)} context URLs")
     count = 0
     failed = 0
