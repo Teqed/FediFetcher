@@ -691,7 +691,6 @@ async def get_home_status_id_from_url(
         token: str,
         url: str,
         pgupdater: PostgreSQLUpdater,
-        session: ClientSession,
 ) -> str | None:
     """Get the status id from a toot URL asynchronously.
 
@@ -702,8 +701,6 @@ async def get_home_status_id_from_url(
     url (str): The URL of the toot to get the status id of.
     pgupdater (PostgreSQLUpdater): The PostgreSQLUpdater instance to use for \
         caching the status.
-    session (ClientSession): The aiohttp ClientSession for making \
-        asynchronous HTTP requests.
 
     Returns:
     -------
@@ -717,18 +714,14 @@ async def get_home_status_id_from_url(
             logging.debug(f"Found status id {status_id} for {url}")
             return status_id
         logging.debug(f"Status id for {url} is None")
-    logging.info(f"Asking server to lookup {url}")
-    server_api = f"https://{server}/api/v2/search"
-    async with session.get(server_api, params={"q": url, "resolve": "true"},
-                        headers={"Authorization": f"Bearer {token}"}) as response:
-        result: SearchV2 = await response.json()
-    # If statuses has a length of at least 1, then the toot was found.
-    # Let's check the returned toots until we find the one with the correct URL.
-    statuses: list[Status] | None = result.get("statuses")
-    if statuses:
-        for status in statuses:
-            if status.get("url") == url:
-                pgupdater.cache_status(status)
+    logging.info(f"Fetching status id for {url} from {server}")
+    result = await add_context_url(url, server, token)
+    if isinstance(result, dict):
+        statuses: list[Status] | None = result.get("statuses")
+        if statuses:
+            for status in statuses:
+                if status.get("url") == url:
+                    pgupdater.cache_status(status)
                 return str(status.get("id"))
     return None
 
