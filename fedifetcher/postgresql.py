@@ -354,7 +354,7 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                         url = status_dict.get("url")
                         logging.info(f"Got status from cache: {url} \
 Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
-                        status = Status(
+                        status: Status = Status(
                             id=status_dict.get("status_id"),
                             uri=status_dict.get("uri"),
                             url=status_dict.get("url"),
@@ -387,21 +387,24 @@ Original: {status_dict.get('original')}, ID: {status_dict.get('status_id')}")
                             if public_status is not None:
                                 columns = [column[0] for column in cursor.description]
                                 public_status_result = dict(
-                                    zip(columns, result, strict=False))
-                                status_id = public_status_result.get("id")
+                                    zip(columns, public_status, strict=False))
+                                public_status_id = public_status_result.get("id")
+                                logging.debug(
+                                    f"Found public.statuses ID: {public_status_id}")
                                 # Put it back into public.fetched_statuses
                                 query = """
                                 UPDATE public.fetched_statuses
                                 SET status_id = %s
                                 WHERE url = %s;
                                 """
-                                data = (status_id, url)
+                                data = (public_status_id, url)
                                 cursor.execute(query, data)
                                 self.conn.commit()
+                                status.update(status_id=public_status_id)
                             else:
                                 logging.warning(
                                     f"Status {url} not found in public.statuses")
-                        statuses.append((status, status_id if status_id else None))
+                        statuses.append(status)
                     return statuses
         except (OperationalError, Error) as e:
             logging.error(f"Error getting statuses from cache: {e}")
