@@ -24,6 +24,7 @@ from mastodon.types import Context, SearchV2, Status
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers
+from concurrent.futures import ThreadPoolExecutor
 
 T = TypeVar("T")
 def handle_mastodon_errors(  # noqa: C901
@@ -337,48 +338,29 @@ async def get_reply_posts_from_id(
     return None
 
 @handle_mastodon_errors([])
-async def get_toot_context(  # noqa: PLR0913, D103
-        server: str,
-        toot_id: str,
-        token: str | None,
-        pgupdater: PostgreSQLUpdater,
-        home_server: str,
-        home_server_token: str,
-) -> list[str]:
-    # Create a list to store the tasks
-    tasks = []
-
-    # Create a client session
-    async with ClientSession() as session:
-        # Create semaphore to limit the number of concurrent requests
-        semaphore = asyncio.Semaphore(5)
-
-        # Define an async function to process each status
-        async def process_status(status_url: str) -> None:
-            async with semaphore:
-                status_id = await get_home_status_id_from_url(
-                    home_server, home_server_token, status_url,
-                    pgupdater, session)
-                if status_id:
-                    status_home_id = int(status_id)
-                    pgupdater.queue_status_update(
-                        status_home_id,
-                        _status.reblogs_count,
-                        _status.favourites_count,
-                    )
-
-        context: Context = (await mastodon(server, token)).status_context(
-            id=toot_id,
-        )
-        for status in context["ancestors"] + context["descendants"]:
-            _status: Status = cast(Status, status)
-            if _status.url:
-                tasks.append(asyncio.ensure_future(process_status(_status.url)))
-        await asyncio.gather(*tasks)
+async def get_toot_context(  # noqa: PLR0913
+        server: str, toot_id: str, token: str | None,
+        pgupdater: PostgreSQLUpdater, home_server: str,
+        home_server_token: str, session: ClientSession) -> list[str]:
+    """Get the URLs of the context toots of the given toot asynchronously."""
+    # Get the context of a toot
+    context: Context = (await mastodon(server, token)).status_context(id=toot_id)
+    # List of status URLs
+    status_urls = [status["url"] \
+                for status in context["ancestors"] + context["descendants"]]
+    # Create tasks
+    tasks = [get_home_status_id_from_url(
+        home_server, home_server_token, url, pgupdater, session) for url in status_urls]
+    # Process all tasks concurrently
+    results = await asyncio.gather(*tasks)
+    # Update statuses with results
+    for r in results:
+        if r:
+            pgupdater.queue_status_update(
+                int(r[0]), r[1].reblogs_count, r[1].favourites_count)
+    # Commit status updates
     pgupdater.commit_status_updates()
-    context_urls: list[str] = [toot["url"] for toot in context["ancestors"]] + \
-                            [toot["url"] for toot in context["descendants"]]
-    return context_urls
+    return status_urls
 
 @handle_mastodon_errors([])
 async def get_notifications(

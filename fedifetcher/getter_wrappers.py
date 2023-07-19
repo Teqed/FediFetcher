@@ -18,7 +18,7 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers, parsers
-
+from aiohttp import ClientSession
 
 async def get_notification_users(
         server : str,
@@ -235,8 +235,8 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
     Iterable[str]: The URLs of the context toots of the given toots.
     """
     known_context_urls = []
-
     if reply_toots is not None:
+        toots_to_get_context_for: list[tuple] = []
         for toot in reply_toots:
             if toot is not None and toot_has_parseable_url(toot, parsed_urls):
                 reblog = toot.get("reblog")
@@ -265,32 +265,35 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
 
                 parsed_url = parsers.post(url, parsed_urls)
                 if parsed_url and parsed_url[0] and parsed_url[1]:
-                    try:
-                        # Get the event loop or create a new one
-                        loop = asyncio.get_event_loop()
-                        context = await (await loop.run_in_executor(
-                            None,
-                            get_post_context,
-                            parsed_url[0],
-                            parsed_url[1],
-                            url,
-                            external_tokens,
-                            pgupdater,
-                            server,
-                            home_server_token,
-                        ))
-                    except Exception as ex:
-                        logging.error(f"Error getting context for toot {url} : {ex}")
-                        logging.debug(
-                            f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
-                        continue
-                    if context:
-                        logging.info(f"Got {len(context)} context posts for {url}")
-                        known_context_urls.extend(context)
-
+                    toots_to_get_context_for.append((parsed_url, url))
+        # Sort the toots by server
+        toots_to_get_context_for = sorted(
+            toots_to_get_context_for, key=lambda x: x[0][0])
+        session = aiohttp.ClientSession()
+        for post in toots_to_get_context_for:
+            parsed_url = post[0]
+            url = post[1]
+            try:
+                context = await get_post_context(
+                    parsed_url[0],
+                    parsed_url[1],
+                    url,
+                    external_tokens,
+                    pgupdater,
+                    server,
+                    home_server_token,
+                    session,
+                )
+            except Exception as ex:
+                logging.error(f"Error getting context for toot {url} : {ex}")
+                logging.debug(
+                    f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
+                continue
+            if context:
+                logging.info(f"Got {len(context)} context posts for {url}")
+                known_context_urls.extend(context)
     return filter(
         lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
-
 
 
 def get_all_replied_toot_server_ids(
@@ -437,12 +440,13 @@ async def get_all_context_urls(  # noqa: PLR0913
     -------
     Iterable[str]: The URLs of the context toots of the given toots.
     """
-    async def fetch_context_urls(url : str, toot_id : str) -> list[str]:
+    async def fetch_context_urls(
+            url : str, toot_id : str, session : ClientSession) -> list[str]:
         session = aiohttp.ClientSession()
         try:
             return await get_post_context(
                 server, toot_id, url, external_tokens, pgupdater,
-                home_server, home_server_token,
+                home_server, home_server_token, session,
             )
         finally:
             await session.close()
@@ -454,10 +458,13 @@ async def get_all_context_urls(  # noqa: PLR0913
         for url, toot_id in replied_toot_ids
         if url is not None and toot_id is not None
     ]
+    # Sort the replied toots by server
+    _replied_toot_ids = sorted(_replied_toot_ids, key=lambda x: x[0])
+    session = aiohttp.ClientSession()
     for url, (_s, toot_id) in _replied_toot_ids:
         tasks.append(
             asyncio.ensure_future(
-                fetch_context_urls(url, toot_id),
+                fetch_context_urls(url, toot_id, session),
             ),
         )
 
