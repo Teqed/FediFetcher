@@ -168,7 +168,7 @@ async def add_context_urls(
     cached_posts: dict[str, Status | None] = \
         pgupdater.get_dict_from_cache(list_of_context_urls)
     logging.debug(f"Got {len(cached_posts)} cached posts")
-    for url in context_urls:
+    for url in list_of_context_urls:
         logging.debug(f"Checking {url}")
         cached = cached_posts.get(url)
         if cached:
