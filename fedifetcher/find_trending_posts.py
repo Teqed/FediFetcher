@@ -84,7 +84,7 @@ class VariableManipulators:
 
     def add_to_remembering(self, fetch_domain : str,
                             status_id : str) -> None:
-        """Add a status ID to the remember_to_find_me dict."""
+        """Add a status URL to the remember_to_find_me dict."""
         if fetch_domain not in self.remember_to_find_me:
             self.remember_to_find_me[fetch_domain] = []
         if status_id not in self.remember_to_find_me[fetch_domain]:
@@ -229,7 +229,7 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
         var_manip.get_domains_fetched(), var_manip.get_remembering(),
         aux_domain_fetcher, fetch_domain, trending_posts_dict))
     try:
-        var_manip.add_to_remembering(remembering)
+        var_manip.add_to_remembering(fetch_domain, remembering)
         var_manip.add_to_fetched(fetch_domain)
         var_manip.remove_from_fetching(fetch_domain)
     except MastodonError:
