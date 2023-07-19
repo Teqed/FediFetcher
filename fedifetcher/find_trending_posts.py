@@ -318,7 +318,9 @@ class AuxDomainFetch:
                 self.domains_fetched, list_of_posts,
                     list_of_parsed_urls, trending_post_dict))
         # Create a thread pool executor
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=5, thread_name_prefix="aux_fetcher"
+        ) as executor:
             # Create a list of futures
             futures = []
             for fetchable_domain in self.aux_fetches.copy():
