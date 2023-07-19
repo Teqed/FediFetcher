@@ -240,7 +240,7 @@ f"Found {len(trending_posts)} trending posts")
             ]
             trending_posts_changed = []
             trending_post_url_list = [post["url"] for post in trending_posts]
-            trending_posts_with_cache: list[tuple[Status, str | None] | None] = \
+            trending_posts_with_cache: list[Status | None] = \
                 pgupdater.get_list_from_cache(
                     trending_post_url_list)
             for post in trending_posts:
@@ -251,7 +251,8 @@ f"Found {len(trending_posts)} trending posts")
                         (
                             cached_post
                             for cached_post in trending_posts_with_cache
-                            if cached_post is not None and cached_post[1] == post_url
+                            if cached_post is not None \
+                                and cached_post.get("url") == post_url
                         ),
                         None,
                     )

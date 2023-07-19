@@ -167,16 +167,16 @@ async def add_context_urls(
     failed = 0
     already_added = 0
     posts_to_fetch = []
-    cached_posts: list[tuple[Status, str | None] | None] = \
+    cached_posts: list[Status | None] = \
         pgupdater.get_list_from_cache(list(context_urls))
     for url in context_urls:
         cached = None
         for cached_post in cached_posts:
-            if cached_post and cached_post[0].url == url:
+            if cached_post and cached_post.url == url:
                 cached = cached_post
                 break
-        if cached and cached[0]:
-            cached_status_id = cached[1]
+        if cached:
+            cached_status_id = cached.get("id")
             if cached_status_id:
                 already_added += 1
         else:

@@ -319,7 +319,7 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
         return None
 
     def get_list_from_cache(
-            self, urls: list[str]) -> list[tuple[Status, str | None] | None]:
+            self, urls: list[str]) -> list[Status | None]:
         """Get a list of statuses from the cache.
 
         Parameters
