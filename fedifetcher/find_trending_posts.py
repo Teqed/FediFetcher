@@ -382,6 +382,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                 remembering = get_remembering()
                 if parsed_url[0] not in remembering or \
                             parsed_url[1] not in remembering[parsed_url[0]]:
+                    logging.debug(f"Remembering {parsed_url[1]} from {parsed_url[0]}")
                     add_to_remembering(parsed_url[0], parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
