@@ -317,12 +317,6 @@ class AuxDomainFetch:
             asyncio.run(aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
                 self.domains_fetched, list_of_posts,
                     list_of_parsed_urls, trending_post_dict))
-
-        # for fetchable_domain in self.aux_fetches.copy():
-        # Convert to using threads instead of asyncio tasks.
-        # This is because we're doing a lot of I/O, and asyncio tasks are
-        # not good for I/O.
-
         # Create a thread pool executor
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Create a list of futures
