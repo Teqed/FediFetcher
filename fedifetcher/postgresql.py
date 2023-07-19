@@ -149,19 +149,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         logging.warning(row)
                         return False
                     # Check public.statuses to see if we already have a local id.
-                    query_statuses = """
-                    SELECT id
-                    FROM public.statuses
-                    WHERE uri = %s
-                    LIMIT 1;
-                    """
-                    data = (uri,)
-                    cursor.execute(query_statuses, data)
-                    result = cursor.fetchone()
-                    if result is not None:
-                        columns = [column[0] for column in cursor.description]
-                        result = dict(zip(columns, result, strict=False))
-                        status_id = result.get("id")
+                    status_id = self.query_public_statuses(uri, self.conn)
                     query = """
                     UPDATE public.fetched_statuses
                     SET text = %s, updated_at = %s, in_reply_to_id_original = %s,
@@ -194,6 +182,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                     )
                     logging.info(f"Updating status {url}")
                 else:
+                    status_id = self.query_public_statuses(uri, self.conn)
                     query = """
                     INSERT INTO public.fetched_statuses
                     (uri, text, created_at, updated_at, in_reply_to_id_original,
@@ -234,6 +223,24 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error caching status: {e}")
         return False
+
+    def query_public_statuses(self, uri: str, conn) -> int | None:
+        """Query public.statuses for a status ID."""
+        query_statuses = """
+                    SELECT id
+                    FROM public.statuses
+                    WHERE uri = %s
+                    LIMIT 1;
+                    """
+        data = (uri,)
+        with conn.cursor() as cursor:
+            cursor.execute(query_statuses, data)
+            result = cursor.fetchone()
+            if result is not None:
+                columns = [column[0] for column in cursor.description]
+                result = dict(zip(columns, result, strict=False))
+                return result.get("id")
+            return None
 
     def get_from_cache(self, url: str) -> Status | None:
         """Get a status from the cache.
