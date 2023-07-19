@@ -107,7 +107,6 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         # We can determine the originality of the status by comparing the ID in the URL
         # to the ID in the status.
         try:
-            logging.debug(f"Caching status {url}")
             original = False
             status_id = None
             status_id_original = None
@@ -231,7 +230,6 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                     logging.info(f"Inserting status {url}")
                 cursor.execute(query, data)
                 self.conn.commit()
-                logging.debug(f"Status {url} cached")
                 return True
         except (OperationalError, Error) as e:
             logging.error(f"Error caching status: {e}")

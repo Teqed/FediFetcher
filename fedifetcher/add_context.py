@@ -177,7 +177,6 @@ async def add_context_urls(
             if status_added:
                 pgupdater.cache_status(status_added)
                 count += 1
-                logging.info(f"Added {url}")
             else:
                 failed += 1
                 logging.warning(f"Failed {url}")
