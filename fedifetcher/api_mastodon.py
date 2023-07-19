@@ -8,7 +8,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar, cast
 
 import requests
-from aiohttp import ClientSession
 from mastodon import (
     Mastodon,
     MastodonAPIError,
@@ -19,7 +18,7 @@ from mastodon import (
     MastodonServiceUnavailableError,
     MastodonUnauthorizedError,
 )
-from mastodon.types import Context, SearchV2, Status
+from mastodon.types import Context, Status
 
 from fedifetcher.postgresql import PostgreSQLUpdater
 
@@ -110,7 +109,7 @@ async def mastodon(server: str, token: str | None = None) -> Mastodon:
             logging.info(f"\033[1;33m{msg}\033[0m")
         session = requests.Session()
         session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
         })
         rate_limit_method = "wait" if not mastodon.sessions else "throw"
         mastodon.sessions[server] = Mastodon(

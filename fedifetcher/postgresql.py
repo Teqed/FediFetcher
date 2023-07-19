@@ -3,6 +3,7 @@
 import logging
 from datetime import UTC, datetime
 
+import psycopg2
 from mastodon.types import Status
 from psycopg2 import Error, OperationalError
 
@@ -227,7 +228,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             logging.error(f"Error caching status: {e}")
         return False
 
-    def query_public_statuses(self, uri: str, conn) -> int | None:
+    def query_public_statuses(self, uri: str, conn: psycopg2.connection) -> int | None:
         """Query public.statuses for a status ID."""
         query_statuses = """
                     SELECT id

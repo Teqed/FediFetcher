@@ -7,7 +7,6 @@ import logging
 import re
 from collections.abc import Callable
 
-import aiohttp
 from mastodon.errors import MastodonError
 
 from fedifetcher import api_mastodon, parsers
@@ -131,7 +130,7 @@ class VariableManipulators:
         """Return the domains_to_fetch list."""
         return self.domains_to_fetch
 
-async def find_trending_posts(
+async def find_trending_posts(  # noqa: C901
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -361,7 +360,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
         aux_domain_fetcher : AuxDomainFetch,
         fetch_domain : str,
         trending_posts_dict : dict[str, dict[str, str]],
-        ):
+        ) -> None:
     """Fetch trending posts from a domain."""
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")

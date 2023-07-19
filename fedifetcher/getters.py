@@ -2,8 +2,6 @@
 import logging
 import re
 
-from aiohttp import ClientSession
-
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
