@@ -202,7 +202,7 @@ less popular posts from {fetch_domain}"
                         f"Couldn't find {status_id} from {fetch_domain}")
 
     logging.info("Fetching aux posts")
-    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict)
+    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
 
     updated_trending_posts_dict = await \
     update_local_status_ids(
@@ -252,12 +252,17 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
                     post_urls : list[str],
                     parsed_urls : list[tuple[str | None, str | None]],
                     trending_post_dict : dict[str, dict[str, str]],
+                    pgupdater : PostgreSQLUpdater,
                     ) -> bool:
     """Fetch posts from an aux domain."""
     msg = f"Finding aux trending posts from {parsed_urls[0][0]}"
     logging.info(f"\033[1;35m{msg}\033[0m")
     found_all = False
-    posts_to_find = post_urls.copy()
+    # Check to see if url is already in cache, if so, pop it from posts_to_find
+    cached_posts_dict = pgupdater.get_dict_from_cache(post_urls)
+    for cached_post in cached_posts_dict.values():
+        if cached_post and cached_post["url"] in post_urls:
+            post_urls.remove(cached_post["url"])
     if parsed_urls[0][0] is not None:
         trending = await api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
@@ -265,10 +270,10 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
         domains_fetched.append(parsed_urls[0][0])
         if trending:
             for t_post in trending:
-                if t_post["url"] in posts_to_find:
-                    posts_to_find.remove(t_post["url"])
+                if t_post["url"] in post_urls:
+                    post_urls.remove(t_post["url"])
                 add_post_to_dict(t_post, parsed_urls[0][0], trending_post_dict)
-    for post_url in posts_to_find:
+    for post_url in post_urls:
         parsed = parsers.post(post_url)
         if parsed and parsed[0] and parsed[0] == parsed_urls[0][0] and parsed[1]:
             remote = await api_mastodon.get_status_by_id(
@@ -277,7 +282,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
                 add_post_to_dict(remote, parsed[0], trending_post_dict)
         else:
             logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
-    if not posts_to_find:
+    if not post_urls:
         found_all = True
     return found_all
 
@@ -309,11 +314,14 @@ class AuxDomainFetch:
 
     async def do_aux_fetches(self,
                             trending_post_dict: dict[str, dict[str, str]],
+                            pgupdater: PostgreSQLUpdater,
                             ) -> None:
         """Do all the queued aux fetches asynchronously."""
 
         def fetching_domain(fetch_domain: str,
-                                trending_post_dict: dict[str, dict[str, str]]) -> None:
+                                trending_post_dict: dict[str, dict[str, str]],
+                                pgupdater: PostgreSQLUpdater,
+                                ) -> None:
             """Fetch less popular posts from a domain."""
             msg = \
     f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
@@ -325,7 +333,7 @@ class AuxDomainFetch:
                 list_of_parsed_urls.append(parsed_url)
             asyncio.run(aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
                 self.domains_fetched, list_of_posts,
-                    list_of_parsed_urls, trending_post_dict))
+                    list_of_parsed_urls, trending_post_dict, pgupdater))
         # Create a thread pool executor
         with concurrent.futures.ThreadPoolExecutor(
                 thread_name_prefix="aux_fetcher",
@@ -336,6 +344,7 @@ class AuxDomainFetch:
                     fetching_domain,
                     fetchable_domain,
                     trending_post_dict,
+                    pgupdater,
                 )
                 for fetchable_domain in self.aux_fetches.copy()
             ]
