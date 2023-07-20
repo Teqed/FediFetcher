@@ -236,7 +236,7 @@ provided. Continuing without active user IDs.")
 f"Found {len(trending_posts)} trending posts")
             trending_posts = [
                 post for post in trending_posts
-                if post["replies_count"] != 0 or post["in_reply_to_id"] is not None
+                if post["replies_count"] != 0
             ]
             trending_posts_changed = []
             trending_post_url_list = [post["url"] for post in trending_posts]
