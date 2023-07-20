@@ -14,7 +14,7 @@ from . import getters, helpers
 async def add_user_posts( # noqa: PLR0913
         server: str,
         access_token: str,
-        followings: list,
+        followings: list[dict[str, str]],
         know_followings: OrderedSet,
         all_known_users: OrderedSet,
         external_tokens: dict[str, str],
