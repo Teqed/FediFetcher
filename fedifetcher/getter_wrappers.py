@@ -63,8 +63,15 @@ async def get_notification_users(
 f"Found {len(notification_users)} users in notifications, \
 {len(new_notification_users)} of which are new")
 
-    return [user["account"] for user in filter_known_users(
-                                            notification_users, known_users)]
+    # return [user.get("account") for user in filter_known_users(
+    #                                         notification_users, known_users)]
+    users = []
+    for user in filter_known_users(notification_users, known_users):
+        account = user.get("acct")
+        if account is not None:
+            users.append(account)
+
+    return users
 
 async def get_new_follow_requests(
         server : str,
