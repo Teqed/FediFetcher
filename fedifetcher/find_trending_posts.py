@@ -265,6 +265,8 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
                 logging.debug(f"Found {cached_post['url']} in cache")
                 post_urls.remove(cached_post["url"]) # Check originality?
                 # add_post_to_dict(cached_post, parsed_urls[0][0], trending_post_dict)
+        if not post_urls:
+            return True
         trending = await api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
                         external_tokens.get(parsed_urls[0][0]), 40)
