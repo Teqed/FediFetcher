@@ -258,12 +258,12 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
     msg = f"Finding aux trending posts from {parsed_urls[0][0]}"
     logging.info(f"\033[1;35m{msg}\033[0m")
     found_all = False
-    # Check to see if url is already in cache, if so, pop it from posts_to_find
-    cached_posts_dict = pgupdater.get_dict_from_cache(post_urls)
-    for cached_post in cached_posts_dict.values():
-        if cached_post and cached_post["url"] in post_urls:
-            post_urls.remove(cached_post["url"])
     if parsed_urls[0][0] is not None:
+        cached_posts_dict = pgupdater.get_dict_from_cache(post_urls)
+        for cached_post in cached_posts_dict.values():
+            if cached_post and cached_post["url"] in post_urls:
+                post_urls.remove(cached_post["url"])
+                add_post_to_dict(cached_post, parsed_urls[0][0], trending_post_dict)
         trending = await api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
                         external_tokens.get(parsed_urls[0][0]), 40)
