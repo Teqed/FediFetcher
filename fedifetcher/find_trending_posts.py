@@ -365,7 +365,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
     trending_posts = await api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 40)
+            fetch_domain, external_tokens.get(fetch_domain), 200)
 
     if trending_posts:
         for post in trending_posts:
