@@ -26,7 +26,7 @@ async def get_notification_users(
         access_token : str,
         known_users : OrderedSet,
         max_age : int = 24,
-        ) -> list[str]:
+        ) -> list[dict[str, str]]:
     """Get a list of users that have interacted with the user in last `max_age` hours.
 
     Args:
@@ -65,11 +65,11 @@ f"Found {len(notification_users)} users in notifications, \
 
     # return [user.get("account") for user in filter_known_users(
     #                                         notification_users, known_users)]
-    users = []
+    users: list[dict[str, str]] = []
     for user in filter_known_users(notification_users, known_users):
         account = user.get("acct")
         if account is not None:
-            users.append(account)
+            users.append(user)
 
     return users
 
