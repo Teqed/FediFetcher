@@ -3,7 +3,6 @@
 import logging
 from datetime import UTC, datetime
 
-import psycopg2
 from mastodon.types import Status
 from psycopg2 import Error, OperationalError
 
