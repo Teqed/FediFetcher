@@ -785,6 +785,7 @@ def get_home_status_id_from_url_list(
         pgupdater.get_dict_from_cache(urls)
     with concurrent.futures.ThreadPoolExecutor(
         thread_name_prefix="id_getter",
+        max_workers=9,
     ) as executor:
         futures = {}
         for url in urls:
