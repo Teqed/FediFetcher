@@ -243,7 +243,7 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
         logging.error(
             f"Error occurred while fetching domain {fetch_domain}")
 
-def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
+def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
                     add_post_to_dict : Callable[[dict[str, str], str,
                                                 dict[str, dict[str, str]]], bool],
                     domains_fetched : list[str],
