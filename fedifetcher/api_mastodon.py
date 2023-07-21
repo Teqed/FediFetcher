@@ -630,7 +630,7 @@ def get_trending_posts(
     a_page = 40
     if limit > a_page:
         with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="fetcher",
+            thread_name_prefix="sub_fetcher",
     ) as executor:
             futures = []
             for offset in range(a_page, limit, a_page):
@@ -783,18 +783,28 @@ def get_home_status_id_from_url_list(
     status_ids = {}
     cached_statuses: dict[str, Status | None] = \
         pgupdater.get_dict_from_cache(urls)
-    for url in urls:
-        if cached_statuses:
+    with concurrent.futures.ThreadPoolExecutor(
+        thread_name_prefix="id_getter",
+    ) as executor:
+        futures = {}
+        for url in urls:
             cached_status = cached_statuses.get(url)
             if cached_status:
                 status_id = cached_status.get("id")
-                if status_id:
-                    status_ids.update({url: status_id})
+                if status_id is not None:
+                    status_ids[url] = str(status_id)
                     continue
-        status_id = get_home_status_id_from_url(
-            server, token, url, pgupdater)
-        if status_id:
-            status_ids.update({url: status_id})
+            futures[url] = executor.submit(
+                get_home_status_id_from_url, server, token, url, pgupdater)
+        for url, future in futures.items():
+            try:
+                status_id = future.result()
+            except Exception:
+                logging.exception(
+                    f"Error getting status id for {url} from {server}")
+                continue
+            if status_id is not None:
+                status_ids[url] = status_id
     return status_ids
 
 @handle_mastodon_errors(None)
