@@ -628,7 +628,7 @@ def get_trending_posts(
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(got_trending_posts)
     a_page = 40
-    if limit > a_page:
+    if limit > a_page and len(got_trending_posts) == a_page:
         with concurrent.futures.ThreadPoolExecutor(
             thread_name_prefix="sub_fetcher",
     ) as executor:
