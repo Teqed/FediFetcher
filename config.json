@@ -9,5 +9,5 @@
     "from-notifications": 7,
     "reply-interval-in-hours": 72,
     "remember-users-for-hours": 12,
-    "log-level": 20
+    "log-level": 10
 }
