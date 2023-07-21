@@ -1,12 +1,13 @@
 """Functions to get data from Fediverse servers."""
 import asyncio
+from concurrent.futures import thread
 import itertools
 import json
 import logging
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
-
+import concurrent.futures
 import aiohttp
 import requests
 from aiohttp import ClientSession
@@ -245,35 +246,28 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
     known_context_urls = []
     if reply_toots is not None:
         toots_to_get_context_for: list[tuple] = []
-        for toot in reply_toots:
-            if toot is not None and toot_has_parseable_url(toot, parsed_urls):
-                reblog = toot.get("reblog")
-                if isinstance(reblog, str):
-                    try:
-                        reblog_dict = json.loads(reblog)
-                        url = reblog_dict.get("url")
-                        if url is None:
-                            logging.error("Error accessing URL in the boosted toot")
-                            continue
-                        logging.debug(f"Got boosted toot URL {url}")
-                    except json.JSONDecodeError:
-                        logging.error("Error decoding JSON in the boosted toot")
-                        continue
-                elif isinstance(reblog, dict):
-                    url = reblog.get("url")
-                    if url is None:
-                        logging.error("Error accessing URL in the boosted toot")
-                        continue
-                    logging.debug(f"Got boosted toot URL {url}")
-                elif toot.get("url") is not None:
-                    url = str(toot["url"])
-                else:
-                    logging.error("Error accessing URL in the toot")
-                    continue
-
-                parsed_url = parsers.post(url, parsed_urls)
-                if parsed_url and parsed_url[0] and parsed_url[1]:
-                    toots_to_get_context_for.append((parsed_url, url))
+        with concurrent.futures.ThreadPoolExecutor(
+            thread_name_prefix="get_context",
+        ) as executor:
+            for toot in reply_toots:
+                context = _get_context(toot, parsed_urls)
+                if context:
+                    toots_to_get_context_for.append(context)
+            # Get the context for the toots
+            for post in executor.map(
+                lambda x: get_post_context(
+                    x[0][0],
+                    x[0][1],
+                    x[1],
+                    external_tokens,
+                    pgupdater,
+                    server,
+                    home_server_token,
+                ),
+                toots_to_get_context_for,
+            ):
+                if post:
+                    known_context_urls.extend(post)
         # Sort the toots by server
         toots_to_get_context_for = sorted(
             toots_to_get_context_for, key=lambda x: x[0][0])
@@ -300,6 +294,40 @@ def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
                 known_context_urls.extend(context)
     return filter(
         lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
+
+def _get_context(toot : dict[str, str],
+                parsed_urls : dict[str, tuple[str | None, str | None]],
+                ) -> tuple | None:
+    if toot is not None and toot_has_parseable_url(toot, parsed_urls):
+        reblog = toot.get("reblog")
+        if isinstance(reblog, str):
+            try:
+                reblog_dict = json.loads(reblog)
+                url = reblog_dict.get("url")
+                if url is None:
+                    logging.error("Error accessing URL in the boosted toot")
+                    return None
+                logging.debug(f"Got boosted toot URL {url}")
+            except json.JSONDecodeError:
+                logging.error("Error decoding JSON in the boosted toot")
+                return None
+        elif isinstance(reblog, dict):
+            url = reblog.get("url")
+            if url is None:
+                logging.error("Error accessing URL in the boosted toot")
+                return None
+            logging.debug(f"Got boosted toot URL {url}")
+        elif toot.get("url") is not None:
+            url = str(toot["url"])
+        else:
+            logging.error("Error accessing URL in the toot")
+            return None
+
+        parsed_url = parsers.post(url, parsed_urls)
+        if parsed_url and parsed_url[0] and parsed_url[1]:
+            return (parsed_url, url)
+    logging.error("Error parsing URL in the toot")
+    return None
 
 
 def get_all_replied_toot_server_ids(
