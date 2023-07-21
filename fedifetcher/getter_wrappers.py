@@ -1,13 +1,13 @@
 """Functions to get data from Fediverse servers."""
 import asyncio
-from concurrent.futures import thread
+import concurrent.futures
 import itertools
 import json
 import logging
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
-import concurrent.futures
+
 import aiohttp
 import requests
 from aiohttp import ClientSession
@@ -218,7 +218,7 @@ def get_all_reply_toots(
     return all_replies
 
 
-def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
+def get_all_known_context_urls(  # noqa: PLR0913
     server: str,
     reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],

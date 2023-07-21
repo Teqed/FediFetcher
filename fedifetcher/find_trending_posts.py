@@ -1,7 +1,6 @@
 """Pull trending posts from a list of Mastodon servers, using tokens."""
 
 
-import asyncio
 import concurrent.futures
 import logging
 import re
@@ -263,7 +262,6 @@ def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
             if cached_post and cached_post["url"] in post_urls:
                 logging.debug(f"Found {cached_post['url']} in cache")
                 post_urls.remove(cached_post["url"]) # Check originality?
-                # add_post_to_dict(cached_post, parsed_urls[0][0], trending_post_dict)
         if not post_urls:
             return True
         trending = api_mastodon.get_trending_posts(
