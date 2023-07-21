@@ -609,11 +609,10 @@ def get_trending_posts(
             offset: int = 0,
     ) -> list[dict[str, str]]:
         """Get a page of trending posts and return it."""
-        mastodon_result = mastodon(server, token)
+        got_trending_posts = mastodon(
+            server, token).trending_statuses(limit=40, offset=offset)
 
-        mastodon_result.trending_statuses(limit=40, offset=offset)
-
-        return cast(list[dict[str, str]], trending_posts)
+        return cast(list[dict[str, str]], got_trending_posts)
 
     msg = f"Getting {limit} trending posts for {server}"
     logging.info(f"\033[1m{msg}\033[0m")
