@@ -145,6 +145,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 # TODO: Make this configurable
             password= \
                 helpers.arguments.pgpassword if helpers.arguments.pgpassword else None,
+            autocommit=True,
         )
         pgupdater = PostgreSQLUpdater(conn)
         try:
