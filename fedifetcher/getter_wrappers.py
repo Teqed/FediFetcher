@@ -220,7 +220,7 @@ def get_all_reply_toots(
 
 def get_all_known_context_urls(  # noqa: PLR0913
     server: str,
-    reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
+    reply_toots: list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
     external_tokens: dict[str, str],
     pgupdater: PostgreSQLUpdater,
@@ -247,10 +247,10 @@ def get_all_known_context_urls(  # noqa: PLR0913
     if reply_toots is not None:
         toots_to_get_context_for: list[tuple] = []
         with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="get_context",
+            thread_name_prefix="get_context_url",
         ) as executor:
             for toot in reply_toots:
-                context = _get_context(toot, parsed_urls)
+                context = _get_context_url(toot, parsed_urls)
                 if context:
                     toots_to_get_context_for.append(context)
             # Get the context for the toots
@@ -268,14 +268,50 @@ def get_all_known_context_urls(  # noqa: PLR0913
             ):
                 if post:
                     known_context_urls.extend(post)
-        # Sort the toots by server
-        toots_to_get_context_for = sorted(
-            toots_to_get_context_for, key=lambda x: x[0][0])
+        # toots_to_get_context_for is a list of tuples
+        # these tuples are combinations of parsed_url,url
+        # let's create a dictionary of server:[url]
+        toots_to_get_context_for_by_server: dict[str, list[str]] = {}
         for post in toots_to_get_context_for:
             parsed_url = post[0]
             url = post[1]
-            try:
-                context = get_post_context(
+            if parsed_url[0] not in toots_to_get_context_for_by_server:
+                toots_to_get_context_for_by_server[parsed_url[0]] = []
+            toots_to_get_context_for_by_server[parsed_url[0]].append(url)
+        with concurrent.futures.ThreadPoolExecutor(
+            thread_name_prefix="get_context",
+        ) as executor:
+            # Create a thread for each server. Store the results in a list
+            list_of_results = []
+            for server in toots_to_get_context_for_by_server:
+                results = executor.submit(
+                    get_context_for_server,
+                    server,
+                    external_tokens,
+                    pgupdater,
+                    home_server_token,
+                    toots_to_get_context_for_by_server[server],
+                )
+                list_of_results.append(results)
+            # Wait for all the threads to finish
+            for result in concurrent.futures.as_completed(list_of_results):
+                known_context_urls.extend(result.result())
+    return filter(
+        lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
+
+def get_context_for_server(server : str,
+            external_tokens : dict[str, str],
+            pgupdater : PostgreSQLUpdater,
+            home_server_token : str,
+            toots_to_get_context_for : list[str],
+            ) -> list[str]:
+    """Get the context for the given toots from their original server."""
+    known_context_urls = []
+    for post in toots_to_get_context_for:
+        parsed_url = post[0]
+        url = post[1]
+        try:
+            context = get_post_context(
                     parsed_url[0],
                     parsed_url[1],
                     url,
@@ -284,18 +320,17 @@ def get_all_known_context_urls(  # noqa: PLR0913
                     server,
                     home_server_token,
                 )
-            except Exception as ex:
-                logging.error(f"Error getting context for toot {url} : {ex}")
-                logging.debug(
+        except Exception as ex:
+            logging.error(f"Error getting context for toot {url} : {ex}")
+            logging.debug(
                     f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
-                continue
-            if context:
-                logging.info(f"Got {len(context)} context posts for {url}")
-                known_context_urls.extend(context)
-    return filter(
-        lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
+            continue
+        if context:
+            logging.info(f"Got {len(context)} context posts for {url}")
+            known_context_urls.extend(context)
+    return known_context_urls
 
-def _get_context(toot : dict[str, str],
+def _get_context_url(toot : dict[str, str],
                 parsed_urls : dict[str, tuple[str | None, str | None]],
                 ) -> tuple | None:
     if toot is not None and toot_has_parseable_url(toot, parsed_urls):
