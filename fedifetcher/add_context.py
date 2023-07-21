@@ -135,7 +135,7 @@ def add_post_with_context(
             if parsed is not None and parsed[0] is not None:
                 known_context_urls = \
                     getter_wrappers.get_all_known_context_urls(
-                    server, iter((post,)), parsed_urls, external_tokens, pgupdater,
+                    server, [post], parsed_urls, external_tokens, pgupdater,
                     access_token)
                 (add_context_urls(
                     server, access_token, known_context_urls, pgupdater))

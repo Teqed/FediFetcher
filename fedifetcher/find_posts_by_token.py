@@ -241,7 +241,7 @@ mentioned users")
         logging.debug("Got bookmarks, getting context URLs")
         known_context_urls = getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
-                                iter(bookmarks),
+                                list(bookmarks),
                                 parsed_urls,
                                 external_tokens,
                                 pgupdater,
@@ -266,7 +266,7 @@ mentioned users")
         logging.debug("Got favourites, getting context URLs")
         known_context_urls = getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
-                                iter(favourites),
+                                list(favourites),
                                 parsed_urls,
                                 external_tokens,
                                 pgupdater,
