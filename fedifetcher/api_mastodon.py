@@ -694,7 +694,7 @@ def filter_language(
 
 @handle_mastodon_errors(None)
 def get_home_status_id_from_url(
-        server: str,
+        home_server: str,
         token: str,
         url: str,
         pgupdater: PostgreSQLUpdater,
@@ -703,7 +703,7 @@ def get_home_status_id_from_url(
 
     Args:
     ----
-    server (str): The server to get the status id from.
+    home_server (str): The server to get the status id from.
     token (str): The access token to use for the request.
     url (str): The URL of the toot to get the status id of.
     pgupdater (PostgreSQLUpdater): The PostgreSQLUpdater instance to use for \
@@ -718,27 +718,27 @@ def get_home_status_id_from_url(
         status_id = cached_status.get("id")
         if status_id is not None:
             return status_id
-    msg = f"Fetching status id for {url} from {server}"
+    msg = f"Fetching status id for {url} from {home_server}"
     logging.info(f"\033[1;33m{msg}\033[0m")
-    result = add_context_url(url, server, token)
+    result = add_context_url(url, home_server, token)
     if isinstance(result, dict | Status):
         status_id = result.get("id")
-        logging.debug(f"Got status id {status_id} for {url} from {server}")
+        logging.debug(f"Got status id {status_id} for {url} from {home_server}")
         if result.get("url") == url:
             pgupdater.cache_status(result)
             return str(status_id)
         logging.error(
-            f"Something went wrong fetching: {url} from {server} , \
+            f"Something went wrong fetching: {url} from {home_server} , \
 did not match {result.get('url')}")
         logging.debug(result)
     elif result is False:
-        logging.warning(f"Failed to get status id for {url} on {server}")
+        logging.warning(f"Failed to get status id for {url} on {home_server}")
     logging.error(f"Status id for {url} not found")
     return None
 
 @handle_mastodon_errors(None)
 def get_home_status_id_from_url_list(
-        server: str,
+        home_server: str,
         token: str,
         urls: list[str],
         pgupdater: PostgreSQLUpdater,
@@ -747,7 +747,7 @@ def get_home_status_id_from_url_list(
 
     Args:
     ----
-    server (str): The server to get the status id from.
+    home_server (str): The server to get the status id from.
     token (str): The access token to use for the request.
     urls (list[str]): The URLs of the toots to get the status ids of.
     pgupdater (PostgreSQLUpdater): The PostgreSQLUpdater instance to use for \
@@ -773,13 +773,13 @@ def get_home_status_id_from_url_list(
                     status_ids[url] = str(status_id)
                     continue
             futures[url] = executor.submit(
-                get_home_status_id_from_url, server, token, url, pgupdater)
+                get_home_status_id_from_url, home_server, token, url, pgupdater)
         for url, future in futures.items():
             try:
                 status_id = future.result()
             except Exception:
                 logging.exception(
-                    f"Error getting status id for {url} from {server}")
+                    f"Error getting status id for {url} from {home_server}")
                 continue
             if status_id is not None:
                 status_ids[url] = status_id

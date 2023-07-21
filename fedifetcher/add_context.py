@@ -12,7 +12,7 @@ from . import getters, helpers
 
 
 def add_user_posts( # noqa: PLR0913
-        server: str,
+        home_server: str,
         access_token: str,
         followings: list[dict[str, str]],
         know_followings: OrderedSet,
@@ -24,7 +24,7 @@ def add_user_posts( # noqa: PLR0913
 
     Args:
     ----
-    server: The server to add the posts to.
+    home_server: The server to add the posts to.
     access_token: The access token to use to add the posts.
     followings: The list of users to add the posts of.
     know_followings: The list of users whose posts we already know.
@@ -34,9 +34,9 @@ def add_user_posts( # noqa: PLR0913
     pgupdater: The PostgreSQL updater.
     """
     for user in followings:
-        if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{server}/"):
+        if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{home_server}/"):
             posts = getters.get_user_posts(
-                user, know_followings, server, external_tokens)
+                user, know_followings, home_server, external_tokens)
 
             if posts is not None:
                 count = 0
@@ -56,7 +56,7 @@ def add_user_posts( # noqa: PLR0913
                             continue
                     if post.get("reblog") is None:
                         added = add_post_with_context(
-                            post, server, access_token,
+                            post, home_server, access_token,
                             external_tokens, pgupdater)
                         if added is True:
                             status = Status(
@@ -106,7 +106,7 @@ f"Added {count} posts for user {user['acct']} with {failed} errors and \
 
 def add_post_with_context(
         post : dict[str, str],
-        server : str,
+        home_server : str,
         access_token : str,
         external_tokens : dict[str, str],
         pgupdater : PostgreSQLUpdater,
@@ -116,7 +116,7 @@ def add_post_with_context(
     Args:
     ----
     post: The post to add.
-    server: The server to add the post to.
+    home_server: The server to add the post to.
     access_token: The access token to use to add the post.
     external_tokens: A dict of external tokens, keyed by server. If None, no \
         external tokens will be used.
@@ -126,7 +126,7 @@ def add_post_with_context(
     -------
     bool: True if the post was added successfully, False otherwise.
     """
-    added = api_mastodon.add_context_url(post["url"], server, access_token)
+    added = api_mastodon.add_context_url(post["url"], home_server, access_token)
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
@@ -135,16 +135,16 @@ def add_post_with_context(
             if parsed is not None and parsed[0] is not None:
                 known_context_urls = \
                     getter_wrappers.get_all_known_context_urls(
-                    server, [post], parsed_urls, external_tokens, pgupdater,
+                    home_server, [post], parsed_urls, external_tokens, pgupdater,
                     access_token)
                 (add_context_urls(
-                    server, access_token, known_context_urls, pgupdater))
+                    home_server, access_token, known_context_urls, pgupdater))
         return True
 
     return False
 
 def add_context_urls(
-        server : str,
+        home_server : str,
         access_token : str,
         context_urls : Iterable[str],
         pgupdater : PostgreSQLUpdater,
@@ -153,7 +153,7 @@ def add_context_urls(
 
     Args:
     ----
-    server: The server to add the toots to.
+    home_server: The server to add the toots to.
     access_token: The access token to use to add the toots.
     context_urls: The list of toot URLs to add.
     pgupdater: The PostgreSQL updater.
@@ -186,9 +186,9 @@ def add_context_urls(
     if posts_to_fetch:
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
         for url in posts_to_fetch:
-            logging.info(f"Fetching {url} through {server}")
+            logging.info(f"Fetching {url} through {home_server}")
             status_added = api_mastodon.add_context_url(
-                url, server, access_token)
+                url, home_server, access_token)
             if status_added:
                 pgupdater.cache_status(status_added)
                 count += 1
