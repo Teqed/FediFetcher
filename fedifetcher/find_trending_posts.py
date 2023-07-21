@@ -230,14 +230,13 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
             fetch_domain : str,
             ) -> None:
     """Fetch posts from a domain."""
-    asyncio.run(
-        fetch_trending_from_domain(external_tokens,
+    fetch_trending_from_domain(external_tokens,
         add_post_to_dict,
         var_manip.get_domains_to_fetch(),
         var_manip.get_domains_fetched(),
         var_manip.add_to_remembering,
         var_manip.get_remembering,
-        aux_domain_fetcher, fetch_domain, trending_posts_dict))
+        aux_domain_fetcher, fetch_domain, trending_posts_dict)
     try:
         var_manip.add_to_fetched(fetch_domain)
         var_manip.remove_from_fetching(fetch_domain)
@@ -304,7 +303,7 @@ class AuxDomainFetch:
         self.domains_fetched = domains_fetched
         self.aux_fetches = {}
 
-    async def queue_aux_fetch(self,
+    def queue_aux_fetch(self,
                             parsed_url: tuple[str | None, str | None],
                             post_url: str,
                             ) -> None:
@@ -361,7 +360,7 @@ class AuxDomainFetch:
 
         self.aux_fetches.clear()
 
-async def fetch_trending_from_domain(  # noqa: C901, PLR0913
+def fetch_trending_from_domain(  # noqa: C901, PLR0913
         external_tokens : dict[str, str],
         add_post_to_dict : Callable[[dict[str, str], str,
                                     dict[str, dict[str, str]]], bool],
@@ -397,7 +396,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
                     add_to_remembering(parsed_url[0], parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
-                await aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
+                aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
             elif not original:
                 remote = api_mastodon.get_status_by_id(
                         parsed_url[0], parsed_url[1], external_tokens)
