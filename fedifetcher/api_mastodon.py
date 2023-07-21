@@ -6,7 +6,7 @@ import logging
 from collections.abc import Awaitable, Callable, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar, cast
-
+import concurrent.futures
 import requests
 from mastodon import (
     Mastodon,
@@ -629,23 +629,42 @@ def get_trending_posts(
     trending_posts.extend(got_trending_posts)
     a_page = 40
     if limit > a_page:
-        offset = a_page
-        while len(trending_posts) < limit:
-            try:
-                got_trending_posts = get_trending_posts(
-                    server, token, offset)
-            except Exception:
-                logging.exception(
-                    f"Error getting trending posts for {server}")
-                break
-            trending_posts.extend(got_trending_posts)
-            if len(got_trending_posts) < a_page:
+        with concurrent.futures.ThreadPoolExecutor(
+            thread_name_prefix="fetcher",
+    ) as executor:
+            futures = []
+            for offset in range(a_page, limit, a_page):
+                futures.append(executor.submit(
+                    get_trending_posts, server, token, offset))
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    got_trending_posts = future.result()
+                except Exception:
+                    logging.exception(
+                        f"Error getting trending posts for {server}")
+                    break
+                trending_posts.extend(got_trending_posts)
                 logging.info(
-                f"Got {len(got_trending_posts)} trending posts total for {server} .")
-                break
-            logging.info(
-                f"Got {len(trending_posts)} trending posts for {server} ...")
-            offset += a_page
+                    f"Got {len(trending_posts)} trending posts for {server} ...")
+
+        # offset = a_page
+        # while len(trending_posts) < limit:
+        #     try:
+        #         got_trending_posts = get_trending_posts(
+        #             server, token, offset)
+        #     except Exception:
+        #         logging.exception(
+        #             f"Error getting trending posts for {server}")
+        #         break
+        #     trending_posts.extend(got_trending_posts)
+        #     if len(got_trending_posts) < a_page:
+        #         logging.info(
+        #         f"Got {len(got_trending_posts)} trending posts total for {server} .")
+        #         break
+        #     logging.info(
+        #         f"Got {len(trending_posts)} trending posts for {server} ...")
+        #     offset += a_page
+        # ###################
         # offset_list = [40+i*40 for i in range(3)]
         # tasks = [asyncio.create_task(
         #     get_trending_posts_async(
