@@ -145,8 +145,8 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 # TODO: Make this configurable
             password= \
                 helpers.arguments.pgpassword if helpers.arguments.pgpassword else None,
-            autocommit=True,
         )
+        conn.set_session(autocommit=True)
         pgupdater = PostgreSQLUpdater(conn)
         try:
             logging.info("Getting active user IDs")
