@@ -219,7 +219,7 @@ def get_all_reply_toots(
 
 
 def get_all_known_context_urls(  # noqa: PLR0913
-    server: str,
+    home_server: str,
     reply_toots: list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
     external_tokens: dict[str, str],
@@ -230,7 +230,7 @@ def get_all_known_context_urls(  # noqa: PLR0913
 
     Args:
     ----
-    server (str): The server to get the context toots from.
+    home_server (str): The server to add the context toots to.
     reply_toots (Iterator[dict[str, str]] | list[dict[str, str]]): The toots to get \
         the context toots for.
     parsed_urls (dict[str, tuple[str | None, str | None]]): The parsed URLs of the \
@@ -261,7 +261,7 @@ def get_all_known_context_urls(  # noqa: PLR0913
                     x[1],
                     external_tokens,
                     pgupdater,
-                    server,
+                    home_server,
                     home_server_token,
                 ),
                 toots_to_get_context_for,
@@ -289,6 +289,7 @@ def get_all_known_context_urls(  # noqa: PLR0913
                     server,
                     external_tokens,
                     pgupdater,
+                    home_server,
                     home_server_token,
                     toots_to_get_context_for_by_server[server],
                 )
@@ -297,11 +298,12 @@ def get_all_known_context_urls(  # noqa: PLR0913
             for result in concurrent.futures.as_completed(list_of_results):
                 known_context_urls.extend(result.result())
     return filter(
-        lambda url: not url.startswith(f"https://{server}/"), known_context_urls)
+        lambda url: not url.startswith(f"https://{home_server}/"), known_context_urls)
 
-def get_context_for_server(server : str,
+def get_context_for_server(server : str,  # noqa: ARG001
             external_tokens : dict[str, str],
             pgupdater : PostgreSQLUpdater,
+            home_server : str,
             home_server_token : str,
             toots_to_get_context_for : list[tuple[tuple[str, str], str]],
             ) -> list[str]:
@@ -317,7 +319,7 @@ def get_context_for_server(server : str,
                     url,
                     external_tokens,
                     pgupdater,
-                    server,
+                    home_server,
                     home_server_token,
                 )
         except Exception as ex:
