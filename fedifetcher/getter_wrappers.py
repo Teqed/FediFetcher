@@ -245,7 +245,7 @@ def get_all_known_context_urls(  # noqa: PLR0913
     """
     known_context_urls = []
     if reply_toots is not None:
-        toots_to_get_context_for: list[tuple] = []
+        toots_to_get_context_for: list[tuple[tuple[str, str], str]] = []
         with concurrent.futures.ThreadPoolExecutor(
             thread_name_prefix="get_context_url",
         ) as executor:
@@ -270,14 +270,14 @@ def get_all_known_context_urls(  # noqa: PLR0913
                     known_context_urls.extend(post)
         # toots_to_get_context_for is a list of tuples
         # these tuples are combinations of parsed_url,url
-        # let's create a dictionary of server:[url]
-        toots_to_get_context_for_by_server: dict[str, list[str]] = {}
+        # let's create a dictionary of server:[tuple]
+        toots_to_get_context_for_by_server: dict[
+            str, list[tuple[tuple[str, str], str]]] = {}
         for post in toots_to_get_context_for:
             parsed_url = post[0]
-            url = post[1]
             if parsed_url[0] not in toots_to_get_context_for_by_server:
                 toots_to_get_context_for_by_server[parsed_url[0]] = []
-            toots_to_get_context_for_by_server[parsed_url[0]].append(url)
+            toots_to_get_context_for_by_server[parsed_url[0]].append(post)
         with concurrent.futures.ThreadPoolExecutor(
             thread_name_prefix="get_context",
         ) as executor:
@@ -303,7 +303,7 @@ def get_context_for_server(server : str,
             external_tokens : dict[str, str],
             pgupdater : PostgreSQLUpdater,
             home_server_token : str,
-            toots_to_get_context_for : list[str],
+            toots_to_get_context_for : list[tuple[tuple[str, str], str]],
             ) -> list[str]:
     """Get the context for the given toots from their original server."""
     known_context_urls = []
