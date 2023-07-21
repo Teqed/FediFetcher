@@ -193,7 +193,7 @@ less popular posts from {fetch_domain}"
             logging.debug(f"Fetching {status_id} from {fetch_domain}")
             if str(status_id) not in trending_posts_dict \
                     or "original" not in trending_posts_dict[str(status_id)]:
-                original_post = await api_mastodon.get_status_by_id(
+                original_post = api_mastodon.get_status_by_id(
                     fetch_domain, status_id, external_tokens)
                 if original_post:
                     add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
@@ -245,7 +245,7 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
         logging.error(
             f"Error occurred while fetching domain {fetch_domain}")
 
-async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
+def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
                     add_post_to_dict : Callable[[dict[str, str], str,
                                                 dict[str, dict[str, str]]], bool],
                     domains_fetched : list[str],
@@ -267,7 +267,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
                 # add_post_to_dict(cached_post, parsed_urls[0][0], trending_post_dict)
         if not post_urls:
             return True
-        trending = await api_mastodon.get_trending_posts(
+        trending = api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
                         external_tokens.get(parsed_urls[0][0]), 40)
         domains_fetched.append(parsed_urls[0][0])
@@ -279,7 +279,7 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913
     for post_url in post_urls:
         parsed = parsers.post(post_url)
         if parsed and parsed[0] and parsed[0] == parsed_urls[0][0] and parsed[1]:
-            remote = await api_mastodon.get_status_by_id(
+            remote = api_mastodon.get_status_by_id(
                     parsed[0], parsed[1], external_tokens)
             if remote and remote["url"] == post_url:
                 add_post_to_dict(remote, parsed[0], trending_post_dict)
@@ -334,9 +334,9 @@ class AuxDomainFetch:
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 list_of_posts.append(post_url)
                 list_of_parsed_urls.append(parsed_url)
-            asyncio.run(aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
+            aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
                 self.domains_fetched, list_of_posts,
-                    list_of_parsed_urls, trending_post_dict, pgupdater))
+                    list_of_parsed_urls, trending_post_dict, pgupdater)
         # Create a thread pool executor
         with concurrent.futures.ThreadPoolExecutor(
                 thread_name_prefix="aux_fetcher",
@@ -376,7 +376,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     """Fetch trending posts from a domain."""
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
-    trending_posts = await api_mastodon.get_trending_posts(
+    trending_posts = api_mastodon.get_trending_posts(
             fetch_domain, external_tokens.get(fetch_domain), 200)
 
     if trending_posts:
@@ -399,7 +399,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
             if parsed_url[0] not in domains_fetched:
                 await aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
             elif not original:
-                remote = await api_mastodon.get_status_by_id(
+                remote = api_mastodon.get_status_by_id(
                         parsed_url[0], parsed_url[1], external_tokens)
                 if remote and remote["url"] == post_url:
                     original = add_post_to_dict(

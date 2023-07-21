@@ -95,7 +95,7 @@ def handle_mastodon_errors(  # noqa: C901
 
     return decorator
 
-async def mastodon(server: str, token: str | None = None) -> Mastodon:
+def mastodon(server: str, token: str | None = None) -> Mastodon:
     """Get a Mastodon instance."""
     if not hasattr(mastodon, "sessions"):
         mastodon.sessions = {}
@@ -146,10 +146,10 @@ async def get_user_id(
     str | None: The user id if found, or None if the user is not found.
     """
     if server == helpers.arguments.server or not server:
-        return (await mastodon(server, token)).account_lookup(
+        return (mastodon(server, token)).account_lookup(
             acct = f"{user}",
         )[id]
-    account_search = (await mastodon(server, token)).account_lookup(
+    account_search = (mastodon(server, token)).account_lookup(
         acct = f"{user}",
     )
     if account_search["username"] == user:
@@ -183,12 +183,12 @@ async def get_timeline(
     Exception: If the server returns an unexpected status code.
     """
     toots = cast(list[dict[str, str]], (
-        await mastodon(server, token)).timeline(timeline=timeline, limit=limit))
+        mastodon(server, token)).timeline(timeline=timeline, limit=limit))
     toots_result = toots.copy()
     number_of_toots_received = len(toots)
     while toots and number_of_toots_received < limit and \
             toots[-1].get("_pagination_next"):
-        toots = (await mastodon(server, token)).fetch_next(toots)
+        toots = (mastodon(server, token)).fetch_next(toots)
         if not toots:
             break
         number_of_toots_received += len(toots)
@@ -224,7 +224,7 @@ async def get_active_user_ids(
     logging.debug(f"Reply interval: {reply_interval_hours} hours")
     since = datetime.now(UTC) - timedelta(days=reply_interval_hours / 24 + 1)
     logging.debug(f"Since: {since}")
-    local_accounts = (await mastodon(server, access_token)).admin_accounts_v2(
+    local_accounts = (mastodon(server, access_token)).admin_accounts_v2(
         origin="local",
         status="active",
     )
@@ -264,7 +264,7 @@ async def get_me(server : str, token : str) -> str | None:
     Exception: If the access token does not have the correct scope.
     Exception: If the server returns an unexpected status code.
     """
-    return (await mastodon(server, token)).account_verify_credentials()["id"]
+    return (mastodon(server, token)).account_verify_credentials()["id"]
 
 @handle_mastodon_errors(None)
 async def get_user_posts_from_id(
@@ -293,7 +293,7 @@ async def get_user_posts_from_id(
     """
     logging.info(f"Getting posts for user {user_id} on {server}")
     return cast(list[dict[str, str]],
-                (await mastodon(server, token)).account_statuses(
+                (mastodon(server, token)).account_statuses(
                     id = user_id,
                     limit = 40,
                     ))
@@ -342,7 +342,7 @@ async def get_toot_context(  # noqa: PLR0913
         home_server_token: str) -> list[str]:
     """Get the URLs of the context toots of the given toot asynchronously."""
     # Get the context of a toot
-    context: Context = (await mastodon(server, token)).status_context(id=toot_id)
+    context: Context = (mastodon(server, token)).status_context(id=toot_id)
     # List of status URLs
     context_statuses = list(context["ancestors"] + context["descendants"])
     # Sort by server
@@ -378,13 +378,13 @@ async def get_notifications(
     -------
     list[dict[str, str]]: A list of notifications, or [] if the request fails.
     """
-    notifications = (await mastodon(server, token)).notifications(limit=limit)
+    notifications = (mastodon(server, token)).notifications(limit=limit)
     number_of_notifications_received = len(notifications)
     notifications_result = notifications.copy()
     while notifications \
             and number_of_notifications_received < limit \
                 and notifications[-1].get("_pagination_next"):
-        more_notifications = (await mastodon(server, token)).fetch_next(notifications)
+        more_notifications = (mastodon(server, token)).fetch_next(notifications)
         if not more_notifications:
             break
         number_of_notifications_received += len(more_notifications)
@@ -409,13 +409,13 @@ async def get_bookmarks(
     -------
     list[dict[str, str]]: A list of bookmarks, or [] if the request fails.
     """
-    bookmarks = (await mastodon(server, token)).bookmarks(limit=limit)
+    bookmarks = (mastodon(server, token)).bookmarks(limit=limit)
     number_of_bookmarks_received = len(bookmarks)
     bookmarks_result = bookmarks.copy()
     while bookmarks \
             and number_of_bookmarks_received < limit \
                 and bookmarks[-1].get("_pagination_next"):
-        more_bookmarks = (await mastodon(server, token)).fetch_next(bookmarks)
+        more_bookmarks = (mastodon(server, token)).fetch_next(bookmarks)
         if not more_bookmarks:
             break
         number_of_bookmarks_received += len(more_bookmarks)
@@ -440,12 +440,12 @@ async def get_favourites(
     -------
     list[dict[str, str]]: A list of favourites, or [] if the request fails.
     """
-    favourites = (await mastodon(server, token)).favourites(limit=limit)
+    favourites = (mastodon(server, token)).favourites(limit=limit)
     number_of_favourites_received = len(favourites)
     favourites_result = favourites.copy()
     while number_of_favourites_received < limit \
             and favourites[-1].get("_pagination_next"):
-        more_favourites = (await mastodon(server, token)).fetch_next(favourites)
+        more_favourites = (mastodon(server, token)).fetch_next(favourites)
         if not more_favourites:
             break
         number_of_favourites_received += len(more_favourites)
@@ -470,14 +470,14 @@ async def get_follow_requests(
     -------
     list[dict[str, str]]: A list of follow requests, or [] if the request fails.
     """
-    follow_requests = (await mastodon(server, token)).follow_requests(limit=limit)
+    follow_requests = (mastodon(server, token)).follow_requests(limit=limit)
     number_of_follow_requests_received = len(follow_requests)
     follow_requests_result = follow_requests.copy()
     while follow_requests \
             and number_of_follow_requests_received < limit \
                 and follow_requests[-1].get("_pagination_next"):
         more_follow_requests = (
-            await mastodon(server, token)).fetch_next(follow_requests)
+            mastodon(server, token)).fetch_next(follow_requests)
         if not more_follow_requests:
             break
         number_of_follow_requests_received += len(more_follow_requests)
@@ -505,13 +505,13 @@ async def get_followers(
     list[dict[str, str]]: A list of followers, or [] if the request fails.
     """
     followers = (
-        await mastodon(server, token)).account_followers(id=user_id, limit=limit)
+        mastodon(server, token)).account_followers(id=user_id, limit=limit)
     number_of_followers_received = len(followers)
     followers_result = followers.copy()
     while followers \
             and number_of_followers_received < limit \
                 and followers[-1].get("_pagination_next"):
-        more_followers = (await mastodon(server, token)).fetch_next(followers)
+        more_followers = (mastodon(server, token)).fetch_next(followers)
         if not more_followers:
             break
         number_of_followers_received += len(more_followers)
@@ -539,13 +539,13 @@ async def get_following(
     list[dict[str, str]]: A list of following, or [] if the request fails.
     """
     following = (
-        await mastodon(server, token)).account_following(id=user_id, limit=limit)
+        mastodon(server, token)).account_following(id=user_id, limit=limit)
     number_of_following_received = len(following)
     following_result = following.copy()
     while following \
             and number_of_following_received < limit \
                 and following[-1].get("_pagination_next"):
-        more_following = (await mastodon(server, token)).fetch_next(following)
+        more_following = (mastodon(server, token)).fetch_next(following)
         if not more_following:
             break
         number_of_following_received += len(more_following)
@@ -572,7 +572,7 @@ async def add_context_url(
         request fails.
     """
     try:
-        result = (await mastodon(server, access_token)).search_v2(
+        result = (mastodon(server, access_token)).search_v2(
             q = url,
         )
     except MastodonAPIError:
@@ -585,7 +585,7 @@ async def add_context_url(
     return False
 
 @handle_mastodon_errors(default_return_value=[])
-async def get_trending_posts(
+def get_trending_posts(
         server : str,
         token : str | None = None,
         limit : int = 40,
@@ -604,22 +604,15 @@ async def get_trending_posts(
     list[dict[str, str]]: A list of trending posts, or [] if the \
         request fails.
     """
-    async def get_trending_posts_async(
+    def get_trending_posts(
             server: str,
             token: str | None = None,
             offset: int = 0,
     ) -> list[dict[str, str]]:
-        """Get a page of trending posts and return it asynchronously."""
-        loop = asyncio.get_running_loop()
+        """Get a page of trending posts and return it."""
+        mastodon_result = mastodon(server, token)
 
-        mastodon_result = await mastodon(server, token)
-
-        # Wrap the synchronous request in a future object
-        future = loop.run_in_executor(
-            None, lambda: mastodon_result.trending_statuses(limit=40, offset=offset))
-
-        # Wait for the future to complete
-        trending_posts = await future
+        mastodon_result.trending_statuses(limit=40, offset=offset)
 
         return cast(list[dict[str, str]], trending_posts)
 
@@ -627,7 +620,7 @@ async def get_trending_posts(
     logging.info(f"\033[1m{msg}\033[0m")
     got_trending_posts: list[dict[str, str]] = []
     try:
-        got_trending_posts = await get_trending_posts_async(
+        got_trending_posts = get_trending_posts(
             server, token, 0)
     except Exception:
         logging.exception(
@@ -636,35 +629,53 @@ async def get_trending_posts(
     logging.info(f"Got {len(got_trending_posts)} trending posts for {server}")
     trending_posts: list[dict[str, str]] = []
     trending_posts.extend(got_trending_posts)
-    if limit > 40:  # noqa: PLR2004
-        offset_list = [40+i*40 for i in range(3)]
-        tasks = [asyncio.create_task(
-            get_trending_posts_async(
-                server, token, off)) for off in offset_list]
-        highest_offset = max(offset_list)
-        while tasks:
-            done, pending = await asyncio.wait(
-                tasks, return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                try:
-                    result = task.result()
-                    if len(result) == 0:
-                        break  # stop processing results
-                    trending_posts.extend(result)
-                    logging.info(
-                        f"Got {len(trending_posts)} trending posts for {server} ...")
-                    if len(trending_posts) >= limit:
-                        break
-                    highest_offset += 40
-                    new_task = asyncio.create_task(
-                        get_trending_posts_async(
-                            server, token, highest_offset)) # create a task
-                    tasks.append(new_task)  # add it to the set
-                except MastodonError:
-                    logging.exception(
-                        f"Error getting trending posts for {server}")
-                    break
-            tasks = [t for t in tasks if not t.done()]  # remove
+    a_page = 40
+    if limit > a_page:
+        offset = a_page
+        while len(trending_posts) < limit:
+            try:
+                got_trending_posts = get_trending_posts(
+                    server, token, offset)
+            except Exception:
+                logging.exception(
+                    f"Error getting trending posts for {server}")
+                break
+            trending_posts.extend(got_trending_posts)
+            if len(got_trending_posts) < a_page:
+                logging.info(
+                f"Got {len(got_trending_posts)} trending posts total for {server} .")
+                break
+            logging.info(
+                f"Got {len(trending_posts)} trending posts for {server} ...")
+            offset += a_page
+        # offset_list = [40+i*40 for i in range(3)]
+        # tasks = [asyncio.create_task(
+        #     get_trending_posts_async(
+        #         server, token, off)) for off in offset_list]
+        # highest_offset = max(offset_list)
+        # while tasks:
+        #     done, pending = await asyncio.wait(
+        #         tasks, return_when=asyncio.FIRST_COMPLETED)
+        #     for task in done:
+        #         try:
+        #             result = task.result()
+        #             if len(result) == 0:
+        #                 break  # stop processing results
+        #             trending_posts.extend(result)
+        #             logging.info(
+        #                 f"Got {len(trending_posts)} trending posts for {server} ...")
+        #             if len(trending_posts) >= limit:
+        #                 break
+        #             highest_offset += 40
+        #             new_task = asyncio.create_task(
+        #                 get_trending_posts_async(
+        #                     server, token, highest_offset)) # create a task
+        #             tasks.append(new_task)  # add it to the set
+        #         except MastodonError:
+        #             logging.exception(
+        #                 f"Error getting trending posts for {server}")
+        #             break
+        #     tasks = [t for t in tasks if not t.done()]  # remove
 
     logging.info(f"Found {len(trending_posts)} trending posts for {server}")
     return trending_posts
@@ -770,7 +781,7 @@ async def get_home_status_id_from_url_list(
     return status_ids
 
 @handle_mastodon_errors(None)
-async def get_status_by_id(
+def get_status_by_id(
         server: str,
         status_id : str,
         external_tokens : dict[str, str] | None,
@@ -791,4 +802,4 @@ async def get_status_by_id(
     token = None
     if external_tokens and server in external_tokens:
         token = external_tokens[server]
-    return (await mastodon(server, token)).status(status_id)
+    return (mastodon(server, token)).status(status_id)
