@@ -21,7 +21,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import helpers, parsers
 
 
-async def get_notification_users(
+def get_notification_users(
         server : str,
         access_token : str,
         known_users : OrderedSet,
@@ -45,7 +45,7 @@ async def get_notification_users(
     """
     since = datetime.now(
         datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
-    notifications = await api_mastodon.get_notifications(
+    notifications = api_mastodon.get_notifications(
         server,
         access_token,
         int(since.timestamp()),
@@ -73,7 +73,7 @@ f"Found {len(notification_users)} users in notifications, \
 
     return users
 
-async def get_new_follow_requests(
+def get_new_follow_requests(
         server : str,
         access_token : str,
         limit : int, # = 40,
@@ -93,7 +93,7 @@ async def get_new_follow_requests(
     -------
     list[dict]: A list of follow requests.
     """
-    follow_requests = list(await api_mastodon.get_follow_requests(
+    follow_requests = list(api_mastodon.get_follow_requests(
         server,
         access_token,
         limit,
@@ -108,7 +108,7 @@ async def get_new_follow_requests(
 
     return new_follow_requests
 
-async def get_new_followers(
+def get_new_followers(
         server : str,
         token: str | None,
         user_id : str,
@@ -131,7 +131,7 @@ async def get_new_followers(
     -------
     list[dict]: A list of followers.
     """
-    followers = list(await api_mastodon.get_followers(server, token, user_id, limit))
+    followers = list(api_mastodon.get_followers(server, token, user_id, limit))
 
     # Remove any we already know about
     new_followers = filter_known_users(
@@ -142,7 +142,7 @@ f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
     return new_followers
 
-async def get_new_followings(
+def get_new_followings(
         server : str,
         token: str | None,
         user_id : str,
@@ -164,7 +164,7 @@ async def get_new_followings(
     -------
     list[dict]: A list of followings.
     """
-    following = list(await api_mastodon.get_following(server, token, user_id, limit))
+    following = list(api_mastodon.get_following(server, token, user_id, limit))
 
     # Remove any we already know about
     new_followings = filter_known_users(
@@ -175,7 +175,7 @@ f"Got {len(following)} followings, {len(new_followings)} of which are new")
 
     return new_followings
 
-async def get_all_reply_toots(
+def get_all_reply_toots(
     server: str,
     user_ids: Iterable[str],
     access_token: str,
@@ -205,7 +205,7 @@ async def get_all_reply_toots(
     replies_since = datetime.now(UTC) - timedelta(hours=reply_interval_hours)
     all_replies = []
     for user_id in user_ids:
-        replies = await api_mastodon.get_reply_posts_from_id(
+        replies = api_mastodon.get_reply_posts_from_id(
             user_id,
             server,
             access_token,
@@ -217,7 +217,7 @@ async def get_all_reply_toots(
     return all_replies
 
 
-async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
+def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
     server: str,
     reply_toots: Iterator[dict[str, str]] | list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
@@ -281,7 +281,7 @@ async def get_all_known_context_urls(  # noqa: C901, PLR0912, PLR0913
             parsed_url = post[0]
             url = post[1]
             try:
-                context = await get_post_context(
+                context = get_post_context(
                     parsed_url[0],
                     parsed_url[1],
                     url,
@@ -450,7 +450,7 @@ async def get_all_context_urls(  # noqa: PLR0913
             url : str, toot_id : str, session : ClientSession) -> list[str]:
         session = aiohttp.ClientSession()
         try:
-            return await get_post_context(
+            return get_post_context(
                 server, toot_id, url, external_tokens, pgupdater,
                 home_server, home_server_token,
             )
@@ -475,7 +475,7 @@ async def get_all_context_urls(  # noqa: PLR0913
         )
 
     # Wait for all the tasks to complete
-    results = await asyncio.gather(*tasks)
+    results = asyncio.gather(*tasks)
     await session.close()
 
     # Flatten the list of context URLs

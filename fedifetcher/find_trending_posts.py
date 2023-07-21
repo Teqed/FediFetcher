@@ -130,7 +130,7 @@ class VariableManipulators:
         """Return the domains_to_fetch list."""
         return self.domains_to_fetch
 
-async def find_trending_posts(  # noqa: C901
+def find_trending_posts(  # noqa: C901
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -202,9 +202,9 @@ less popular posts from {fetch_domain}"
                         f"Couldn't find {status_id} from {fetch_domain}")
 
     logging.info("Fetching aux posts")
-    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
+    aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
 
-    updated_trending_posts_dict = await \
+    updated_trending_posts_dict = \
     update_local_status_ids(
         trending_posts_dict, home_server, home_token, pgupdater)
 
@@ -314,7 +314,7 @@ class AuxDomainFetch:
             if (parsed_url, post_url) not in self.aux_fetches[parsed_url[0]]:
                 self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
 
-    async def do_aux_fetches(self,
+    def do_aux_fetches(self,
                             trending_post_dict: dict[str, dict[str, str]],
                             pgupdater: PostgreSQLUpdater,
                             ) -> None:
@@ -408,7 +408,7 @@ def fetch_trending_from_domain(  # noqa: C901, PLR0913
     else:
         logging.warning(f"Couldn't find trending posts on {fetch_domain}")
 
-async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
+def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
                                 home_token : str,
                                 pgupdater : PostgreSQLUpdater,
@@ -416,7 +416,7 @@ async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]]
     """Update the local_status_id in the trending_posts_dict."""
     list_of_trending_posts_urls = [
         trending_post["url"] for trending_post in trending_posts_dict.values()]
-    home_status_dict = await api_mastodon.get_home_status_id_from_url_list(
+    home_status_dict = api_mastodon.get_home_status_id_from_url_list(
         home_server, home_token, list_of_trending_posts_urls, pgupdater)
     for trending_post in trending_posts_dict.values():
         local_status_id = home_status_dict.get(trending_post["url"])

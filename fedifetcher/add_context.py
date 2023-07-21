@@ -11,7 +11,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import getters, helpers
 
 
-async def add_user_posts( # noqa: PLR0913
+def add_user_posts( # noqa: PLR0913
         server: str,
         access_token: str,
         followings: list[dict[str, str]],
@@ -35,7 +35,7 @@ async def add_user_posts( # noqa: PLR0913
     """
     for user in followings:
         if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{server}/"):
-            posts = await getters.get_user_posts(
+            posts = getters.get_user_posts(
                 user, know_followings, server, external_tokens)
 
             if posts is not None:
@@ -55,7 +55,7 @@ async def add_user_posts( # noqa: PLR0913
                             logging.debug(f"Already added {post_url}")
                             continue
                     if post.get("reblog") is None:
-                        added = await add_post_with_context(
+                        added = add_post_with_context(
                             post, server, access_token,
                             external_tokens, pgupdater)
                         if added is True:
@@ -104,7 +104,7 @@ f"Added {count} posts for user {user['acct']} with {failed} errors and \
                     know_followings.add(user["acct"])
                     all_known_users.add(user["acct"])
 
-async def add_post_with_context(
+def add_post_with_context(
         post : dict[str, str],
         server : str,
         access_token : str,
@@ -126,24 +126,24 @@ async def add_post_with_context(
     -------
     bool: True if the post was added successfully, False otherwise.
     """
-    added = await api_mastodon.add_context_url(post["url"], server, access_token)
+    added = api_mastodon.add_context_url(post["url"], server, access_token)
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
             parsed_urls : dict[str, tuple[str | None, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is not None and parsed[0] is not None:
-                known_context_urls = await \
+                known_context_urls = \
                     getter_wrappers.get_all_known_context_urls(
                     server, iter((post,)), parsed_urls, external_tokens, pgupdater,
                     access_token)
-                (await add_context_urls(
+                (add_context_urls(
                     server, access_token, known_context_urls, pgupdater))
         return True
 
     return False
 
-async def add_context_urls(
+def add_context_urls(
         server : str,
         access_token : str,
         context_urls : Iterable[str],
@@ -187,7 +187,7 @@ async def add_context_urls(
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
         for url in posts_to_fetch:
             logging.info(f"Fetching {url} through {server}")
-            status_added = await api_mastodon.add_context_url(
+            status_added = api_mastodon.add_context_url(
                 url, server, access_token)
             if status_added:
                 pgupdater.cache_status(status_added)

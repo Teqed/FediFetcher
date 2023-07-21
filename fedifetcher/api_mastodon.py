@@ -29,20 +29,19 @@ def handle_mastodon_errors(  # noqa: C901
         default_return_value: T, # type: ignore  # noqa: PGH003
         ) -> Callable:
     """Handle Mastodon errors."""
-    def decorator(  # noqa: C901, ANN202
-            func: Callable[..., Awaitable[T]],
-            ):
+    def decorator(  # noqa: C901
+            func: Callable[..., T | None]) -> Callable[..., T | None]:
         sig = inspect.signature(func)
 
         @functools.wraps(func)
-        async def wrapper(  # noqa: PLR0911
+        def wrapper(  # noqa: PLR0911
             *args: Any, **kwargs: Any) -> T | None:  # noqa: ANN401
             bound = sig.bind(*args, **kwargs)
 
             server = bound.arguments.get("server", "Unknown")
 
             try:
-                return await func(*args, **kwargs)
+                return func(*args, **kwargs)
             except MastodonNotFoundError:
                 logging.error(
                     f"Error with Mastodon API on server {server}. Status code: 404. "
@@ -125,7 +124,7 @@ def mastodon(server: str, token: str | None = None) -> Mastodon:
     return mastodon.sessions[server]
 
 @handle_mastodon_errors(None)
-async def get_user_id(
+def get_user_id(
         user : str,
         server: str,
         token : str | None = None,
@@ -157,7 +156,7 @@ async def get_user_id(
     return None
 
 @handle_mastodon_errors([])
-async def get_timeline(
+def get_timeline(
     server: str,
     token: str | None = None,
     timeline: str = "local",
@@ -197,7 +196,7 @@ async def get_timeline(
     return toots_result
 
 @handle_mastodon_errors(None)
-async def get_active_user_ids(
+def get_active_user_ids(
     server: str,
     access_token: str,
     reply_interval_hours: int,
@@ -245,7 +244,7 @@ async def get_active_user_ids(
     return active_user_ids
 
 @handle_mastodon_errors(None)
-async def get_me(server : str, token : str) -> str | None:
+def get_me(server : str, token : str) -> str | None:
     """Get the user ID of the authenticated user.
 
     Args:
@@ -267,7 +266,7 @@ async def get_me(server : str, token : str) -> str | None:
     return (mastodon(server, token)).account_verify_credentials()["id"]
 
 @handle_mastodon_errors(None)
-async def get_user_posts_from_id(
+def get_user_posts_from_id(
         user_id : str,
         server : str,
         token : str | None = None,
@@ -298,7 +297,7 @@ async def get_user_posts_from_id(
                     limit = 40,
                     ))
 
-async def get_reply_posts_from_id(
+def get_reply_posts_from_id(
     user_id: str,
     server: str,
     token: str,
@@ -321,7 +320,7 @@ async def get_reply_posts_from_id(
         the user is not found.
     """
     try:
-        all_statuses = await get_user_posts_from_id(user_id, server, token)
+        all_statuses = get_user_posts_from_id(user_id, server, token)
         if all_statuses:
             return [
                 toot
@@ -336,7 +335,7 @@ async def get_reply_posts_from_id(
     return None
 
 @handle_mastodon_errors([])
-async def get_toot_context(  # noqa: PLR0913
+def get_toot_context(  # noqa: PLR0913
         server: str, toot_id: str, token: str | None,
         pgupdater: PostgreSQLUpdater, home_server: str,
         home_server_token: str) -> list[str]:
@@ -348,7 +347,7 @@ async def get_toot_context(  # noqa: PLR0913
     # Sort by server
     context_statuses.sort(key=lambda status: status["url"].split("/")[2])
     context_statuses_url_list = [status["url"] for status in context_statuses]
-    home_status_list: dict[str, str] = await get_home_status_id_from_url_list(
+    home_status_list: dict[str, str] = get_home_status_id_from_url_list(
         home_server, home_server_token, context_statuses_url_list, pgupdater)
     for status in context_statuses:
         home_status_id = home_status_list.get(status["url"])
@@ -361,7 +360,7 @@ async def get_toot_context(  # noqa: PLR0913
     return [status["url"] for status in context_statuses]
 
 @handle_mastodon_errors([])
-async def get_notifications(
+def get_notifications(
     server: str,
     token: str,
     limit: int = 40,
@@ -392,7 +391,7 @@ async def get_notifications(
     return cast(list[dict[str, str]], notifications_result)
 
 @handle_mastodon_errors([])
-async def get_bookmarks(
+def get_bookmarks(
     server: str,
     token: str,
     limit: int = 40,
@@ -423,7 +422,7 @@ async def get_bookmarks(
     return cast(list[dict[str, str]], bookmarks_result)
 
 @handle_mastodon_errors([])
-async def get_favourites(
+def get_favourites(
     server: str,
     token: str,
     limit: int = 40,
@@ -453,7 +452,7 @@ async def get_favourites(
     return cast(list[dict[str, str]], favourites_result)
 
 @handle_mastodon_errors([])
-async def get_follow_requests(
+def get_follow_requests(
     server: str,
     token: str,
     limit: int = 40,
@@ -485,7 +484,7 @@ async def get_follow_requests(
     return cast(list[dict[str, str]], follow_requests_result)
 
 @handle_mastodon_errors([])
-async def get_followers(
+def get_followers(
     server: str,
     token: str | None,
     user_id: str,
@@ -519,7 +518,7 @@ async def get_followers(
     return cast(list[dict[str, str]], followers_result)
 
 @handle_mastodon_errors([])
-async def get_following(
+def get_following(
     server: str,
     token: str | None,
     user_id: str,
@@ -553,7 +552,7 @@ async def get_following(
     return cast(list[dict[str, str]], following_result)
 
 @handle_mastodon_errors(default_return_value=False)
-async def add_context_url(
+def add_context_url(
         url : str,
         server : str,
         access_token : str,
@@ -654,7 +653,7 @@ def get_trending_posts(
         #         server, token, off)) for off in offset_list]
         # highest_offset = max(offset_list)
         # while tasks:
-        #     done, pending = await asyncio.wait(
+        #     done, pending = asyncio.wait(
         #         tasks, return_when=asyncio.FIRST_COMPLETED)
         #     for task in done:
         #         try:
@@ -699,7 +698,7 @@ def filter_language(
         lambda toot: toot.get("language") == language, toots)
 
 @handle_mastodon_errors(None)
-async def get_home_status_id_from_url(
+def get_home_status_id_from_url(
         server: str,
         token: str,
         url: str,
@@ -726,7 +725,7 @@ async def get_home_status_id_from_url(
             return status_id
     msg = f"Fetching status id for {url} from {server}"
     logging.info(f"\033[1;33m{msg}\033[0m")
-    result = await add_context_url(url, server, token)
+    result = add_context_url(url, server, token)
     if isinstance(result, dict | Status):
         status_id = result.get("id")
         logging.debug(f"Got status id {status_id} for {url} from {server}")
@@ -743,7 +742,7 @@ did not match {result.get('url')}")
     return None
 
 @handle_mastodon_errors(None)
-async def get_home_status_id_from_url_list(
+def get_home_status_id_from_url_list(
         server: str,
         token: str,
         urls: list[str],
@@ -774,7 +773,7 @@ async def get_home_status_id_from_url_list(
                 if status_id:
                     status_ids.update({url: status_id})
                     continue
-        status_id = await get_home_status_id_from_url(
+        status_id = get_home_status_id_from_url(
             server, token, url, pgupdater)
         if status_id:
             status_ids.update({url: status_id})

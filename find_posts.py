@@ -27,7 +27,7 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-async def main() -> None:  # noqa: PLR0912, C901, PLR0915
+def main() -> None:  # noqa: PLR0912, C901, PLR0915
     """Run FediFetcher."""
     start = datetime.now(UTC)
 
@@ -149,7 +149,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         pgupdater = PostgreSQLUpdater(conn)
         try:
             logging.info("Getting active user IDs")
-            user_ids = list(await api_mastodon.get_active_user_ids(
+            user_ids = list(api_mastodon.get_active_user_ids(
                 helpers.arguments.server,
                 admin_token,
                 helpers.arguments.reply_interval_in_hours,
@@ -159,7 +159,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             original server, and add them to the local server."""
             logging.info("Pulling context toots for replies")
             logging.debug("Found user ID, getting reply toots")
-            reply_toots = await getter_wrappers.get_all_reply_toots(
+            reply_toots = getter_wrappers.get_all_reply_toots(
                 helpers.arguments.server,
                 user_ids,
                 admin_token,
@@ -167,7 +167,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting known context URLs")
-            await getter_wrappers.get_all_known_context_urls(
+            getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -183,17 +183,17 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 parsed_urls,
             )
             logging.debug("Found replied toot IDs, getting context URLs")
-            context_urls_coroutine = getter_wrappers.get_all_context_urls(
+            context_urls_coroutine = asyncio.run(getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
                 external_tokens,
                 pgupdater,
                 helpers.arguments.server,
                 admin_token,
-            )
-            context_urls = await context_urls_coroutine
+            ))
+            context_urls = context_urls_coroutine
             logging.debug("Found context URLs, adding context URLs")
-            await add_context.add_context_urls(
+            add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 context_urls,
@@ -209,7 +209,7 @@ provided. Continuing without active user IDs.")
             index = helpers.arguments.access_token.index(_token)
             logging.info(f"Getting posts for token {index + 1} of \
 {len(helpers.arguments.access_token)}")
-            await find_posts_by_token(
+            find_posts_by_token(
                 _token,
                 parsed_urls,
                 replied_toot_server_ids,
@@ -225,7 +225,7 @@ provided. Continuing without active user IDs.")
             # from, e.g. "example1.com,example2.com"
             external_feeds = helpers.arguments.external_feeds.split(",")
             logging.info("Getting trending posts")
-            trending_posts = await find_trending_posts(
+            trending_posts = find_trending_posts(
                 helpers.arguments.server,
                 admin_token,
                 external_feeds,
@@ -293,7 +293,7 @@ f"Found {len(trending_posts)} trending posts")
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
-            known_context_urls = await getter_wrappers.get_all_known_context_urls(
+            known_context_urls = getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 trending_posts_changed,
                 parsed_urls,
@@ -302,7 +302,7 @@ context URLs")
                 admin_token,
                 )
             logging.debug("Found known context URLs, getting context URLs")
-            await add_context.add_context_urls(
+            add_context.add_context_urls(
                 helpers.arguments.server,
                 admin_token,
                 known_context_urls,
@@ -351,6 +351,4 @@ context URLs")
                 logging.error(f"Error getting callback url: {ex}")
         sys.exit(1)
 
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+main()
