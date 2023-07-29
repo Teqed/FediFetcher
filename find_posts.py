@@ -246,11 +246,11 @@ f"Found {len(trending_posts)} trending posts")
                     trending_post_url_list)
             for post in trending_posts:
                 post_url: str = post["url"]
-                new_reply_count = post["replies_count"]
+                new_reply_count = int(post["replies_count"])
                 cached = trending_posts_with_cache.get(post_url)
-                old_reply_count = cached.get("replies_count") if cached else None
-                if ((old_reply_count is None) or (new_reply_count > old_reply_count)) \
-                    and cached:
+                old_reply_count = int(cached.get("replies_count")) if cached else None
+                if (new_reply_count > 0 and ((old_reply_count is None) \
+                        or (new_reply_count > old_reply_count))):
                     trending_posts_changed.append(post)
                     if cached:
                         cached["replies_count"] = new_reply_count
