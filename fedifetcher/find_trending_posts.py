@@ -266,7 +266,7 @@ def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
             return True
         trending = api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
-                        external_tokens.get(parsed_urls[0][0]), 40)
+                        external_tokens.get(parsed_urls[0][0]), 120)
         domains_fetched.append(parsed_urls[0][0])
         if trending:
             for t_post in trending:

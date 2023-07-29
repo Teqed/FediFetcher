@@ -603,7 +603,7 @@ def get_trending_posts(
     list[dict[str, str]]: A list of trending posts, or [] if the \
         request fails.
     """
-    def get_trending_posts(
+    def _get_trending_posts(
             server: str,
             token: str | None = None,
             offset: int = 0,
@@ -618,7 +618,7 @@ def get_trending_posts(
     logging.info(f"\033[1m{msg}\033[0m")
     got_trending_posts: list[dict[str, str]] = []
     try:
-        got_trending_posts = get_trending_posts(
+        got_trending_posts = _get_trending_posts(
             server, token, 0)
     except Exception:
         logging.exception(
@@ -635,7 +635,7 @@ def get_trending_posts(
             futures = []
             for offset in range(a_page, limit, a_page):
                 futures.append(executor.submit(
-                    get_trending_posts, server, token, offset))
+                    _get_trending_posts, server, token, offset))
             for future in concurrent.futures.as_completed(futures):
                 try:
                     got_trending_posts = future.result()
