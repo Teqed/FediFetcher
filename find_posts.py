@@ -254,6 +254,14 @@ f"Found {len(trending_posts)} trending posts")
                     trending_posts_changed.append(post)
                     if cached:
                         cached["replies_count"] = new_reply_count
+                        cached["favourites_count"] = post.get("favourites_count") \
+                            if (int(post.get("favourites_count")) \
+                                > int(cached.get("favourites_count"))) \
+                            else cached.get("favourites_count")
+                        cached["reblogs_count"] = post.get("reblogs_count") \
+                            if (int(post.get("reblogs_count")) \
+                                > int(cached.get("reblogs_count"))) \
+                            else cached.get("reblogs_count")
                         cached["id"] = post.get("id")
                         pgupdater.cache_status(cached)
                     else:
