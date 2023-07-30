@@ -213,7 +213,7 @@ less popular posts from {fetch_domain}"
             local_status_id = post.get("local_status_id")
             if local_status_id:
                 pgupdater.queue_status_update(
-                    int(local_status_id),
+                    local_status_id,
                     int(post["reblogs_count"]),
                     int(post["favourites_count"]),
                 )
@@ -266,7 +266,7 @@ def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
             return True
         trending = api_mastodon.get_trending_posts(
                         parsed_urls[0][0],
-                        external_tokens.get(parsed_urls[0][0]), 120)
+                        external_tokens.get(parsed_urls[0][0]), 40)
         domains_fetched.append(parsed_urls[0][0])
         if trending:
             for t_post in trending:

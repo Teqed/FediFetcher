@@ -110,7 +110,8 @@ def mastodon(server: str, token: str | None = None) -> Mastodon:
         session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
         })
-        rate_limit_method = "wait" if not mastodon.sessions else "throw"
+        # rate_limit_method = "wait" if not mastodon.sessions else "throw"
+        rate_limit_method = "pace"
         mastodon.sessions[server] = Mastodon(
             access_token=token if token else None,
             api_base_url=server if server else helpers.arguments.server,
@@ -353,7 +354,7 @@ def get_toot_context(  # noqa: PLR0913
         home_status_id = home_status_list.get(status["url"])
         if home_status_id:
             pgupdater.queue_status_update(
-                int(home_status_id),
+                home_status_id,
                 status.get("reblogs_count"), status.get("favourites_count"))
     # Commit status updates
     pgupdater.commit_status_updates()
@@ -442,13 +443,14 @@ def get_favourites(
     favourites = (mastodon(server, token)).favourites(limit=limit)
     number_of_favourites_received = len(favourites)
     favourites_result = favourites.copy()
-    while number_of_favourites_received < limit \
-            and favourites[-1].get("_pagination_next"):
-        more_favourites = (mastodon(server, token)).fetch_next(favourites)
-        if not more_favourites:
-            break
-        number_of_favourites_received += len(more_favourites)
-        favourites_result.extend(more_favourites)
+    if favourites and favourites[-1]:
+        while number_of_favourites_received < limit \
+                and favourites[-1].get("_pagination_next"):
+            more_favourites = (mastodon(server, token)).fetch_next(favourites)
+            if not more_favourites:
+                break
+            number_of_favourites_received += len(more_favourites)
+            favourites_result.extend(more_favourites)
     return cast(list[dict[str, str]], favourites_result)
 
 @handle_mastodon_errors([])
