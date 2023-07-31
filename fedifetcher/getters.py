@@ -102,10 +102,9 @@ async def get_post_context(  # noqa: PLR0913, D417
                 logging.warning(f"Couldn't get Mastodon-compatible ID for {toot_url}")
                 return []
 
-        return await api_firefish.Firefish(
-            home_server, home_server_token, pgupdater).get_toot_context(
-            server, toot_id, external_token,
-        )
+        return await api_mastodon.Mastodon(
+            server, external_token).get_toot_context(
+            toot_id, home_server, home_server_token, pgupdater)
 
 
     except Exception:

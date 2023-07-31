@@ -327,33 +327,3 @@ class Firefish:
             if status_id is not None:
                 status_ids[url] = status_id
         return status_ids
-
-    async def get_toot_context(
-            self,
-            server: str, toot_id: str, token: str | None,
-            ) -> list[str]:
-        """Get the URLs of the context toots of the given toot asynchronously."""
-        if self.pgupdater is None:
-            logging.error("No PostgreSQLUpdater instance provided")
-            return []
-        # Get the context of a toot
-        context: Context = await api_mastodon.Mastodon(
-            server=server, token=token).status_context(status_id=toot_id)
-        # List of status URLs
-        ancestors = context.get("ancestors") or []
-        descendants = context.get("descendants") or []
-        context_statuses = list(ancestors + descendants)
-        # Sort by server
-        context_statuses.sort(key=lambda status: status["url"].split("/")[2])
-        context_statuses_url_list = [status["url"] for status in context_statuses]
-        home_status_list: dict[str, str] = await self.get_home_status_id_from_url_list(
-            context_statuses_url_list)
-        for status in context_statuses:
-            home_status_id = home_status_list.get(status["url"])
-            if home_status_id:
-                self.pgupdater.queue_status_update(
-                    home_status_id,
-                    status.get("reblogs_count"), status.get("favourites_count"))
-        # Commit status updates
-        self.pgupdater.commit_status_updates()
-        return [status["url"] for status in context_statuses]

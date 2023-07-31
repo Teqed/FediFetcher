@@ -366,6 +366,9 @@ class Mastodon:
     async def get_toot_context(
             self,
             toot_id: str,
+            home_server: str,
+            home_token: str,
+            _pgupdater: PostgreSQLUpdater,
             ) -> list[str]:
         """Get the URLs of the context toots of the given toot asynchronously."""
         if not self.pgupdater:
@@ -380,11 +383,12 @@ class Mastodon:
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
         home_status_list: dict[str, str] = \
-            await self.get_home_status_id_from_url_list(context_statuses_url_list)
+            await Mastodon(home_server, home_token, _pgupdater,
+                    ).get_home_status_id_from_url_list(context_statuses_url_list)
         for status in context_statuses:
             home_status_id = home_status_list.get(status["url"])
             if home_status_id:
-                self.pgupdater.queue_status_update(
+                _pgupdater.queue_status_update(
                     home_status_id,
                     status.get("reblogs_count"), status.get("favourites_count"))
         # Commit status updates
