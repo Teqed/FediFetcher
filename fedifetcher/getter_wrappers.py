@@ -44,8 +44,7 @@ async def get_notification_users(
     since = datetime.now(
         datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
     notifications = await api_mastodon.Mastodon(server,
-        access_token).get_notifications(int(since.timestamp()),
-    )
+        access_token).get_notifications(since_id=str(int(since.timestamp())))
     notification_users = []
     for notification in notifications:
         created_at = notification["created_at"]

@@ -400,7 +400,14 @@ class Mastodon:
 
     async def get_notifications(
         self,
+        notification_id: str | None = None,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        min_id: str | None = None,
         limit: int = 40,
+        types: list[str] | None = None,
+        exclude_types: list[str] | None = None,
+        account_id: str | None = None,
     ) -> list[dict[str, str]]:
         """Get a list of notifications.
 
@@ -414,7 +421,16 @@ class Mastodon:
         -------
         list[dict[str, str]]: A list of notifications, or [] if the request fails.
         """
-        notifications_dict = await self.notifications(limit=limit)
+        notifications_dict = await self.notifications(
+            notification_id=notification_id,
+            max_id=max_id,
+            since_id=since_id,
+            min_id=min_id,
+            limit=limit,
+            types=types,
+            exclude_types=exclude_types,
+            account_id=account_id,
+        )
         if not (notifications := notifications_dict.get("list")):
             return []
         number_of_notifications_received = len(notifications)
@@ -879,6 +895,7 @@ class Mastodon:
 
     def notifications(  # noqa: PLR0913
             self,
+            notification_id : str | None = None,
             max_id: str | None = None,
             since_id: str | None = None,
             min_id: str | None = None,
@@ -888,10 +905,6 @@ class Mastodon:
             account_id: str | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any]]:
         """Notifications concerning the user.
-
-        This API returns Link headers containing links to the next/previous page.
-        However, the links can also be constructed dynamically using query params
-        and id values.
 
         Reference: https://docs.joinmastodon.org/methods/notifications/#get
         """
@@ -910,6 +923,9 @@ class Mastodon:
             params["exclude_types"] = exclude_types
         if account_id:
             params["account_id"] = account_id
+        if notification_id:
+            return self.client.get(
+                f"/api/v1/notifications/{notification_id}")
         return self.client.get(
             "/api/v1/notifications", params=params)
 
