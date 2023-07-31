@@ -47,8 +47,8 @@ async def get_user_posts(
         logging.info(f"Getting user ID for user {user['acct']}")
         _external_token = external_tokens.get(parsed_url[0]) \
             if external_tokens else None
-        user_id = await api_mastodon.Mastodon(parsed_url[1],
-                _external_token).get_user_id(parsed_url[0])
+        user_id = await api_mastodon.Mastodon(parsed_url[0],
+                _external_token).get_user_id(parsed_url[1])
         logging.debug(f"User ID: {user_id}")
     except Exception:
         logging.exception(f"Error getting user ID for user {user['acct']}")
