@@ -97,6 +97,10 @@ async def get_post_context(  # noqa: PLR0913, D417
                 server, external_token).search_v2(toot_url)).get("id")
             if _fake_id:
                 toot_id = _fake_id
+            else:
+                # The Calckey API is out of date and requires auth on this endpoint.
+                logging.warning(f"Couldn't get Mastodon-compatible ID for {toot_url}")
+                return []
 
         return await api_firefish.Firefish(
             home_server, home_server_token, pgupdater).get_toot_context(
