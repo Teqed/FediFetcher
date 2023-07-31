@@ -227,6 +227,7 @@ async def get_all_known_context_urls(
             if context:
                 toots_to_get_context_for.append(context)
         # Get the context for the toots
+        logging.debug(f"Getting context for {len(toots_to_get_context_for)} toots")
         tasks = [
             asyncio.ensure_future(get_post_context(
                 x[0][0],
@@ -241,33 +242,10 @@ async def get_all_known_context_urls(
         ]
         await asyncio.gather(*tasks)
         for post in tasks:
+            logging.debug(f"Got context for {post}")
             if post:
                 _post = post.result()
                 known_context_urls.extend(_post)
-        toots_to_get_context_for_by_server: dict[
-            str, list[tuple[tuple[str, str], str]]] = {}
-
-        for post in toots_to_get_context_for:
-            parsed_url = post[0]
-            if parsed_url[0] not in toots_to_get_context_for_by_server:
-                toots_to_get_context_for_by_server[parsed_url[0]] = []
-            toots_to_get_context_for_by_server[parsed_url[0]].append(post)
-        server_tasks = []
-        for server in toots_to_get_context_for_by_server:
-            server_tasks.append(
-                asyncio.ensure_future(get_context_for_server(
-                    server,
-                    external_tokens,
-                    pgupdater,
-                    home_server,
-                    home_server_token,
-                    toots_to_get_context_for_by_server[server],
-                )),
-            )
-        results = await asyncio.gather(*server_tasks)
-        for result in results:
-            if result:
-                known_context_urls.extend(result)
 
     return known_context_urls
 
