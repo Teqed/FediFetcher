@@ -139,7 +139,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
             host="dreamer", \
                 # TODO: Make this configurable
             port = 5432,
-            database="firefish", \
+            database="mastodon_production", \
                 # TODO: Make this configurable
             user="teq", \
                 # TODO: Make this configurable
