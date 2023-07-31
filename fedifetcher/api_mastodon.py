@@ -760,7 +760,7 @@ class Mastodon:
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
             self.pgupdater.get_dict_from_cache(urls)
-        promises : list[tuple[str, Coroutine[Any, Any, Status | bool]]] = []
+        promises : list[tuple[str, asyncio.Task[Status | bool]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
             if cached_status:
@@ -770,7 +770,8 @@ class Mastodon:
                     continue
             msg = f"Fetching status id for {url} from {self.server}"
             logging.info(f"\033[1;33m{msg}\033[0m")
-            promises.append((url, self.add_context_url(url)))
+            promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
+        await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
             if isinstance(result, dict | Status):
                 if result.get("url") == url:
