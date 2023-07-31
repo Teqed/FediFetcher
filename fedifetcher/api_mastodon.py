@@ -684,10 +684,12 @@ class Mastodon:
                     logging.exception(
                         f"Error getting trending posts for {self.server}")
                     break
+                old_length = len(trending_posts)
                 trending_posts.extend(got_trending_posts)
+                new_length = len(trending_posts)
                 logging.info(
-                    f"Got {len(trending_posts)} trending posts for {self.server} ...")
-                if len(got_trending_posts) < a_page:
+                    f"Got {new_length} trending posts for {self.server} ...")
+                if (len(got_trending_posts) < a_page) or (old_length == new_length):
                     break
 
         logging.info(
