@@ -5,7 +5,7 @@ from collections.abc import Iterable
 
 from mastodon.types import Status
 
-from fedifetcher import api_firefish, getter_wrappers, parsers
+from fedifetcher import api_firefish, api_mastodon, getter_wrappers, parsers
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
@@ -127,7 +127,7 @@ async def add_post_with_context(
     -------
     bool: True if the post was added successfully, False otherwise.
     """
-    added = await api_firefish.Firefish(
+    added = await api_mastodon.Mastodon(
         home_server, access_token).add_context_url(post["url"])
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
@@ -189,7 +189,7 @@ async def add_context_urls_wrapper(
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
         for url in posts_to_fetch:
             logging.info(f"Fetching {url} through {home_server}")
-            status_added = await api_firefish.Firefish(
+            status_added = await api_mastodon.Mastodon(
                 home_server, access_token).add_context_url(url)
             if status_added:
                 # pgupdater.cache_status(status_added)
