@@ -1,10 +1,11 @@
 """Add context toots to the server."""
+import asyncio
 import logging
 from collections.abc import Iterable
 
 from mastodon.types import Status
 
-from fedifetcher import api_mastodon, getter_wrappers, parsers
+from fedifetcher import api_firefish, getter_wrappers, parsers
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
@@ -104,7 +105,7 @@ f"Added {count} posts for user {user['acct']} with {failed} errors and \
                     know_followings.add(user["acct"])
                     all_known_users.add(user["acct"])
 
-def add_post_with_context(
+async def add_post_with_context(
         post : dict[str, str],
         home_server : str,
         access_token : str,
@@ -126,7 +127,8 @@ def add_post_with_context(
     -------
     bool: True if the post was added successfully, False otherwise.
     """
-    added = api_mastodon.add_context_url(post["url"], home_server, access_token)
+    added = await api_firefish.Firefish(
+        home_server, access_token).add_context_url(post["url"])
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
@@ -134,16 +136,16 @@ def add_post_with_context(
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is not None and parsed[0] is not None:
                 known_context_urls = \
-                    getter_wrappers.get_all_known_context_urls(
+                    await getter_wrappers.get_all_known_context_urls(
                     home_server, [post], parsed_urls, external_tokens, pgupdater,
                     access_token)
-                (add_context_urls(
+                (await add_context_urls_wrapper(
                     home_server, access_token, known_context_urls, pgupdater))
         return True
 
     return False
 
-def add_context_urls(
+async def add_context_urls_wrapper(
         home_server : str,
         access_token : str,
         context_urls : Iterable[str],
@@ -187,10 +189,10 @@ def add_context_urls(
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
         for url in posts_to_fetch:
             logging.info(f"Fetching {url} through {home_server}")
-            status_added = api_mastodon.add_context_url(
-                url, home_server, access_token)
+            status_added = await api_firefish.Firefish(
+                home_server, access_token).add_context_url(url)
             if status_added:
-                pgupdater.cache_status(status_added)
+                # pgupdater.cache_status(status_added)
                 count += 1
             else:
                 failed += 1

@@ -27,7 +27,7 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-def main() -> None:  # noqa: PLR0912, C901, PLR0915
+async def main() -> None:  # noqa: PLR0912, C901, PLR0915
     """Run FediFetcher."""
     start = datetime.now(UTC)
 
@@ -168,7 +168,7 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting known context URLs")
-            getter_wrappers.get_all_known_context_urls(
+            await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -184,17 +184,16 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
                 parsed_urls,
             )
             logging.debug("Found replied toot IDs, getting context URLs")
-            context_urls_coroutine = asyncio.run(getter_wrappers.get_all_context_urls(
+            context_urls = await getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
                 external_tokens,
                 pgupdater,
                 helpers.arguments.server,
                 admin_token,
-            ))
-            context_urls = context_urls_coroutine
+            )
             logging.debug("Found context URLs, adding context URLs")
-            add_context.add_context_urls(
+            await add_context.add_context_urls_wrapper(
                 helpers.arguments.server,
                 admin_token,
                 context_urls,
@@ -210,7 +209,7 @@ provided. Continuing without active user IDs.")
             index = helpers.arguments.access_token.index(_token)
             logging.info(f"Getting posts for token {index + 1} of \
 {len(helpers.arguments.access_token)}")
-            find_posts_by_token(
+            await find_posts_by_token(
                 _token,
                 parsed_urls,
                 replied_toot_server_ids,
@@ -226,7 +225,7 @@ provided. Continuing without active user IDs.")
             # from, e.g. "example1.com,example2.com"
             external_feeds = helpers.arguments.external_feeds.split(",")
             logging.info("Getting trending posts")
-            trending_posts = find_trending_posts(
+            trending_posts = await find_trending_posts(
                 helpers.arguments.server,
                 admin_token,
                 external_feeds,
@@ -302,7 +301,7 @@ f"Found {len(trending_posts)} trending posts")
             logging.info(
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
-            known_context_urls = getter_wrappers.get_all_known_context_urls(
+            known_context_urls = await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 trending_posts_changed,
                 parsed_urls,
@@ -310,8 +309,10 @@ context URLs")
                 pgupdater,
                 admin_token,
                 )
-            logging.debug("Found known context URLs, getting context URLs")
-            add_context.add_context_urls(
+            known_context_urls = list(known_context_urls)
+            logging.debug(
+        f"Found {len(known_context_urls)} known context URLs, getting context URLs")
+            await add_context.add_context_urls_wrapper(
                 helpers.arguments.server,
                 admin_token,
                 known_context_urls,
@@ -360,4 +361,4 @@ context URLs")
                 logging.error(f"Error getting callback url: {ex}")
         sys.exit(1)
 
-main()
+asyncio.run(main())

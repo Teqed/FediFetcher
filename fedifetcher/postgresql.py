@@ -2,10 +2,11 @@
 
 import json
 import logging
-from mastodon import favourites
 
 from mastodon.types import Status
 from psycopg2 import Error, OperationalError
+
+from fedifetcher.api_firefish_types import Note
 
 
 class PostgreSQLUpdater:
@@ -17,7 +18,7 @@ class PostgreSQLUpdater:
         self.updates = []
 
     def queue_status_update(self,
-                    status_id: int, reblogs_count: int, favourites_count: int) -> None:
+                    status_id: str, reblogs_count: int, favourites_count: int) -> None:
         """Queue an update to be processed later."""
         if reblogs_count > 0 or favourites_count > 0:
             self.updates.append((status_id, reblogs_count, favourites_count))
@@ -68,7 +69,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.note: {e}")
 
-    def cache_status(self, status: Status) -> bool:
+    def cache_status(self, status: Status | Note) -> bool:
         """Cache a status in the database.
 
         Parameters
@@ -122,7 +123,9 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         got_reblogs_count = row.get("renoteCount")
                         if got_reblogs_count:
                             reblogs_count = max(reblogs_count, got_reblogs_count)
-                        got_favourites_count = row.get("reactions").get("⭐")
+                        reactions = row.get("reactions")
+                        got_favourites_count = reactions.get("⭐") \
+                            if reactions else None
                         if got_favourites_count:
                             favourites_count = max(
                                 favourites_count, got_favourites_count)
@@ -201,7 +204,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                 result = cursor.fetchone()
                 if result is not None:
                     columns = [column[0] for column in cursor.description]
-                    result = dict(zip(columns, result, strict=False))
+                    result = dict(zip(columns, result, strict=True))
                     logging.info(f"Got status from cache: {url} \
 , ID: {result.get('id')}")
                     status_id = result.get("id")

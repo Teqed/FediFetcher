@@ -8,7 +8,7 @@ from collections.abc import Callable
 
 from mastodon.errors import MastodonError
 
-from fedifetcher import api_mastodon, parsers
+from fedifetcher import api_firefish, api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
@@ -129,7 +129,7 @@ class VariableManipulators:
         """Return the domains_to_fetch list."""
         return self.domains_to_fetch
 
-def find_trending_posts(  # noqa: C901
+async def find_trending_posts(  # noqa: C901
         home_server: str,
         home_token: str,
         external_feeds: list[str],
@@ -204,7 +204,7 @@ less popular posts from {fetch_domain}"
     aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
 
     updated_trending_posts_dict = \
-    update_local_status_ids(
+    await update_local_status_ids(
         trending_posts_dict, home_server, home_token, pgupdater)
 
     """Update the status stats with the trending posts."""
@@ -374,7 +374,7 @@ def fetch_trending_from_domain(  # noqa: C901, PLR0913
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
     trending_posts = api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 200)
+            fetch_domain, external_tokens.get(fetch_domain), 40)
 
     if trending_posts:
         for post in trending_posts:
@@ -406,7 +406,7 @@ def fetch_trending_from_domain(  # noqa: C901, PLR0913
     else:
         logging.warning(f"Couldn't find trending posts on {fetch_domain}")
 
-def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
+async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
                                 home_server : str,
                                 home_token : str,
                                 pgupdater : PostgreSQLUpdater,
@@ -414,8 +414,9 @@ def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]],
     """Update the local_status_id in the trending_posts_dict."""
     list_of_trending_posts_urls = [
         trending_post["url"] for trending_post in trending_posts_dict.values()]
-    home_status_dict = api_mastodon.get_home_status_id_from_url_list(
-        home_server, home_token, list_of_trending_posts_urls, pgupdater)
+    home_status_dict = await api_firefish.Firefish(
+        home_server, home_token, pgupdater).get_home_status_id_from_url_list(
+        list_of_trending_posts_urls)
     for trending_post in trending_posts_dict.values():
         local_status_id = home_status_dict.get(trending_post["url"])
         if local_status_id:

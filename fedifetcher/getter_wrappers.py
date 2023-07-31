@@ -1,16 +1,13 @@
 """Functions to get data from Fediverse servers."""
 import asyncio
-import concurrent.futures
 import itertools
 import json
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-import aiohttp
 import requests
-from aiohttp import ClientSession
 
 from fedifetcher import api_mastodon
 from fedifetcher.getters import (
@@ -218,7 +215,7 @@ def get_all_reply_toots(
     return all_replies
 
 
-def get_all_known_context_urls(  # noqa: PLR0913
+async def get_all_known_context_urls(
     home_server: str,
     reply_toots: list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
@@ -226,81 +223,58 @@ def get_all_known_context_urls(  # noqa: PLR0913
     pgupdater: PostgreSQLUpdater,
     home_server_token: str,
 ) -> Iterable[str]:
-    """Get the context toots of the given toots from their original server.
-
-    Args:
-    ----
-    home_server (str): The server to add the context toots to.
-    reply_toots (Iterator[dict[str, str]] | list[dict[str, str]]): The toots to get \
-        the context toots for.
-    parsed_urls (dict[str, tuple[str | None, str | None]]): The parsed URLs of the \
-        toots.
-    external_tokens (dict[str, str]): The access tokens for external servers.
-    pgupdater (PostgreSQLUpdater): The PostgreSQL updater.
-    home_server_token (str): The access token for the home server.
-
-    Returns:
-    -------
-    Iterable[str]: The URLs of the context toots of the given toots.
-    """
     known_context_urls = []
     if reply_toots is not None:
         toots_to_get_context_for: list[tuple[tuple[str, str], str]] = []
-        with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="get_context_url",
-        ) as executor:
-            for toot in reply_toots:
-                context = _get_context_url(toot, parsed_urls)
-                if context:
-                    toots_to_get_context_for.append(context)
-            # Get the context for the toots
-            for post in executor.map(
-                lambda x: get_post_context(
-                    x[0][0],
-                    x[0][1],
-                    x[1],
-                    external_tokens,
-                    pgupdater,
-                    home_server,
-                    home_server_token,
-                ),
-                toots_to_get_context_for,
-            ):
-                if post:
-                    known_context_urls.extend(post)
-        # toots_to_get_context_for is a list of tuples
-        # these tuples are combinations of parsed_url,url
-        # let's create a dictionary of server:[tuple]
+        for toot in reply_toots:
+            context = _get_context_url(toot, parsed_urls)
+            if context:
+                toots_to_get_context_for.append(context)
+        # Get the context for the toots
+        tasks = [
+            get_post_context(
+                x[0][0],
+                x[0][1],
+                x[1],
+                external_tokens,
+                pgupdater,
+                home_server,
+                home_server_token,
+            )
+            for x in toots_to_get_context_for
+        ]
+        results = await asyncio.gather(*tasks)
+        for post in results:
+            if post:
+                known_context_urls.extend(post)
         toots_to_get_context_for_by_server: dict[
             str, list[tuple[tuple[str, str], str]]] = {}
+
         for post in toots_to_get_context_for:
             parsed_url = post[0]
             if parsed_url[0] not in toots_to_get_context_for_by_server:
                 toots_to_get_context_for_by_server[parsed_url[0]] = []
             toots_to_get_context_for_by_server[parsed_url[0]].append(post)
-        with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="get_context",
-        ) as executor:
-            # Create a thread for each server. Store the results in a list
-            list_of_results = []
-            for server in toots_to_get_context_for_by_server:
-                results = executor.submit(
-                    get_context_for_server,
+        server_tasks = []
+        for server in toots_to_get_context_for_by_server:
+            server_tasks.append(
+                get_context_for_server(
                     server,
                     external_tokens,
                     pgupdater,
                     home_server,
                     home_server_token,
                     toots_to_get_context_for_by_server[server],
-                )
-                list_of_results.append(results)
-            # Wait for all the threads to finish
-            for result in concurrent.futures.as_completed(list_of_results):
-                known_context_urls.extend(result.result())
-    return filter(
-        lambda url: not url.startswith(f"https://{home_server}/"), known_context_urls)
+                ),
+            )
+        results = await asyncio.gather(*server_tasks)
+        for result in results:
+            if result:
+                known_context_urls.extend(result)
 
-def get_context_for_server(server : str,  # noqa: ARG001
+    return known_context_urls
+
+async def get_context_for_server(server : str,  # noqa: ARG001
             external_tokens : dict[str, str],
             pgupdater : PostgreSQLUpdater,
             home_server : str,
@@ -313,7 +287,7 @@ def get_context_for_server(server : str,  # noqa: ARG001
         parsed_url = post[0]
         url = post[1]
         try:
-            context = get_post_context(
+            context = await get_post_context(
                     parsed_url[0],
                     parsed_url[1],
                     url,
@@ -511,18 +485,6 @@ async def get_all_context_urls(  # noqa: PLR0913
     -------
     Iterable[str]: The URLs of the context toots of the given toots.
     """
-    async def fetch_context_urls(
-            url : str, toot_id : str, session : ClientSession) -> list[str]:
-        session = aiohttp.ClientSession()
-        try:
-            return get_post_context(
-                server, toot_id, url, external_tokens, pgupdater,
-                home_server, home_server_token,
-            )
-        finally:
-            await session.close()
-
-    tasks = []
     # Filter replied toots that have a server and ID
     _replied_toot_ids: Iterable[tuple[str, str]] = [
         (url, toot_id)
@@ -531,20 +493,31 @@ async def get_all_context_urls(  # noqa: PLR0913
     ]
     # Sort the replied toots by server
     _replied_toot_ids = sorted(_replied_toot_ids, key=lambda x: x[0])
-    session = aiohttp.ClientSession()
-    for url, (_s, toot_id) in _replied_toot_ids:
-        tasks.append(
-            asyncio.ensure_future(
-                fetch_context_urls(url, toot_id, session),
+    # Sort them into a dictionary with a key for each server
+    __replied_toot_ids = {
+        server: list(toots)
+        for server, toots in itertools.groupby(_replied_toot_ids, key=lambda x: x[0])
+    }
+    # For each toot tuple, add it to a tuple of itself and the server it is on
+    ___replied_toot_ids: dict[str, list[tuple[tuple[str, str], str]]] = {}
+    for server in __replied_toot_ids:
+        ___replied_toot_ids[server] = [
+            (toot, server)
+            for toot in __replied_toot_ids[server]
+        ]
+
+    context_urls = []
+    for server in __replied_toot_ids:
+        context_urls.extend(
+            await get_context_for_server(
+                server,
+                external_tokens,
+                pgupdater,
+                home_server,
+                home_server_token,
+                ___replied_toot_ids[server],
             ),
         )
-
-    # Wait for all the tasks to complete
-    results = asyncio.gather(*tasks)
-    await session.close()
-
-    # Flatten the list of context URLs
-    context_urls = list(itertools.chain.from_iterable(results))
 
     # Filter out duplicate URLs and self-references
     return [

@@ -2,6 +2,7 @@
 import logging
 import re
 
+from fedifetcher import api_firefish
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
@@ -58,7 +59,7 @@ def get_user_posts(
 
     return api_mastodon.get_user_posts_from_id(user_id, parsed_url[0])
 
-def get_post_context(  # noqa: PLR0913, D417
+async def get_post_context(  # noqa: PLR0913, D417
         server: str,
         toot_id: str,
         toot_url: str,
@@ -88,9 +89,9 @@ def get_post_context(  # noqa: PLR0913, D417
         if toot_url.find("/post/") != -1:
             return api_lemmy.get_comments_urls(server, toot_id, toot_url)
 
-        return api_mastodon.get_toot_context(
-            server, toot_id, external_token, pgupdater,
-            home_server, home_server_token,
+        return await api_firefish.Firefish(
+            home_server, home_server_token, pgupdater).get_toot_context(
+            server, toot_id, external_token,
         )
 
 
