@@ -31,28 +31,33 @@ class MastodonClient:
     async def get(self,
         endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
-        async with self.client.get(
-            f"https://{self.api_base_url}{endpoint}",
-            headers={
-                "Authorization": f"Bearer {self.token}",
-            },
-            params=params,
-        ) as response:
-            if response.status == Response.TOO_MANY_REQUESTS:
-                mastodon_ratelimit_reset_timer_in_minutes = 5
-                if tries > mastodon_ratelimit_reset_timer_in_minutes:
-                    logging.error(
-                        f"Error with Mastodon API on server {self.api_base_url}. "
-                        f"Too many requests: {response}",
+        try:
+            async with self.client.get(
+                f"https://{self.api_base_url}{endpoint}",
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                },
+                params=params,
+            ) as response:
+                if response.status == Response.TOO_MANY_REQUESTS:
+                    mastodon_ratelimit_reset_timer_in_minutes = 5
+                    if tries > mastodon_ratelimit_reset_timer_in_minutes:
+                        logging.error(
+                            f"Error with Mastodon API on server {self.api_base_url}. "
+                            f"Too many requests: {response}",
+                        )
+                        return {}
+                    logging.warning(
+                        f"Too many requests to {self.api_base_url}. "
+                        f"Waiting 60 seconds before trying again.",
                     )
-                    return {}
-                logging.warning(
-                    f"Too many requests to {self.api_base_url}. "
-                    f"Waiting 60 seconds before trying again.",
-                )
-                await asyncio.sleep(60)
-                return await self.get(endpoint, params)
-            return await self.handle_response_errors(response)
+                    await asyncio.sleep(60)
+                    return await self.get(endpoint, params)
+                return await self.handle_response_errors(response)
+        except asyncio.TimeoutError:
+            logging.warning(
+                f"Timeout error with Mastodon API on server {self.api_base_url}.")
+            return {}
 
     async def handle_response_errors(self, response: aiohttp.ClientResponse,
         ) -> dict:
@@ -366,7 +371,9 @@ class Mastodon:
         # Get the context of a toot
         context: Context = await self.status_context(status_id=toot_id)
         # List of status URLs
-        context_statuses = list(context["ancestors"] + context["descendants"])
+        ancestors = context.get("ancestors") or []
+        descendants = context.get("descendants") or []
+        context_statuses = list(ancestors + descendants)
         # Sort by server
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]

@@ -89,6 +89,15 @@ async def get_post_context(  # noqa: PLR0913, D417
         if toot_url.find("/post/") != -1:
             return api_lemmy.get_comments_urls(server, toot_id, toot_url)
 
+        if toot_url.find("/notes/") != -1:
+            # This is a Calckey / Firefish post.
+            # We need to get the Mastodon-compatible ID.
+            # We can do this by getting the post from the home server.
+            _fake_id = (await api_mastodon.Mastodon(
+                server, external_token).search_v2(toot_url)).get("id")
+            if _fake_id:
+                toot_id = _fake_id
+
         return await api_firefish.Firefish(
             home_server, home_server_token, pgupdater).get_toot_context(
             server, toot_id, external_token,

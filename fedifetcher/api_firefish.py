@@ -32,12 +32,17 @@ class FirefishClient:
         endpoint : str, json : dict[str, Any] | None = None,
         ) -> dict | bool:
         """POST to the API."""
-        async with self.client.post(
-            f"https://{self.api_base_url}{endpoint}",
-            json=json,
-            headers={"Authorization": f"Bearer {self.access_token}"},
-        ) as response:
-            return await self.handle_response_errors(response)
+        try:
+            async with self.client.post(
+                f"https://{self.api_base_url}{endpoint}",
+                json=json,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+            ) as response:
+                    return await self.handle_response_errors(response)
+        except asyncio.TimeoutError:
+            logging.warning(
+                f"Timeout error with Mastodon API on server {self.api_base_url}.")
+            return False
 
     async def handle_response_errors(self, response: aiohttp.ClientResponse,
             ) -> dict | bool:
@@ -335,7 +340,9 @@ class Firefish:
         context: Context = await api_mastodon.Mastodon(
             server=server, token=token).status_context(status_id=toot_id)
         # List of status URLs
-        context_statuses = list(context["ancestors"] + context["descendants"])
+        ancestors = context.get("ancestors") or []
+        descendants = context.get("descendants") or []
+        context_statuses = list(ancestors + descendants)
         # Sort by server
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
