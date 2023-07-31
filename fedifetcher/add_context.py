@@ -12,7 +12,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import getters, helpers
 
 
-def add_user_posts( # noqa: PLR0913
+async def add_user_posts( # noqa: PLR0913
         home_server: str,
         access_token: str,
         followings: list[dict[str, str]],
@@ -36,7 +36,7 @@ def add_user_posts( # noqa: PLR0913
     """
     for user in followings:
         if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{home_server}/"):
-            posts = getters.get_user_posts(
+            posts = await getters.get_user_posts(
                 user, know_followings, home_server, external_tokens)
 
             if posts is not None:

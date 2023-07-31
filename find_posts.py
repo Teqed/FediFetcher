@@ -150,17 +150,14 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         pgupdater = PostgreSQLUpdater(conn)
         try:
             logging.info("Getting active user IDs")
-            user_ids = list(api_mastodon.get_active_user_ids(
-                helpers.arguments.server,
-                admin_token,
-                helpers.arguments.reply_interval_in_hours,
-                ))
+            user_ids = list(await api_mastodon.Mastodon(helpers.arguments.server,
+                admin_token).get_active_user_ids(helpers.arguments.reply_interval_in_hours))
             logging.debug(f"Found user IDs: {user_ids}")
             """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""
             logging.info("Pulling context toots for replies")
             logging.debug("Found user ID, getting reply toots")
-            reply_toots = getter_wrappers.get_all_reply_toots(
+            reply_toots = await getter_wrappers.get_all_reply_toots(
                 helpers.arguments.server,
                 user_ids,
                 admin_token,
@@ -253,12 +250,14 @@ f"Found {len(trending_posts)} trending posts")
                     trending_posts_changed.append(post)
                     if cached:
                         cached["replies_count"] = new_reply_count
+                        favourites_count = post.get("favourites_count") or 0
                         cached["favourites_count"] = post.get("favourites_count") \
-                            if (int(post.get("favourites_count")) \
+                            if (int(favourites_count) \
                                 > int(cached.get("favourites_count"))) \
                             else cached.get("favourites_count")
+                        reblogs_count = post.get("reblogs_count") or 0
                         cached["reblogs_count"] = post.get("reblogs_count") \
-                            if (int(post.get("reblogs_count")) \
+                            if (int(reblogs_count) \
                                 > int(cached.get("reblogs_count"))) \
                             else cached.get("reblogs_count")
                         cached["id"] = post.get("id")

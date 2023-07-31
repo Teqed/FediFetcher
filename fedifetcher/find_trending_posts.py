@@ -1,7 +1,7 @@
 """Pull trending posts from a list of Mastodon servers, using tokens."""
 
 
-import concurrent.futures
+import asyncio
 import logging
 import re
 from collections.abc import Callable
@@ -155,25 +155,30 @@ async def find_trending_posts(  # noqa: C901
     var_manip = VariableManipulators(
         domains_fetched, domains_to_fetch, remember_to_find_me)
 
-    with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="fetcher",
-    ) as executor:
-        futures = [
-            executor.submit(
-                fetch_and_return_missing,
+    # with concurrent.futures.ThreadPoolExecutor(
+    # ) as executor:
+    #         executor.submit(
+    #             external_tokens,
+    #             trending_posts_dict,
+    #             var_manip,
+    #             aux_domain_fetcher,
+    #             fetch_domain,
+    #         for fetch_domain in external_feeds.copy()
+    #     for future in concurrent.futures.as_completed(futures):
+    #         if result:
+
+    promises = []
+    for fetch_domain in external_feeds.copy():
+        promises.append(
+            asyncio.ensure_future(fetch_and_return_missing(
                 external_tokens,
                 trending_posts_dict,
                 var_manip,
                 aux_domain_fetcher,
                 fetch_domain,
-            )
-            for fetch_domain in external_feeds.copy()
-        ]
-        concurrent.futures.wait(futures)
-        for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            if result:
-                logging.debug(f"Remembering {result}")
+            )),
+        )
+    await asyncio.gather(*promises)
 
     remember_to_find_me = var_manip.get_remembering()
     domains_fetched = var_manip.get_domains_fetched()
@@ -192,16 +197,16 @@ less popular posts from {fetch_domain}"
             logging.debug(f"Fetching {status_id} from {fetch_domain}")
             if str(status_id) not in trending_posts_dict \
                     or "original" not in trending_posts_dict[str(status_id)]:
-                original_post = api_mastodon.get_status_by_id(
-                    fetch_domain, status_id, external_tokens)
+                original_post = await api_mastodon.Mastodon(fetch_domain,
+                    external_tokens.get(fetch_domain)).get_status_by_id(status_id)
                 if original_post:
                     add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
                 else:
                     logging.warning(
                         f"Couldn't find {status_id} from {fetch_domain}")
 
-    logging.info("Fetching aux posts")
-    aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
+    logging.info(f"Fetching aux posts from {len(trending_posts_dict.keys())} domains")
+    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
 
     updated_trending_posts_dict = \
     await update_local_status_ids(
@@ -222,14 +227,14 @@ less popular posts from {fetch_domain}"
     return list(api_mastodon.filter_language(
         updated_trending_posts_dict.values(), "en"))
 
-def fetch_and_return_missing(external_tokens : dict[str, str],
+async def fetch_and_return_missing(external_tokens : dict[str, str],
             trending_posts_dict : dict[str, dict[str, str]],
             var_manip,  # noqa: ANN001
             aux_domain_fetcher,  # noqa: ANN001
             fetch_domain : str,
             ) -> None:
     """Fetch posts from a domain."""
-    fetch_trending_from_domain(external_tokens,
+    await fetch_trending_from_domain(external_tokens,
         add_post_to_dict,
         var_manip.get_domains_to_fetch(),
         var_manip.get_domains_fetched(),
@@ -243,7 +248,7 @@ def fetch_and_return_missing(external_tokens : dict[str, str],
         logging.error(
             f"Error occurred while fetching domain {fetch_domain}")
 
-def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
+async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
                     add_post_to_dict : Callable[[dict[str, str], str,
                                                 dict[str, dict[str, str]]], bool],
                     domains_fetched : list[str],
@@ -264,9 +269,8 @@ def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
                 post_urls.remove(cached_post["url"]) # Check originality?
         if not post_urls:
             return True
-        trending = api_mastodon.get_trending_posts(
-                        parsed_urls[0][0],
-                        external_tokens.get(parsed_urls[0][0]), 40)
+        trending = await api_mastodon.Mastodon(parsed_urls[0][0],
+                external_tokens.get(parsed_urls[0][0])).get_trending_posts(120)
         domains_fetched.append(parsed_urls[0][0])
         if trending:
             for t_post in trending:
@@ -276,8 +280,8 @@ def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
     for post_url in post_urls:
         parsed = parsers.post(post_url)
         if parsed and parsed[0] and parsed[0] == parsed_urls[0][0] and parsed[1]:
-            remote = api_mastodon.get_status_by_id(
-                    parsed[0], parsed[1], external_tokens)
+            remote = await api_mastodon.Mastodon(parsed[0],
+                    external_tokens.get(parsed[0])).get_status_by_id(parsed[1])
             if remote and remote["url"] == post_url:
                 add_post_to_dict(remote, parsed[0], trending_post_dict)
         else:
@@ -307,18 +311,23 @@ class AuxDomainFetch:
                             ) -> None:
         """Queue an aux fetch to be processed later."""
         if parsed_url[0] not in self.domains_fetched:
+            logging.debug(f"Queueing {post_url} from {parsed_url[0]}")
             if parsed_url[0] not in self.aux_fetches:
+                logging.debug(f"Adding {parsed_url[0]} to aux_fetches")
                 self.aux_fetches[parsed_url[0]] = []
             if (parsed_url, post_url) not in self.aux_fetches[parsed_url[0]]:
+                logging.debug(f"Adding {post_url} to aux_fetches[{parsed_url[0]}]")
                 self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
+                logging.debug(f"aux_fetches[{parsed_url[0]}] is now \
+{self.aux_fetches[parsed_url[0]]}")
 
-    def do_aux_fetches(self,
+    async def do_aux_fetches(self,
                             trending_post_dict: dict[str, dict[str, str]],
                             pgupdater: PostgreSQLUpdater,
                             ) -> None:
         """Do all the queued aux fetches asynchronously."""
 
-        def fetching_domain(fetch_domain: str,
+        async def fetching_domain(fetch_domain: str,
                                 trending_post_dict: dict[str, dict[str, str]],
                                 pgupdater: PostgreSQLUpdater,
                                 ) -> None:
@@ -331,34 +340,23 @@ class AuxDomainFetch:
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 list_of_posts.append(post_url)
                 list_of_parsed_urls.append(parsed_url)
-            aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
+            await aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
                 self.domains_fetched, list_of_posts,
                     list_of_parsed_urls, trending_post_dict, pgupdater)
-        # Create a thread pool executor
-        with concurrent.futures.ThreadPoolExecutor(
-                thread_name_prefix="aux_fetcher",
-        ) as executor:
-            # Create a list of futures
-            futures = [
-                executor.submit(
-                    fetching_domain,
+        promises = []
+        for fetchable_domain in self.aux_fetches.copy():
+            promises.append(
+                asyncio.ensure_future(fetching_domain(
                     fetchable_domain,
                     trending_post_dict,
                     pgupdater,
-                )
-                for fetchable_domain in self.aux_fetches.copy()
-            ]
-            # Wait for all the futures to complete
-            concurrent.futures.wait(futures)
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                if result:
-                    logging.debug(f"Remembering {result}")
-
-
+                )),
+            )
+        await asyncio.gather(*promises)
+        logging.debug(f"Clearing aux_fetches: {self.aux_fetches}")
         self.aux_fetches.clear()
 
-def fetch_trending_from_domain(  # noqa: C901, PLR0913
+async def fetch_trending_from_domain(  # noqa: C901, PLR0913
         external_tokens : dict[str, str],
         add_post_to_dict : Callable[[dict[str, str], str,
                                     dict[str, dict[str, str]]], bool],
@@ -373,8 +371,8 @@ def fetch_trending_from_domain(  # noqa: C901, PLR0913
     """Fetch trending posts from a domain."""
     msg = f"Fetching trending posts from {fetch_domain}"
     logging.info(f"\033[1;34m{msg}\033[0m")
-    trending_posts = api_mastodon.get_trending_posts(
-            fetch_domain, external_tokens.get(fetch_domain), 40)
+    trending_posts = await api_mastodon.Mastodon(fetch_domain,
+            external_tokens.get(fetch_domain)).get_trending_posts(200)
 
     if trending_posts:
         for post in trending_posts:
@@ -394,10 +392,11 @@ def fetch_trending_from_domain(  # noqa: C901, PLR0913
                     add_to_remembering(parsed_url[0], parsed_url[1])
                 continue
             if parsed_url[0] not in domains_fetched:
+                logging.debug(f"Queueing {parsed_url[1]} from {parsed_url[0]}")
                 aux_domain_fetcher.queue_aux_fetch(parsed_url, post_url)
             elif not original:
-                remote = api_mastodon.get_status_by_id(
-                        parsed_url[0], parsed_url[1], external_tokens)
+                remote = await api_mastodon.Mastodon(parsed_url[0],
+                    external_tokens.get(parsed_url[0])).get_status_by_id(parsed_url[1])
                 if remote and remote["url"] == post_url:
                     original = add_post_to_dict(
                         remote, parsed_url[0], trending_posts_dict)

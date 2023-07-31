@@ -19,7 +19,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import helpers, parsers
 
 
-def get_notification_users(
+async def get_notification_users(
         server : str,
         access_token : str,
         known_users : OrderedSet,
@@ -43,14 +43,14 @@ def get_notification_users(
     """
     since = datetime.now(
         datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
-    notifications = api_mastodon.get_notifications(
-        server,
-        access_token,
-        int(since.timestamp()),
+    notifications = await api_mastodon.Mastodon(server,
+        access_token).get_notifications(int(since.timestamp()),
     )
     notification_users = []
     for notification in notifications:
-        notification_date : datetime = cast(datetime, notification["created_at"])
+        created_at = notification["created_at"]
+        notification_date : datetime = datetime.strptime(
+            created_at, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=UTC)
         if(notification_date >= since and notification["account"] not in \
                 notification_users):
             notification_users.append(notification["account"])
@@ -71,7 +71,7 @@ f"Found {len(notification_users)} users in notifications, \
 
     return users
 
-def get_new_follow_requests(
+async def get_new_follow_requests(
         server : str,
         access_token : str,
         limit : int, # = 40,
@@ -91,11 +91,8 @@ def get_new_follow_requests(
     -------
     list[dict]: A list of follow requests.
     """
-    follow_requests = list(api_mastodon.get_follow_requests(
-        server,
-        access_token,
-        limit,
-    ))
+    follow_requests = list(await api_mastodon.Mastodon(server,
+        access_token).get_follow_requests(limit=limit))
 
     # Remove any we already know about
     new_follow_requests = filter_known_users(
@@ -106,7 +103,7 @@ def get_new_follow_requests(
 
     return new_follow_requests
 
-def get_new_followers(
+async def get_new_followers(
         server : str,
         token: str | None,
         user_id : str,
@@ -129,7 +126,8 @@ def get_new_followers(
     -------
     list[dict]: A list of followers.
     """
-    followers = list(api_mastodon.get_followers(server, token, user_id, limit))
+    followers = list(await api_mastodon.Mastodon(
+        server, token).get_followers(user_id, limit))
 
     # Remove any we already know about
     new_followers = filter_known_users(
@@ -140,7 +138,7 @@ f"Got {len(followers)} followers, {len(new_followers)} of which are new")
 
     return new_followers
 
-def get_new_followings(
+async def get_new_followings(
         server : str,
         token: str | None,
         user_id : str,
@@ -162,7 +160,8 @@ def get_new_followings(
     -------
     list[dict]: A list of followings.
     """
-    following = list(api_mastodon.get_following(server, token, user_id, limit))
+    following = list(await api_mastodon.Mastodon(server, token).get_following(
+        user_id, limit))
 
     # Remove any we already know about
     new_followings = filter_known_users(
@@ -173,7 +172,7 @@ f"Got {len(following)} followings, {len(new_followings)} of which are new")
 
     return new_followings
 
-def get_all_reply_toots(
+async def get_all_reply_toots(
     server: str,
     user_ids: Iterable[str],
     access_token: str,
@@ -203,11 +202,9 @@ def get_all_reply_toots(
     replies_since = datetime.now(UTC) - timedelta(hours=reply_interval_hours)
     all_replies = []
     for user_id in user_ids:
-        replies = api_mastodon.get_reply_posts_from_id(
+        replies = await api_mastodon.Mastodon(server,
+            access_token, pgupdater).get_reply_posts_from_id(
             user_id,
-            server,
-            access_token,
-            pgupdater,
             replies_since,
         )
         if replies is not None:
@@ -232,7 +229,7 @@ async def get_all_known_context_urls(
                 toots_to_get_context_for.append(context)
         # Get the context for the toots
         tasks = [
-            get_post_context(
+            asyncio.ensure_future(get_post_context(
                 x[0][0],
                 x[0][1],
                 x[1],
@@ -240,7 +237,7 @@ async def get_all_known_context_urls(
                 pgupdater,
                 home_server,
                 home_server_token,
-            )
+            ))
             for x in toots_to_get_context_for
         ]
         results = await asyncio.gather(*tasks)
@@ -258,14 +255,14 @@ async def get_all_known_context_urls(
         server_tasks = []
         for server in toots_to_get_context_for_by_server:
             server_tasks.append(
-                get_context_for_server(
+                asyncio.ensure_future(get_context_for_server(
                     server,
                     external_tokens,
                     pgupdater,
                     home_server,
                     home_server_token,
                     toots_to_get_context_for_by_server[server],
-                ),
+                )),
             )
         results = await asyncio.gather(*server_tasks)
         for result in results:
@@ -507,18 +504,22 @@ async def get_all_context_urls(  # noqa: PLR0913
         ]
 
     context_urls = []
+    promises = []
     for server in __replied_toot_ids:
-        context_urls.extend(
-            await get_context_for_server(
+        promises.append(
+            asyncio.ensure_future(get_context_for_server(
                 server,
                 external_tokens,
                 pgupdater,
                 home_server,
                 home_server_token,
                 ___replied_toot_ids[server],
-            ),
+            )),
         )
-
+    results = await asyncio.gather(*promises)
+    for result in results:
+        if result:
+            context_urls.extend(result)
     # Filter out duplicate URLs and self-references
     return [
         url for url in context_urls

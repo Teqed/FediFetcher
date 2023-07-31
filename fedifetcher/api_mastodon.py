@@ -1,100 +1,19 @@
 """Mastodon API functions."""
 import ast
-import concurrent.futures
-import functools
-import inspect
+import asyncio
 import logging
-from collections.abc import Callable, Coroutine, Iterable, Iterator
+from collections.abc import Coroutine, Iterable, Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any, ClassVar, TypeVar, cast
+from typing import Any, ClassVar, cast
 
 import aiohttp
-from helpers import Response
-from mastodon import (
-    MastodonAPIError,
-    MastodonError,
-    MastodonNetworkError,
-    MastodonNotFoundError,
-    MastodonRatelimitError,
-    MastodonServiceUnavailableError,
-    MastodonUnauthorizedError,
-)
 from mastodon.types import Context, Status
 
-from fedifetcher import api_firefish
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers
+from .helpers import Response
 
-T = TypeVar("T")
-def handle_mastodon_errors(  # noqa: C901
-        default_return_value: T, # type: ignore  # noqa: PGH003
-        ) -> Callable:
-    """Handle Mastodon errors."""
-    def decorator(  # noqa: C901
-            func: Callable[..., T | None]) -> Callable[..., T | None]:
-        sig = inspect.signature(func)
-
-        @functools.wraps(func)
-        def wrapper(  # noqa: PLR0911
-            *args: Any, **kwargs: Any) -> T | None:  # noqa: ANN401
-            bound = sig.bind(*args, **kwargs)
-
-            server = bound.arguments.get("server", "Unknown")
-
-            try:
-                return func(*args, **kwargs)
-            except MastodonNotFoundError:
-                logging.error(
-                    f"Error with Mastodon API on server {server}. Status code: 404. "
-                    "Ensure the server endpoint is reachable.",
-                )
-                return default_return_value
-            except MastodonRatelimitError:
-                logging.error(
-                    f"Error with Mastodon API on server {server}. Status code: 429. "
-                    "You are being rate limited. Try again later.",
-                )
-                return default_return_value
-            except MastodonUnauthorizedError:
-                logging.error(
-                    f"Error with Mastodon API on server {server}. Status code: 401. "
-                    "This endpoint requires an authentication token.",
-                )
-                return default_return_value
-            except MastodonServiceUnavailableError:
-                logging.error(
-                    f"Error with Mastodon API on server {server}. Status code: 503. "
-                    "The server is temporarily unavailable.",
-                )
-                return default_return_value
-            except MastodonNetworkError as ex:
-                logging.error(
-                    f"Error with Mastodon API on server {server}. "
-                    f"The server encountered an error: {ex} ",
-                )
-            except MastodonAPIError as ex:
-                logging.error(
-                    f"Error with Mastodon API on server {server} : {ex}",
-            # Make sure you have the read:statuses scope enabled for your access token.
-                )
-                return default_return_value
-            except MastodonError as ex:
-                logging.error(f"Error with Mastodon API on server {server}: {ex}")
-                return default_return_value
-            except KeyError:
-                logging.exception(
-                    f"Error with Mastodon API on server {server}. "
-                    "The response from the server was unexpected.",
-                )
-                return default_return_value
-            except Exception:
-                logging.exception("Unhandled error.")
-                raise
-
-        return wrapper
-
-    return decorator
 
 class MastodonClient:
     """A class representing a Mastodon client."""
@@ -110,15 +29,29 @@ class MastodonClient:
             self.client = client
 
     async def get(self,
-        endpoint: str, params: dict | None = None) -> dict[str, Any]:
+        endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
         async with self.client.get(
-            f"{self.api_base_url}{endpoint}",
+            f"https://{self.api_base_url}{endpoint}",
             headers={
                 "Authorization": f"Bearer {self.token}",
             },
             params=params,
         ) as response:
+            if response.status == Response.TOO_MANY_REQUESTS:
+                mastodon_ratelimit_reset_timer_in_minutes = 5
+                if tries > mastodon_ratelimit_reset_timer_in_minutes:
+                    logging.error(
+                        f"Error with Mastodon API on server {self.api_base_url}. "
+                        f"Too many requests: {response}",
+                    )
+                    return {}
+                logging.warning(
+                    f"Too many requests to {self.api_base_url}. "
+                    f"Waiting 60 seconds before trying again.",
+                )
+                await asyncio.sleep(60)
+                return await self.get(endpoint, params)
             return await self.handle_response_errors(response)
 
     async def handle_response_errors(self, response: aiohttp.ClientResponse,
@@ -203,6 +136,7 @@ class Mastodon:
                 msg = "Using provided token"
                 logging.info(f"\033[1;33m{msg}\033[0m")
             client = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=15),
                 headers={
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
             })
@@ -247,9 +181,8 @@ class Mastodon:
             return account_search["id"]
         return None
 
-    async def get_timeline(
+    async def get_home_timeline(
             self,
-        timeline: str = "local",
         limit: int = 40,
     ) -> list[dict[str, str]]:
         """Get all posts in the user's home timeline.
@@ -271,17 +204,17 @@ class Mastodon:
         Exception: If the access token does not have the correct scope.
         Exception: If the server returns an unexpected status code.
         """
-        timeline_toots = await self.timeline(timeline=timeline, limit=limit)
-        if not timeline_toots:
+        timeline_toots_dict = await self.timelines_home(limit=limit)
+        if not (timeline_toots := timeline_toots_dict.get("list")):
             return []
         toots = cast(list[dict[str, str]], (
             timeline_toots))
         toots_result = toots.copy()
         number_of_toots_received = len(toots)
         while isinstance(toots, dict) and number_of_toots_received < limit and \
-                toots.get("_pagination_next"):
-            toots = await self.fetch_next(toots)
-            if not toots:
+                timeline_toots_dict.get("_pagination_next"):
+            toots_dict = await self.fetch_next(toots)
+            if not (toots := toots_dict.get("list")):
                 break
             number_of_toots_received += len(toots)
             toots_result.extend(toots)
@@ -425,18 +358,20 @@ class Mastodon:
 
     async def get_toot_context(
             self,
-            server: str, toot_id: str, token: str | None,
+            toot_id: str,
             ) -> list[str]:
         """Get the URLs of the context toots of the given toot asynchronously."""
+        if not self.pgupdater:
+            return []
         # Get the context of a toot
-        context: Context = (mastodon(server, token)).status_context(id=toot_id)
+        context: Context = await self.status_context(status_id=toot_id)
         # List of status URLs
         context_statuses = list(context["ancestors"] + context["descendants"])
         # Sort by server
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
         home_status_list: dict[str, str] = \
-            self.get_home_status_id_from_url_list(context_statuses_url_list)
+            await self.get_home_status_id_from_url_list(context_statuses_url_list)
         for status in context_statuses:
             home_status_id = home_status_list.get(status["url"])
             if home_status_id:
@@ -464,8 +399,7 @@ class Mastodon:
         list[dict[str, str]]: A list of notifications, or [] if the request fails.
         """
         notifications_dict = await self.notifications(limit=limit)
-        notifications = notifications_dict.get("list")
-        if not notifications:
+        if not (notifications := notifications_dict.get("list")):
             return []
         number_of_notifications_received = len(notifications)
         notifications_result = notifications.copy()
@@ -473,17 +407,14 @@ class Mastodon:
                 and number_of_notifications_received < limit \
                     and notifications_dict.get("_pagination_next"):
             more_notifications_dict = await self.fetch_next(notifications_dict)
-            more_notifications = more_notifications_dict.get("list")
-            if not more_notifications:
+            if not (more_notifications := more_notifications_dict.get("list")):
                 break
             number_of_notifications_received += len(more_notifications)
             notifications_result.extend(more_notifications)
         return cast(list[dict[str, str]], notifications_result)
 
-    def get_bookmarks(
+    async def get_bookmarks(
         self,
-        server: str,
-        token: str,
         limit: int = 40,
     ) -> list[dict[str, str]]:
         """Get a list of bookmarks.
@@ -498,23 +429,23 @@ class Mastodon:
         -------
         list[dict[str, str]]: A list of bookmarks, or [] if the request fails.
         """
-        bookmarks = self.bookmarks(limit=limit)
+        bookmarks_dict = await self.bookmarks(limit=limit)
+        if not (bookmarks := bookmarks_dict.get("list")):
+            return []
         number_of_bookmarks_received = len(bookmarks)
         bookmarks_result = bookmarks.copy()
         while bookmarks \
                 and number_of_bookmarks_received < limit \
-                    and bookmarks[-1].get("_pagination_next"):
-            more_bookmarks = (mastodon(server, token)).fetch_next(bookmarks)
-            if not more_bookmarks:
+                    and bookmarks_dict.get("_pagination_next"):
+            more_bookmarks_dict = await self.fetch_next(bookmarks_dict)
+            if not (more_bookmarks := more_bookmarks_dict.get("list")):
                 break
             number_of_bookmarks_received += len(more_bookmarks)
             bookmarks_result.extend(more_bookmarks)
         return cast(list[dict[str, str]], bookmarks_result)
 
-    def get_favourites(
+    async def get_favourites(
         self,
-        server: str,
-        token: str,
         limit: int = 40,
     ) -> list[dict[str, str]]:
         """Get a list of favourites.
@@ -529,23 +460,23 @@ class Mastodon:
         -------
         list[dict[str, str]]: A list of favourites, or [] if the request fails.
         """
-        favourites = (mastodon(server, token)).favourites(limit=limit)
+        favourites_dict = await self.favourites(limit=limit)
+        if not (favourites := favourites_dict.get("list")):
+            return []
         number_of_favourites_received = len(favourites)
         favourites_result = favourites.copy()
-        if favourites and favourites[-1]:
+        if favourites and favourites_dict:
             while number_of_favourites_received < limit \
-                    and favourites[-1].get("_pagination_next"):
-                more_favourites = (mastodon(server, token)).fetch_next(favourites)
-                if not more_favourites:
+                    and favourites_dict.get("_pagination_next"):
+                more_favourites_dict = await self.fetch_next(favourites_dict)
+                if not (more_favourites := more_favourites_dict.get("list")):
                     break
                 number_of_favourites_received += len(more_favourites)
                 favourites_result.extend(more_favourites)
         return cast(list[dict[str, str]], favourites_result)
 
-    def get_follow_requests(
+    async def get_follow_requests(
         self,
-        server: str,
-        token: str,
         limit: int = 40,
     ) -> list[dict[str, str]]:
         """Get a list of follow requests.
@@ -560,24 +491,23 @@ class Mastodon:
         -------
         list[dict[str, str]]: A list of follow requests, or [] if the request fails.
         """
-        follow_requests = (mastodon(server, token)).follow_requests(limit=limit)
+        follow_requests_dict = await self.follow_requests(limit=limit)
+        if not (follow_requests := follow_requests_dict.get("list")):
+            return []
         number_of_follow_requests_received = len(follow_requests)
         follow_requests_result = follow_requests.copy()
         while follow_requests \
                 and number_of_follow_requests_received < limit \
-                    and follow_requests[-1].get("_pagination_next"):
-            more_follow_requests = (
-                mastodon(server, token)).fetch_next(follow_requests)
+                    and follow_requests_dict.get("_pagination_next"):
+            more_follow_requests = await self.fetch_next(follow_requests_dict)
             if not more_follow_requests:
                 break
             number_of_follow_requests_received += len(more_follow_requests)
             follow_requests_result.extend(more_follow_requests)
         return cast(list[dict[str, str]], follow_requests_result)
 
-    def get_followers(
+    async def get_followers(
         self,
-        server: str,
-        token: str | None,
         user_id: str,
         limit: int = 40,
     ) -> list[dict[str, str]]:
@@ -594,24 +524,23 @@ class Mastodon:
         -------
         list[dict[str, str]]: A list of followers, or [] if the request fails.
         """
-        followers = (
-            mastodon(server, token)).account_followers(id=user_id, limit=limit)
+        followers_dict = await self.account_followers(account_id=user_id, limit=limit)
+        if not (followers := followers_dict.get("list")):
+            return []
         number_of_followers_received = len(followers)
         followers_result = followers.copy()
         while followers \
                 and number_of_followers_received < limit \
-                    and followers[-1].get("_pagination_next"):
-            more_followers = (mastodon(server, token)).fetch_next(followers)
-            if not more_followers:
+                    and followers_dict.get("_pagination_next"):
+            more_followers_dict = await self.fetch_next(followers_dict)
+            if not (more_followers := more_followers_dict.get("list")):
                 break
             number_of_followers_received += len(more_followers)
             followers_result.extend(more_followers)
         return cast(list[dict[str, str]], followers_result)
 
-    def get_following(
+    async def get_following(
         self,
-        server: str,
-        token: str | None,
         user_id: str,
         limit: int = 40,
     ) -> list[dict[str, str]]:
@@ -628,25 +557,24 @@ class Mastodon:
         -------
         list[dict[str, str]]: A list of following, or [] if the request fails.
         """
-        following = (
-            mastodon(server, token)).account_following(id=user_id, limit=limit)
+        following_dict = await self.account_following(account_id=user_id, limit=limit)
+        if not (following := following_dict.get("list")):
+            return []
         number_of_following_received = len(following)
         following_result = following.copy()
         while following \
                 and number_of_following_received < limit \
-                    and following[-1].get("_pagination_next"):
-            more_following = (mastodon(server, token)).fetch_next(following)
-            if not more_following:
+                    and following_dict.get("_pagination_next"):
+            more_following_dict = await self.fetch_next(following_dict)
+            if not (more_following := more_following_dict.get("list")):
                 break
             number_of_following_received += len(more_following)
             following_result.extend(more_following)
         return cast(list[dict[str, str]], following_result)
 
-    def add_context_url(
+    async def add_context_url(
             self,
             url : str,
-            server : str,
-            access_token : str,
             ) -> Status | bool:
         """Add the given toot URL to the server.
 
@@ -662,22 +590,20 @@ class Mastodon:
             request fails.
         """
         try:
-            result = (mastodon(server, access_token)).search_v2(
+            result = await self.search_v2(
                 q = url,
             )
-        except MastodonAPIError:
-            logging.exception(f"Error adding context url {url} to {server}")
+        except Exception:
+            logging.exception(f"Error adding context url {url} to {self.server}")
             return False
-        if result.statuses:
-            for _status in result.statuses:
-                if _status.url == url:
+        if (statuses := result.get("statuses")):
+            for _status in statuses:
+                if _status.get("url") == url:
                     return _status
         return False
 
-    def get_trending_posts(
+    async def get_trending_posts(
             self,
-            server : str,
-            token : str | None = None,
             limit : int = 40,
             ) -> list[dict[str, str]]:
         """Get a list of trending posts.
@@ -694,102 +620,51 @@ class Mastodon:
         list[dict[str, str]]: A list of trending posts, or [] if the \
             request fails.
         """
-        def _get_trending_posts(
-                server: str,
-                token: str | None = None,
+        async def _get_trending_posts(
                 offset: int = 0,
         ) -> list[dict[str, str]]:
             """Get a page of trending posts and return it."""
-            getting_trending_posts = mastodon(
-                server, token).trending_statuses(limit=40, offset=offset)
-
+            getting_trending_posts_dict = await self.trending_statuses(
+                                                limit=40, offset=offset)
+            if not (getting_trending_posts := getting_trending_posts_dict.get("list")):
+                return []
             return cast(list[dict[str, str]], getting_trending_posts)
 
-        msg = f"Getting {limit} trending posts for {server}"
+        msg = f"Getting {limit} trending posts for {self.server}"
         logging.info(f"\033[1m{msg}\033[0m")
         got_trending_posts: list[dict[str, str]] = []
         try:
-            got_trending_posts = _get_trending_posts(
-                server, token, 0)
+            got_trending_posts = await _get_trending_posts(0)
         except Exception:
             logging.exception(
-                f"Error getting trending posts for {server}")
+                f"Error getting trending posts for {self.server}")
             return []
-        logging.info(f"Got {len(got_trending_posts)} trending posts for {server}")
+        logging.info(f"Got {len(got_trending_posts)} trending posts for {self.server}")
         trending_posts: list[dict[str, str]] = []
         trending_posts.extend(got_trending_posts)
         a_page = 40
         if limit > a_page and len(got_trending_posts) == a_page:
-            with concurrent.futures.ThreadPoolExecutor(
-                thread_name_prefix="sub_fetcher",
-        ) as executor:
-                futures = []
-                for offset in range(a_page, limit, a_page):
-                    futures.append(executor.submit(
-                        _get_trending_posts, server, token, offset))
-                for future in concurrent.futures.as_completed(futures):
-                    try:
-                        got_trending_posts = future.result()
-                    except Exception:
-                        logging.exception(
-                            f"Error getting trending posts for {server}")
-                        break
-                    trending_posts.extend(got_trending_posts)
-                    logging.info(
-                        f"Got {len(trending_posts)} trending posts for {server} ...")
+            while len(trending_posts) < limit:
+                try:
+                    got_trending_posts = await _get_trending_posts(
+                                                        len(trending_posts))
+                except Exception:
+                    logging.exception(
+                        f"Error getting trending posts for {self.server}")
+                    break
+                trending_posts.extend(got_trending_posts)
+                logging.info(
+                    f"Got {len(trending_posts)} trending posts for {self.server} ...")
+                if len(got_trending_posts) < a_page:
+                    break
 
-            # while len(trending_posts) < limit:
-            #             server, token, offset)
-            #         logging.exception(
-            #             f"Error getting trending posts for {server}")
-            #     if len(got_trending_posts) < a_page:
-            #         logging.info(
-            #         f"Got {len(got_trending_posts)} trending posts total for {server} .")
-            #     logging.info(
-            #         f"Got {len(trending_posts)} trending posts for {server} ...")
-            # ###################
-            #     get_trending_posts_async(
-            #         server, token, off)) for off in offset_list]
-            # while tasks:
-            #         tasks, return_when=asyncio.FIRST_COMPLETED)
-            #     for task in done:
-            #             if len(result) == 0:
-            #             logging.info(
-            #                 f"Got {len(trending_posts)} trending posts for {server} ...")
-            #             if len(trending_posts) >= limit:
-            #                 get_trending_posts_async(
-            #                     server, token, highest_offset)) # create a task
-            #             logging.exception(
-            #                 f"Error getting trending posts for {server}")
-
-        logging.info(f"Found {len(trending_posts)} trending posts for {server}")
+        logging.info(
+            f"Found {len(trending_posts)} trending posts total for {self.server}")
         return trending_posts
 
-    def filter_language(
+    async def get_home_status_id_from_url(
             self,
-            toots : Iterable[dict[str, str]],
-            language : str,
-            ) -> Iterator[dict[str, str]]:
-        """Filter out toots that are not in the given language.
-
-        Args:
-        ----
-        toots (Iterable[dict[str, str]]): The toots to filter.
-        language (str): The language to filter by.
-
-        Returns:
-        -------
-        Iterator[dict[str, str]]: The filtered toots.
-        """
-        return filter(
-            lambda toot: toot.get("language") == language, toots)
-
-    def get_home_status_id_from_url(
-            self,
-            home_server: str,
-            token: str,
             url: str,
-            pgupdater: PostgreSQLUpdater,
     ) -> str | None:
         """Get the status id from a toot URL asynchronously.
 
@@ -805,26 +680,28 @@ class Mastodon:
         -------
         str | None: The status id of the toot, or None if the toot is not found.
         """
-        cached_status = pgupdater.get_from_cache(url)
+        if not self.pgupdater:
+            return None
+        cached_status = self.pgupdater.get_from_cache(url)
         if cached_status:
             status_id = cached_status.get("id")
             if status_id is not None:
                 return status_id
-        msg = f"Fetching status id for {url} from {home_server}"
+        msg = f"Fetching status id for {url} from {self.server}"
         logging.info(f"\033[1;33m{msg}\033[0m")
-        result = self.add_context_url(url, home_server, token)
+        result = self.add_context_url(url)
         if isinstance(result, dict | Status):
             if result.get("url") == url:
-                status = pgupdater.get_from_cache(url)
+                status = self.pgupdater.get_from_cache(url)
                 status_id = status.get("id") if status else None
-                logging.info(f"Got status id {status_id} for {url} from {home_server}")
+                logging.info(f"Got status id {status_id} for {url} from {self.server}")
                 return str(status_id)
             logging.error(
-                f"Something went wrong fetching: {url} from {home_server} , \
+                f"Something went wrong fetching: {url} from {self.server} , \
     did not match {result.get('url')}")
             logging.debug(result)
         elif result is False:
-            logging.warning(f"Failed to get status id for {url} on {home_server}")
+            logging.warning(f"Failed to get status id for {url} on {self.server}")
         logging.error(f"Status id for {url} not found")
         return None
 
@@ -851,30 +728,33 @@ class Mastodon:
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
             self.pgupdater.get_dict_from_cache(urls)
-        with concurrent.futures.ThreadPoolExecutor(
-            thread_name_prefix="id_getter",
-            max_workers=9,
-        ) as executor:
-            futures = {}
-            for url in urls:
-                cached_status = cached_statuses.get(url)
-                if cached_status:
-                    status_id = cached_status.get("id")
-                    if status_id is not None:
-                        status_ids[url] = str(status_id)
-                        continue
-                futures[url] = executor.submit(
-                    api_firefish.Firefish(
-                        home_server, token, pgupdater).get_home_status_id_from_url, url)
-            for url, future in futures.items():
-                try:
-                    status_id = future.result()
-                except Exception:
-                    logging.exception(
-                        f"Error getting status id for {url} from {home_server}")
-                    continue
+        promises : list[tuple[str, Coroutine[Any, Any, Status | bool]]] = []
+        for url in urls:
+            cached_status = cached_statuses.get(url)
+            if cached_status:
+                status_id = cached_status.get("id")
                 if status_id is not None:
                     status_ids[url] = status_id
+                    continue
+            msg = f"Fetching status id for {url} from {self.server}"
+            logging.info(f"\033[1;33m{msg}\033[0m")
+            promises.append((url, self.add_context_url(url)))
+        for url, result in promises:
+            if isinstance(result, dict | Status):
+                if result.get("url") == url:
+                    status = self.pgupdater.get_from_cache(url)
+                    status_id = status.get("id") if status else None
+                    status_ids[url] = status_id
+                    logging.info(
+                        f"Got status id {status_id} for {url} from {self.server}")
+                    continue
+                logging.error(
+                    f"Something went wrong fetching: {url} from {self.server} , \
+    did not match {result.get('url')}")
+                logging.debug(result)
+            elif result is False:
+                logging.warning(f"Failed to get status id for {url} on {self.server}")
+            logging.error(f"Status id for {url} not found")
         return status_ids
 
     async def get_status_by_id(
@@ -899,7 +779,7 @@ class Mastodon:
     def status(
             self,
             status_id: str,
-        ) -> Coroutine[Any, Any, dict[str, Any]]:
+        ) -> Coroutine[Any, Any, dict[str, Any] | Status]:
         """Obtain information about a status.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#get
@@ -909,12 +789,12 @@ class Mastodon:
     def status_context(
             self,
             status_id: str,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, Context]:
         """View statuses above and below this status in the thread.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#context
         """
-        return self.client.get(f"/api/v1/statuses/{status_id}/context")
+        return self.client.get(f"/api/v1/statuses/{status_id}/context") # type: ignore
 
     def account_lookup(
             self,
@@ -981,7 +861,7 @@ class Mastodon:
         """
         return self.client.get("/api/v1/accounts/verify_credentials")
 
-    async def notifications(  # noqa: PLR0913
+    def notifications(  # noqa: PLR0913
             self,
             max_id: str | None = None,
             since_id: str | None = None,
@@ -990,7 +870,7 @@ class Mastodon:
             types: list[str] | None = None,
             exclude_types: list[str] | None = None,
             account_id: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
         """Notifications concerning the user.
 
         This API returns Link headers containing links to the next/previous page.
@@ -1014,7 +894,7 @@ class Mastodon:
             params["exclude_types"] = exclude_types
         if account_id:
             params["account_id"] = account_id
-        return await self.client.get(
+        return self.client.get(
             "/api/v1/notifications", params=params)
 
     def bookmarks(
@@ -1038,6 +918,28 @@ class Mastodon:
         if limit:
             params["limit"] = limit
         return self.client.get("/api/v1/bookmarks", params=params)
+
+    def favourites(
+            self,
+            max_id: str | None = None,
+            min_id: str | None = None,
+            since_id: str | None = None,
+            limit: int | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """Statuses the user has favourited.
+
+        Reference: https://docs.joinmastodon.org/methods/favourites/#get
+        """
+        params = {}
+        if max_id:
+            params["max_id"] = max_id
+        if min_id:
+            params["min_id"] = min_id
+        if since_id:
+            params["since_id"] = since_id
+        if limit:
+            params["limit"] = limit
+        return self.client.get("/api/v1/favourites", params=params)
 
     def follow_requests(
             self,
@@ -1160,3 +1062,133 @@ class Mastodon:
         """
         return self.client.get(previous_page["_pagination_next"])
 
+    def account_followers(
+            self,
+            account_id: str,
+            max_id: str | None = None,
+            since_id: str | None = None,
+            limit: int | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """Accounts which follow the given account.
+
+        If network is not hidden by the account owner.
+
+        Reference: https://docs.joinmastodon.org/methods/accounts/#followers
+        """
+        params = {}
+        if max_id:
+            params["max_id"] = max_id
+        if since_id:
+            params["since_id"] = since_id
+        if limit:
+            params["limit"] = limit
+        return self.client.get(
+            f"/api/v1/accounts/{account_id}/followers", params=params)
+
+    def account_following(
+            self,
+            account_id: str,
+            max_id: str | None = None,
+            since_id: str | None = None,
+            limit: int | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """Accounts which the given account is following.
+
+        If network is not hidden by the account owner.
+
+        Reference: https://docs.joinmastodon.org/methods/accounts/#following
+        """
+        params = {}
+        if max_id:
+            params["max_id"] = max_id
+        if since_id:
+            params["since_id"] = since_id
+        if limit:
+            params["limit"] = limit
+        return self.client.get(
+            f"/api/v1/accounts/{account_id}/following", params=params)
+
+    def trending_statuses(
+            self,
+            limit: int | None = None,
+            offset: int | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """Get trending statuses.
+
+        Reference: https://docs.joinmastodon.org/methods/trends/#statuses
+        """
+        params = {}
+        if limit:
+            params["limit"] = limit
+        if offset:
+            params["offset"] = offset
+        return self.client.get("/api/v1/trends/statuses", params=params)
+
+    def timelines_home(
+            self,
+            max_id: str | None = None,
+            since_id: str | None = None,
+            min_id: str | None = None,
+            limit: int | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """Home timeline.
+
+        Reference: https://docs.joinmastodon.org/methods/timelines/#home
+        """
+        params = {}
+        if max_id:
+            params["max_id"] = max_id
+        if since_id:
+            params["since_id"] = since_id
+        if min_id:
+            params["min_id"] = min_id
+        if limit:
+            params["limit"] = limit
+        return self.client.get("/api/v1/timelines/home", params=params)
+
+    def timelines_public(
+            self,
+            local: bool = False,
+            remote: bool = False,
+            only_media: bool = False,
+            max_id: str | None = None,
+            since_id: str | None = None,
+            min_id: str | None = None,
+            limit: int | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """Public timeline.
+
+        Reference: https://docs.joinmastodon.org/methods/timelines/#public
+        """
+        params = {}
+        if local:
+            params["local"] = local
+        if only_media:
+            params["only_media"] = only_media
+        if max_id:
+            params["max_id"] = max_id
+        if since_id:
+            params["since_id"] = since_id
+        if min_id:
+            params["min_id"] = min_id
+        if limit:
+            params["limit"] = limit
+        return self.client.get("/api/v1/timelines/public", params=params)
+
+def filter_language(
+        toots : Iterable[dict[str, str]],
+        language : str,
+        ) -> Iterator[dict[str, str]]:
+    """Filter out toots that are not in the given language.
+
+    Args:
+    ----
+    toots (Iterable[dict[str, str]]): The toots to filter.
+    language (str): The language to filter by.
+
+    Returns:
+    -------
+    Iterator[dict[str, str]]: The filtered toots.
+    """
+    return filter(
+        lambda toot: toot.get("language") == language, toots)

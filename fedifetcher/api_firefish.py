@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from urllib.parse import urlparse
 
 import aiohttp
+from fedifetcher import api_mastodon
 
 from fedifetcher.api_firefish_types import Note, UserDetailedNotMe
-from fedifetcher.api_mastodon import mastodon
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from .helpers import Response, arguments
@@ -164,7 +164,9 @@ class Firefish:
                 msg = "Using provided token"
                 logging.info(f"\033[1;33m{msg}\033[0m")
 
-            client = aiohttp.ClientSession(headers={
+            client = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=15),
+                headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
             })
 
@@ -306,8 +308,8 @@ class Firefish:
                 if status_id is not None:
                     status_ids[url] = str(status_id)
                     continue
-            promises.append(self.get_home_status_id_from_url(
-                url))
+            promises.append(asyncio.ensure_future(self.get_home_status_id_from_url(
+                url)))
             urls_promised.append(url)
         for url, promise in zip(
                 urls_promised, await asyncio.gather(*promises), strict=True):
@@ -330,7 +332,8 @@ class Firefish:
             logging.error("No PostgreSQLUpdater instance provided")
             return []
         # Get the context of a toot
-        context: Context = (mastodon(server, token)).status_context(id=toot_id)
+        context: Context = await api_mastodon.Mastodon(
+            server=server, token=token).status_context(status_id=toot_id)
         # List of status URLs
         context_statuses = list(context["ancestors"] + context["descendants"])
         # Sort by server

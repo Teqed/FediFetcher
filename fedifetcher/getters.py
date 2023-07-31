@@ -9,7 +9,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from . import api_lemmy, api_mastodon, parsers
 
 
-def get_user_posts(
+async def get_user_posts(
         user: dict[str, str],
         know_followings: OrderedSet,
         server: str,
@@ -47,8 +47,8 @@ def get_user_posts(
         logging.info(f"Getting user ID for user {user['acct']}")
         _external_token = external_tokens.get(parsed_url[0]) \
             if external_tokens else None
-        user_id = api_mastodon.get_user_id(
-            parsed_url[1], parsed_url[0], _external_token)
+        user_id = await api_mastodon.Mastodon(parsed_url[1],
+                _external_token).get_user_id(parsed_url[0])
         logging.debug(f"User ID: {user_id}")
     except Exception:
         logging.exception(f"Error getting user ID for user {user['acct']}")
@@ -57,7 +57,7 @@ def get_user_posts(
     if not parsed_url[0] or not user_id:
         return None
 
-    return api_mastodon.get_user_posts_from_id(user_id, parsed_url[0])
+    return await api_mastodon.Mastodon(parsed_url[0]).get_user_posts_from_id(user_id)
 
 async def get_post_context(  # noqa: PLR0913, D417
         server: str,
@@ -95,6 +95,6 @@ async def get_post_context(  # noqa: PLR0913, D417
         )
 
 
-    except Exception as ex:
-        logging.error(f"Error getting context for toot {toot_url}. Exception: {ex}")
+    except Exception:
+        logging.exception(f"Error getting context for toot {toot_url}.")
         return []
