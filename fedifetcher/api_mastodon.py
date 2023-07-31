@@ -775,8 +775,9 @@ class Mastodon:
             promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
-            if isinstance(result, dict | Status):
-                if result.get("url") == url:
+            _result = result.result()
+            if isinstance(_result, dict | Status):
+                if _result.get("url") == url:
                     status = self.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None
                     status_ids[url] = status_id
@@ -785,9 +786,9 @@ class Mastodon:
                     continue
                 logging.error(
                     f"Something went wrong fetching: {url} from {self.server} , \
-    did not match {result.get('url')}")
-                logging.debug(result)
-            elif result is False:
+    did not match {_result.get('url')}")
+                logging.debug(_result)
+            elif _result is False:
                 logging.warning(f"Failed to get status id for {url} on {self.server}")
             logging.error(f"Status id for {url} not found")
         return status_ids
