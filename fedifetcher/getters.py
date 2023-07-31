@@ -103,7 +103,8 @@ async def get_post_context(  # noqa: PLR0913, D417
                 return []
 
         return await api_mastodon.Mastodon(
-            home_server, home_server_token, pgupdater).get_toot_context(toot_id)
+            server, external_token).get_toot_context(
+            toot_id, home_server, home_server_token, pgupdater)
 
 
     except Exception:
