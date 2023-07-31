@@ -353,7 +353,9 @@ class Mastodon:
                     toot
                     for toot in all_statuses
                     if toot["in_reply_to_id"]
-                    and cast(datetime, toot["created_at"]).astimezone(UTC) > reply_since
+                    and datetime.strptime(
+                        toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ",
+                    ).replace(tzinfo=UTC) > reply_since \
                     and self.pgupdater.get_from_cache(toot["url"]) is None
                 ]
         except Exception:
