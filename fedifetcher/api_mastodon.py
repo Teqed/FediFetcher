@@ -185,7 +185,7 @@ class Mastodon:
             acct = f"{user}",
         )
         if not isinstance(account_search, bool) \
-            and account_search["username"] == user:
+            and account_search.get("username") == user:
             return account_search["id"]
         return None
 
