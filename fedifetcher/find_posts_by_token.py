@@ -55,7 +55,9 @@ mentioned users")
             for toot in timeline_toots:
                 logging.debug(f"Checking toot: {toot.get('url')}")
                 these_users = []
-                toot_created_at = cast(datetime, toot["created_at"])
+                toot_created_at = datetime.strptime(
+                    toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+                        tzinfo=UTC)
                 user_limit = {
                     "precutoff": 10,
                     "postcutoff": 30,
