@@ -337,12 +337,22 @@ class AuxDomainFetch:
             logging.info(f"\033[1;34m{msg}\033[0m")
             list_of_posts = []
             list_of_parsed_urls = []
+            _promises = []
             for parsed_url, post_url in self.aux_fetches[fetch_domain]:
                 list_of_posts.append(post_url)
                 list_of_parsed_urls.append(parsed_url)
-            await aux_domain_fetch(self.external_tokens, self.add_post_to_dict,
-                self.domains_fetched, list_of_posts,
-                    list_of_parsed_urls, trending_post_dict, pgupdater)
+                _promises.append(
+                    asyncio.ensure_future(aux_domain_fetch(
+                        self.external_tokens,
+                        self.add_post_to_dict,
+                        self.domains_fetched,
+                        list_of_posts,
+                        list_of_parsed_urls,
+                        trending_post_dict,
+                        pgupdater,
+                    )),
+                )
+            await asyncio.gather(*_promises)
         promises = []
         for fetchable_domain in self.aux_fetches.copy():
             promises.append(
