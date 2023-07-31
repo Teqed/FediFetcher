@@ -255,14 +255,13 @@ class Mastodon:
         logging.debug(f"Reply interval: {reply_interval_hours} hours")
         since = datetime.now(UTC) - timedelta(days=reply_interval_hours / 24 + 1)
         logging.debug(f"Since: {since}")
-        local_accounts = await self.admin_accounts_v2(
+        local_accounts = (await self.admin_accounts_v2(
             origin="local",
             status="active",
-        )
-        logging.debug(f"Found {len(local_accounts)} accounts")
+        )).get("list")
         active_user_ids = []
         if local_accounts:
-            logging.debug(f"Getting user IDs for {len(local_accounts)} local accounts")
+            logging.debug(f"Found {len(local_accounts)} accounts")
             for user in local_accounts:
                 user_dict: dict[str, Any] = ast.literal_eval(user)
                 logging.debug(f"User: {user_dict.get('username')}")
