@@ -297,32 +297,38 @@ class Firefish:
         -------
         dict[str, str]: A dict of status ids, keyed by toot URL.
         """
-        if self.pgupdater is None:
-            logging.error("No PostgreSQLUpdater instance provided")
+        if not self.pgupdater:
             return {}
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
             self.pgupdater.get_dict_from_cache(urls)
-        promises = []
-        urls_promised = []
+        promises : list[tuple[str, asyncio.Task[Note | UserDetailedNotMe | bool]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
             if cached_status:
                 status_id = cached_status.get("id")
                 if status_id is not None:
-                    status_ids[url] = str(status_id)
+                    status_ids[url] = status_id
                     continue
-            promises.append(asyncio.ensure_future(self.get_home_status_id_from_url(
-                url)))
-            urls_promised.append(url)
-        for url, promise in zip(
-                urls_promised, await asyncio.gather(*promises), strict=True):
-            try:
-                status_id = promise
-            except Exception:
-                logging.exception(
-                    f"Error getting status id for {url} from {self.server}")
-                continue
-            if status_id is not None:
-                status_ids[url] = status_id
+            msg = f"Fetching status id for {url} from {self.server}"
+            logging.info(f"\033[1;33m{msg}\033[0m")
+            promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
+        await asyncio.gather(*[promise for _, promise in promises])
+        for url, result in promises:
+            _result = result.result()
+            if isinstance(_result, dict | Status):
+                if _result.get("url") == url:
+                    status = self.pgupdater.get_from_cache(url)
+                    status_id = status.get("id") if status else None
+                    status_ids[url] = status_id
+                    logging.info(
+                        f"Got status id {status_id} for {url} from {self.server}")
+                    continue
+                logging.error(
+                    f"Something went wrong fetching: {url} from {self.server} , \
+    did not match {_result.get('url')}")
+                logging.debug(_result)
+            elif _result is False:
+                logging.warning(f"Failed to get status id for {url} on {self.server}")
+            logging.error(f"Status id for {url} not found")
         return status_ids
