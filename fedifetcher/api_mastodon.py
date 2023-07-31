@@ -141,7 +141,7 @@ class Mastodon:
                 msg = "Using provided token"
                 logging.info(f"\033[1;33m{msg}\033[0m")
             client = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=15),
+                timeout=aiohttp.ClientTimeout(total=60),
                 headers={
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
             })
