@@ -1,6 +1,5 @@
 """Pull posts from a Mastodon server, using a token."""
 
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -10,7 +9,7 @@ from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 
-def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
+async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
         token: str,
         parsed_urls : dict[str, tuple[str | None, str | None]],
         replied_toot_server_ids: dict[str, str | None],
@@ -25,14 +24,10 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
     if helpers.arguments.home_timeline_length > 0:
         """Do the same with any toots on the key owner's home timeline """
         logging.info("Pulling context toots for home timeline")
-        timeline_toots = api_mastodon.get_timeline(
-            helpers.arguments.server,
-            token,
-            "home",
-            helpers.arguments.home_timeline_length,
-            )
+        timeline_toots = await api_mastodon.Mastodon(helpers.arguments.server,
+            token).get_home_timeline(helpers.arguments.home_timeline_length)
         logging.debug("Found home timeline toots, getting context URLs")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
+        known_context_urls = await getter_wrappers.get_all_known_context_urls(
             helpers.arguments.server,
             timeline_toots,
             parsed_urls,
@@ -41,7 +36,7 @@ def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=
             token,
             )
         logging.debug("Found known context URLs, getting context URLs")
-        add_context.add_context_urls(
+        await add_context.add_context_urls_wrapper(
             helpers.arguments.server,
             token,
             known_context_urls,
@@ -88,7 +83,7 @@ mentioned users")
                         logging.debug(f"Adding user: {user.get('acct')}")
                         mentioned_users.append(user)
             logging.debug(f"Mentioned users: {len(mentioned_users)}")
-            add_context.add_user_posts(
+            await add_context.add_user_posts(
                 helpers.arguments.server,
                 token,
                 getter_wrappers.filter_known_users(
@@ -100,7 +95,8 @@ mentioned users")
                 external_tokens,
                 pgupdater,
                 )
-    token_user_id = api_mastodon.get_me(helpers.arguments.server, token)
+    token_user_id = await api_mastodon.Mastodon(
+        helpers.arguments.server, token).get_me()
     if not token_user_id:
         logging.debug("Could not get User ID, skipping replies/followings/followers")
     else:
@@ -109,7 +105,7 @@ mentioned users")
             """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""
             logging.info("Pulling context toots for replies")
-            reply_toots = getter_wrappers.get_all_reply_toots(
+            reply_toots = await getter_wrappers.get_all_reply_toots(
                 helpers.arguments.server,
                 [token_user_id],
                 token,
@@ -117,7 +113,7 @@ mentioned users")
                 helpers.arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting context URLs")
-            getter_wrappers.get_all_known_context_urls(
+            await getter_wrappers.get_all_known_context_urls(
                 helpers.arguments.server,
                 reply_toots,
                 parsed_urls,
@@ -133,16 +129,16 @@ mentioned users")
                 parsed_urls,
             )
             logging.debug("Found replied toot IDs, getting context URLs")
-            context_urls = asyncio.run(getter_wrappers.get_all_context_urls(
+            context_urls = await getter_wrappers.get_all_context_urls(
                 helpers.arguments.server,
                 replied_toot_ids,
                 external_tokens,
                 pgupdater,
                 helpers.arguments.server,
                 token,
-                ))
+                )
             logging.debug("Found context URLs, getting context URLs")
-            add_context.add_context_urls(
+            await add_context.add_context_urls_wrapper(
                 helpers.arguments.server,
                 token,
                 context_urls,
@@ -152,7 +148,7 @@ mentioned users")
         if helpers.arguments.max_followings > 0:
             logging.info(
         f"Getting posts from last {helpers.arguments.max_followings} followings")
-            followings = getter_wrappers.get_new_followings(
+            followings = await getter_wrappers.get_new_followings(
                 helpers.arguments.server,
                 token,
                 token_user_id,
@@ -160,7 +156,7 @@ mentioned users")
                 all_known_users,
                 )
             logging.debug("Got followings, getting context URLs")
-            add_context.add_user_posts(
+            await add_context.add_user_posts(
                 helpers.arguments.server,
                 token, followings,
                 known_followings,
@@ -172,7 +168,7 @@ mentioned users")
         if helpers.arguments.max_followers > 0:
             logging.info(
         f"Getting posts from last {helpers.arguments.max_followers} followers")
-            followers = getter_wrappers.get_new_followers(
+            followers = await getter_wrappers.get_new_followers(
                 helpers.arguments.server,
                 token,
                 token_user_id,
@@ -180,7 +176,7 @@ mentioned users")
                 all_known_users,
                 )
             logging.debug("Got followers, getting context URLs")
-            add_context.add_user_posts(
+            await add_context.add_user_posts(
                 helpers.arguments.server,
                 token,
                 followers,
@@ -193,14 +189,14 @@ mentioned users")
     if helpers.arguments.max_follow_requests > 0:
         logging.info(
     f"Getting posts from last {helpers.arguments.max_follow_requests} follow requests")
-        follow_requests = getter_wrappers.get_new_follow_requests(
+        follow_requests = await getter_wrappers.get_new_follow_requests(
                             helpers.arguments.server,
                             token,
                             helpers.arguments.max_follow_requests,
                             all_known_users,
                             )
         logging.debug("Got follow requests, getting context URLs")
-        add_context.add_user_posts(
+        await add_context.add_user_posts(
             helpers.arguments.server,
             token,
             follow_requests,
@@ -213,14 +209,14 @@ mentioned users")
     if helpers.arguments.from_notifications > 0:
         logging.info(
     f"Getting notifications for last {helpers.arguments.from_notifications} hours")
-        notification_users = getter_wrappers.get_notification_users(
+        notification_users = await getter_wrappers.get_notification_users(
                                 helpers.arguments.server,
                                 token,
                                 all_known_users,
                                 helpers.arguments.from_notifications,
                                 )
         logging.debug("Got notification users, getting context URLs")
-        add_context.add_user_posts(
+        await add_context.add_user_posts(
             helpers.arguments.server,
             token,
             notification_users,
@@ -233,13 +229,11 @@ mentioned users")
     if helpers.arguments.max_bookmarks > 0:
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_bookmarks} bookmarks")
-        bookmarks = api_mastodon.get_bookmarks(
-                        helpers.arguments.server,
-                        token,
-                        helpers.arguments.max_bookmarks,
-                        )
+        bookmarks = await api_mastodon.Mastodon(
+            helpers.arguments.server, token).get_bookmarks(
+            helpers.arguments.max_bookmarks)
         logging.debug("Got bookmarks, getting context URLs")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
+        known_context_urls = await getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
                                 list(bookmarks),
                                 parsed_urls,
@@ -248,7 +242,7 @@ mentioned users")
                                 token,
                                 )
         logging.debug("Got known context URLs, getting context URLs")
-        add_context.add_context_urls(
+        await add_context.add_context_urls_wrapper(
             helpers.arguments.server,
             token,
             known_context_urls,
@@ -258,13 +252,12 @@ mentioned users")
     if helpers.arguments.max_favourites > 0:
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_favourites} favourites")
-        favourites = api_mastodon.get_favourites(
-                        helpers.arguments.server,
-                        token,
+        favourites = await api_mastodon.Mastodon(
+                        helpers.arguments.server, token).get_favourites(
                         helpers.arguments.max_favourites,
                         )
         logging.debug("Got favourites, getting context URLs")
-        known_context_urls = getter_wrappers.get_all_known_context_urls(
+        known_context_urls = await getter_wrappers.get_all_known_context_urls(
                                 helpers.arguments.server,
                                 list(favourites),
                                 parsed_urls,
@@ -273,7 +266,7 @@ mentioned users")
                                 token,
                                 )
         logging.debug("Got known context URLs, getting context URLs")
-        add_context.add_context_urls(
+        await add_context.add_context_urls_wrapper(
             helpers.arguments.server,
             token,
             known_context_urls,

@@ -95,6 +95,8 @@ def post(
 
     fediverse_post_regex: dict[str, str] = {
         "mastodon": r"https://(?P<server>[^/]+)/@(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
+        "mastodon_uri": r"https://(?P<server>[^/]+)/users/(?P<username>[^/]+)/statuses/(?P<toot_id>[^/]+)",
+        "firefish": r"https://(?P<server>[^/]+)/notes/(?P<toot_id>[^/]+)",
         "pixelfed": r"https://(?P<server>[^/]+)/p/(?P<username>[^/]+)/(?P<toot_id>[^/]+)",
         "pleroma": r"https://(?P<server>[^/]+)/objects/(?P<toot_id>[^/]+)",
         "lemmy": r"https://(?P<server>[^/]+)/(?:comment|post)/(?P<toot_id>[^/]+)",

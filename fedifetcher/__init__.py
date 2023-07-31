@@ -11,6 +11,8 @@ Submodules:
 """
 from . import (
     add_context,
+    api_firefish,
+    api_firefish_types,
     api_lemmy,
     api_mastodon,
     argparser,
@@ -25,6 +27,8 @@ from . import (
 
 __all__ = [
     "add_context",
+    "api_firefish",
+    "api_firefish_types",
     "api_lemmy",
     "api_mastodon",
     "argparser",
