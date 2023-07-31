@@ -239,10 +239,11 @@ async def get_all_known_context_urls(
             ))
             for x in toots_to_get_context_for
         ]
-        results = await asyncio.gather(*tasks)
-        for post in results:
+        await asyncio.gather(*tasks)
+        for post in tasks:
             if post:
-                known_context_urls.extend(post)
+                _post = post.result()
+                known_context_urls.extend(_post)
         toots_to_get_context_for_by_server: dict[
             str, list[tuple[tuple[str, str], str]]] = {}
 
