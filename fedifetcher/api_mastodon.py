@@ -32,7 +32,7 @@ class MastodonClient:
         endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
         try:
-            print.debug(f"Getting {endpoint} from {self.api_base_url}")
+            logging.debug(f"Getting {endpoint} from {self.api_base_url}")
             async with self.client.get(
                 f"https://{self.api_base_url}{endpoint}",
                 headers={
