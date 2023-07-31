@@ -56,7 +56,7 @@ async def add_user_posts( # noqa: PLR0913
                             logging.debug(f"Already added {post_url}")
                             continue
                     if post.get("reblog") is None:
-                        added = add_post_with_context(
+                        added = await add_post_with_context(
                             post, home_server, access_token,
                             external_tokens, pgupdater)
                         if added is True:
