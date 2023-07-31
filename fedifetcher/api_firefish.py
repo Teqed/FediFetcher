@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from urllib.parse import urlparse
 
 import aiohttp
-from fedifetcher import api_mastodon
 
 from fedifetcher.api_firefish_types import Note, UserDetailedNotMe
 from fedifetcher.postgresql import PostgreSQLUpdater
@@ -13,7 +12,7 @@ from fedifetcher.postgresql import PostgreSQLUpdater
 from .helpers import Response, arguments
 
 if TYPE_CHECKING:
-    from mastodon.types import Context, Status
+    from mastodon.types import Status
 
 
 class FirefishClient:
@@ -22,18 +21,18 @@ class FirefishClient:
     def __init__(self,
                 access_token : str | None,
                 api_base_url : str,
-                client : aiohttp.ClientSession) -> None:
+                client_session : aiohttp.ClientSession) -> None:
         """Initialize a Firefish object."""
         self.access_token = access_token
         self.api_base_url = api_base_url
-        self.client = client
+        self.client_session = client_session
 
     async def post(self,
         endpoint : str, json : dict[str, Any] | None = None,
         ) -> dict | bool:
         """POST to the API."""
         try:
-            async with self.client.post(
+            async with self.client_session.post(
                 f"https://{self.api_base_url}{endpoint}",
                 json=json,
                 headers={"Authorization": f"Bearer {self.access_token}"},
@@ -178,7 +177,7 @@ class Firefish:
             Firefish.clients[server] = FirefishClient(
                 access_token=token if token else None,
                 api_base_url=server if server else arguments.server,
-                client=client,
+                client_session=client,
             )
         self.client = Firefish.clients[server]
 

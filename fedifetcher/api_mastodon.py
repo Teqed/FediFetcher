@@ -20,19 +20,20 @@ class MastodonClient:
 
     def __init__(self,
                     api_base_url: str,
-                    client: aiohttp.ClientSession,
+                    client_session: aiohttp.ClientSession,
                     token: str | None = None,
                     ) -> None:
             """Initialize the Mastodon client."""
             self.api_base_url = api_base_url
             self.token = token
-            self.client = client
+            self.client_session = client_session
 
     async def get(self,
         endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
         try:
-            async with self.client.get(
+            logging.debug(f"Getting {endpoint} from {self.api_base_url}")
+            async with self.client_session.get(
                 f"https://{self.api_base_url}{endpoint}",
                 headers={
                     "Authorization": f"Bearer {self.token}",
@@ -52,7 +53,8 @@ class MastodonClient:
                         f"Waiting 60 seconds before trying again.",
                     )
                     await asyncio.sleep(60)
-                    return await self.get(endpoint, params)
+                    return await self.get(
+                        endpoint=endpoint, params=params, tries=tries + 1)
                 return await self.handle_response_errors(response)
         except asyncio.TimeoutError:
             logging.warning(
@@ -148,7 +150,7 @@ class Mastodon:
 
             Mastodon.clients[server] = MastodonClient(
                 api_base_url=server if server else helpers.arguments.server,
-                client=client,
+                client_session=client,
                 token=token,
             )
         self.client = Mastodon.clients[server]
