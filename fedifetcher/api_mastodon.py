@@ -40,6 +40,7 @@ class MastodonClient:
                 },
                 params=params,
             ) as response:
+                logging.debug(f"Got https://{self.api_base_url}{endpoint}")
                 if response.status == Response.TOO_MANY_REQUESTS:
                     mastodon_ratelimit_reset_timer_in_minutes = 5
                     if tries > mastodon_ratelimit_reset_timer_in_minutes:
