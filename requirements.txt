@@ -17,7 +17,7 @@ idna==3.4
 iniconfig==2.0.0
 lark==1.1.5
 mando==0.7.1
--e git+https://github.com/Teqed/Mastodon.py.git@4b5663f22e43e61b9392829b23df4f49f828ff48#egg=Mastodon.py
+mastodon.py==1.8.1
 multidict==6.0.4
 packaging==23.1
 pluggy==1.2.0
