@@ -3,6 +3,7 @@ from __future__ import annotations  # python < 3.9 compat
 import contextlib
 from collections import OrderedDict
 from datetime import UTC, datetime
+from pathlib import PurePath
 from typing import (
     IO,
     Any,
@@ -14,8 +15,6 @@ from typing import (
 
 import dateutil
 import dateutil.parser
-
-from .api_mastodon_compat import PurePath
 
 # A type representing a file name as a PurePath or string, or a file-like object, for convenience
 PathOrFile = Union[str, PurePath, IO[bytes]]
