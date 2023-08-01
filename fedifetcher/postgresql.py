@@ -96,6 +96,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             if not status.get(attribute):
                 logging.error(
                     f"Status missing required attribute: {attribute}")
+                logging.debug(status)
                 return False
         # Cast these variables to the correct types.
         uri = str(status.get("uri"))
