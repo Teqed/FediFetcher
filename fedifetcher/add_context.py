@@ -197,7 +197,7 @@ async def add_context_urls_wrapper(
         futures = await asyncio.gather(*tasks)
         for result in futures:
             logging.debug(f"Got {result}")
-            if result is True:
+            if result and not isinstance(result, bool):
                 count += 1
                 if isinstance(result, Note | Status):
                     pgupdater.cache_status(result)
