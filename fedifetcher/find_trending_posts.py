@@ -9,8 +9,6 @@ from collections.abc import Callable
 from fedifetcher import api_firefish, api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
-from .api_mastodon_errors import MastodonError
-
 
 def increment_count(post_url : str, incrementing_post : dict[str, str],
                     trending_posts_dict: dict[str, dict[str, str]]) -> None:
@@ -244,8 +242,8 @@ async def fetch_and_return_missing(external_tokens : dict[str, str],
     try:
         var_manip.add_to_fetched(fetch_domain)
         var_manip.remove_from_fetching(fetch_domain)
-    except MastodonError:
-        logging.error(
+    except Exception:
+        logging.exception(
             f"Error occurred while fetching domain {fetch_domain}")
 
 async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
