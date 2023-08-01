@@ -4,12 +4,15 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from fedifetcher import add_context, api_mastodon, getter_wrappers, helpers
-from fedifetcher.ordered_set import OrderedSet
-from fedifetcher.postgresql import PostgreSQLUpdater
+from fedifetcher import find_context, getter_wrappers
+from fedifetcher.api.mastodon import api_mastodon
+from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.find_user_posts import add_user_posts
+from fedifetcher.helpers import helpers
+from fedifetcher.helpers.ordered_set import OrderedSet
 
 
-async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
+async def token_posts( # pylint: disable=too-many-arguments # pylint: disable=too-many-locals # noqa: C901, E501, PLR0915, PLR0912, PLR0913
         token: str,
         parsed_urls : dict[str, tuple[str | None, str | None]],
         replied_toot_server_ids: dict[str, str | None],
@@ -36,7 +39,7 @@ async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: di
             token,
             )
         logging.debug("Found known context URLs, getting context URLs")
-        await add_context.add_context_urls_wrapper(
+        await find_context.add_context_urls_wrapper(
             helpers.arguments.server,
             token,
             known_context_urls,
@@ -85,7 +88,7 @@ mentioned users")
                         logging.debug(f"Adding user: {user.get('acct')}")
                         mentioned_users.append(user)
             logging.debug(f"Mentioned users: {len(mentioned_users)}")
-            await add_context.add_user_posts(
+            await add_user_posts(
                 helpers.arguments.server,
                 token,
                 getter_wrappers.filter_known_users(
@@ -140,7 +143,7 @@ mentioned users")
                 token,
                 )
             logging.debug("Found context URLs, getting context URLs")
-            await add_context.add_context_urls_wrapper(
+            await find_context.add_context_urls_wrapper(
                 helpers.arguments.server,
                 token,
                 context_urls,
@@ -158,7 +161,7 @@ mentioned users")
                 all_known_users,
                 )
             logging.debug("Got followings, getting context URLs")
-            await add_context.add_user_posts(
+            await add_user_posts(
                 helpers.arguments.server,
                 token, followings,
                 known_followings,
@@ -178,7 +181,7 @@ mentioned users")
                 all_known_users,
                 )
             logging.debug("Got followers, getting context URLs")
-            await add_context.add_user_posts(
+            await add_user_posts(
                 helpers.arguments.server,
                 token,
                 followers,
@@ -198,7 +201,7 @@ mentioned users")
                             all_known_users,
                             )
         logging.debug("Got follow requests, getting context URLs")
-        await add_context.add_user_posts(
+        await add_user_posts(
             helpers.arguments.server,
             token,
             follow_requests,
@@ -218,7 +221,7 @@ mentioned users")
                                 helpers.arguments.from_notifications,
                                 )
         logging.debug("Got notification users, getting context URLs")
-        await add_context.add_user_posts(
+        await add_user_posts(
             helpers.arguments.server,
             token,
             notification_users,
@@ -244,7 +247,7 @@ mentioned users")
                                 token,
                                 )
         logging.debug("Got known context URLs, getting context URLs")
-        await add_context.add_context_urls_wrapper(
+        await find_context.add_context_urls_wrapper(
             helpers.arguments.server,
             token,
             known_context_urls,
@@ -268,7 +271,7 @@ mentioned users")
                                 token,
                                 )
         logging.debug("Got known context URLs, getting context URLs")
-        await add_context.add_context_urls_wrapper(
+        await find_context.add_context_urls_wrapper(
             helpers.arguments.server,
             token,
             known_context_urls,

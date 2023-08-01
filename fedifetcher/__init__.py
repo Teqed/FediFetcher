@@ -9,25 +9,23 @@ Submodules:
 - ordered_set: Implements an ordered set data structure.
 - parsers: Provides parsing utilities for different data formats.
 """
+from main import main
+
 from . import (
-    add_context,
-    api_firefish,
-    api_firefish_types,
-    api_lemmy,
-    api_mastodon,
-    api_mastodon_types,
-    argparser,
-    cache_manager,
-    find_posts_by_token,
+    find_context,
     find_trending_posts,
-    getters,
-    helpers,
-    ordered_set,
     parsers,
 )
+from .api.firefish import api_firefish, api_firefish_types
+from .api.lemmy import api_lemmy
+from .api.mastodon import api_mastodon, api_mastodon_types
+from .get import post_context
+from .helpers import argparser, cache_manager, helpers, ordered_set
+from .mode import token_posts
 
 __all__ = [
-    "add_context",
+    "main",
+    "find_context",
     "api_firefish",
     "api_firefish_types",
     "api_lemmy",
@@ -35,9 +33,9 @@ __all__ = [
     "api_mastodon_types",
     "argparser",
     "cache_manager",
-    "find_posts_by_token",
+    "token_posts",
     "find_trending_posts",
-    "getters",
+    "post_context",
     "helpers",
     "ordered_set",
     "parsers",

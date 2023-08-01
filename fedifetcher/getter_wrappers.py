@@ -9,14 +9,15 @@ from typing import Any, cast
 
 import requests
 
-from fedifetcher import api_mastodon
-from fedifetcher.getters import (
-    get_post_context,
+from fedifetcher.api.mastodon import api_mastodon
+from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.get.post_context import (
+    post_content,
 )
-from fedifetcher.ordered_set import OrderedSet
-from fedifetcher.postgresql import PostgreSQLUpdater
+from fedifetcher.helpers.ordered_set import OrderedSet
 
-from . import helpers, parsers
+from . import parsers
+from .helpers import helpers
 
 
 async def get_notification_users(
@@ -229,7 +230,7 @@ async def get_all_known_context_urls(
         # Get the context for the toots
         logging.debug(f"Getting context for {len(toots_to_get_context_for)} toots")
         tasks = [
-            asyncio.ensure_future(get_post_context(
+            asyncio.ensure_future(post_content(
                 x[0][0],
                 x[0][1],
                 x[1],
@@ -262,7 +263,7 @@ async def get_context_for_server(server : str,  # noqa: ARG001
         parsed_url = post[0]
         url = post[1]
         try:
-            context = await get_post_context(
+            context = await post_content(
                     parsed_url[0],
                     parsed_url[1],
                     url,

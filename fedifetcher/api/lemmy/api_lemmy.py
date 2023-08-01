@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import requests
 
-from fedifetcher import helpers
+from fedifetcher.helpers import helpers
 
 
 def get_user_posts_from_url(
