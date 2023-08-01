@@ -294,9 +294,10 @@ class Firefish:
             promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
-            logging.debug(f"Got {result} for {url} from {self.server}")
             _result = result.result()
-            if isinstance(_result, dict | Status):
+            logging.debug(f"Got {_result} for {url} from {self.server}")
+            if not isinstance(_result, bool) \
+                    and not isinstance(_result, UserDetailedNotMe):
                 if _result.get("url") == url:
                     status = self.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None
