@@ -22,11 +22,13 @@ class MastodonClient:
                     api_base_url: str,
                     client_session: aiohttp.ClientSession,
                     token: str | None = None,
+                    pgupdater: PostgreSQLUpdater | None = None,
                     ) -> None:
             """Initialize the Mastodon client."""
             self.api_base_url = api_base_url
             self.token = token
             self.client_session = client_session
+            self.pgupdater = pgupdater
 
     async def get(self,
         endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
@@ -138,7 +140,9 @@ class Mastodon:
         self.token = token
         self.pgupdater = pgupdater
         if server not in Mastodon.clients or (
-            token is not None and Mastodon.clients[server].token is None):
+            token is not None and Mastodon.clients[server].token is None) or (
+            pgupdater is not None and Mastodon.clients[server].pgupdater is None
+            ):
             msg = f"Creating Mastodon client for {server}"
             logging.info(f"\033[1;33m{msg}\033[0m")
             if token:
@@ -154,6 +158,7 @@ class Mastodon:
                 api_base_url=server if server else helpers.arguments.server,
                 client_session=client,
                 token=token,
+                pgupdater=pgupdater,
             )
         self.client = Mastodon.clients[server]
 
