@@ -153,7 +153,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         replies_count,
                         reblogs_count,
                         (reblogs_count + favourites_count),
-                        reactions,
+                        json.dumps(reactions),
                         uri,
                     )
                     logging.info(f"Updating status {url}")
