@@ -193,17 +193,25 @@ async def find_trending_posts(  # noqa: C901
 less popular posts from {fetch_domain}"
         logging.info(
             f"\033[1;34m{msg}\033[0m")
+        promises = {} # key is status_id, value is tuple of domain, future
         for status_id in remember_to_find_me[fetch_domain]:
-            logging.debug(f"Fetching {status_id} from {fetch_domain}")
             if str(status_id) not in trending_posts_dict \
                     or "original" not in trending_posts_dict[str(status_id)]:
-                original_post = await api_mastodon.Mastodon(fetch_domain,
-                    external_tokens.get(fetch_domain)).get_status_by_id(status_id)
-                if original_post:
-                    add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
-                else:
-                    logging.warning(
-                        f"Couldn't find {status_id} from {fetch_domain}")
+                promises[status_id] = (
+                    asyncio.ensure_future(
+                        api_mastodon.Mastodon(fetch_domain,
+                            external_tokens.get(fetch_domain)).get_status_by_id(
+                            status_id),
+                    ),
+                )
+        await asyncio.gather(*promises.values())
+        for _status_id, future in promises.items():
+            original_post = future.result()
+            if original_post:
+                add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
+            else:
+                logging.warning(
+                    f"Couldn't find {_status_id} from {fetch_domain}")
 
     logging.info(f"Fetching aux posts from {len(trending_posts_dict.keys())} domains")
     await aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
