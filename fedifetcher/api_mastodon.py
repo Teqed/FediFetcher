@@ -136,9 +136,6 @@ class Mastodon:
         pgupdater: PostgreSQLUpdater | None = None,
         ) -> None:
         """Initialize the Mastodon instance."""
-        self.server = server
-        self.token = token
-        self.pgupdater = pgupdater
         if server not in Mastodon.clients or (
             token is not None and Mastodon.clients[server].token is None) or (
             pgupdater is not None and Mastodon.clients[server].pgupdater is None
@@ -181,7 +178,8 @@ class Mastodon:
         -------
         str | None: The user id if found, or None if the user is not found.
         """
-        if self.server == helpers.arguments.server or not self.server:
+        if self.client.api_base_url == helpers.arguments.server or \
+                not self.client.api_base_url:
             account = await self.account_lookup(
                 acct = f"{user}",
             )
@@ -257,7 +255,7 @@ class Mastodon:
         Exception: If the access token does not have the correct scope.
         Exception: If the server returns an unexpected status code.
         """
-        logging.debug(f"Getting active user IDs for {self.server}")
+        logging.debug(f"Getting active user IDs for {self.client.api_base_url}")
         logging.debug(f"Reply interval: {reply_interval_hours} hours")
         since = datetime.now(UTC) - timedelta(days=reply_interval_hours / 24 + 1)
         logging.debug(f"Since: {since}")
@@ -326,7 +324,7 @@ class Mastodon:
         Exception: If the access token does not have the correct scope.
         Exception: If the server returns an unexpected status code.
         """
-        logging.info(f"Getting posts for user {user_id} on {self.server}")
+        logging.info(f"Getting posts for user {user_id} on {self.client.api_base_url}")
         return await self.account_statuses(
                         account_id = user_id,
                         limit = 40,
@@ -352,7 +350,7 @@ class Mastodon:
         list[dict[str, str]] | None: A list of posts from the user, or None if \
             the user is not found.
         """
-        if not self.pgupdater:
+        if not self.client.pgupdater:
             return None
         try:
             all_statuses = await self.get_user_posts_from_id(user_id)
@@ -364,7 +362,7 @@ class Mastodon:
                     and datetime.strptime(
                         toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ",
                     ).replace(tzinfo=UTC) > reply_since \
-                    and self.pgupdater.get_from_cache(toot["url"]) is None
+                    and self.client.pgupdater.get_from_cache(toot["url"]) is None
                 ]
         except Exception:
             logging.exception(f"Error getting user posts for user {user_id}")
@@ -626,9 +624,9 @@ class Mastodon:
         dict[str, str] | bool: The status of the request, or False if the \
             request fails.
         """
-        logging.debug(f"Adding context url {url} to {self.server}")
-        if not self.pgupdater:
-            logging.debug(f"pgupdater not set for {self.server}")
+        logging.debug(f"Adding context url {url} to {self.client.api_base_url}")
+        if not self.client.pgupdater:
+            logging.debug(f"pgupdater not set for {self.client.api_base_url}")
             return False
         try:
             result = await self.search_v2(
@@ -636,15 +634,16 @@ class Mastodon:
                 resolve = True,
             )
         except Exception:
-            logging.exception(f"Error adding context url {url} to {self.server}")
+            logging.exception(
+                f"Error adding context url {url} to {self.client.api_base_url}")
             return False
         if (statuses := result.get("statuses")):
             for _status in statuses:
                 if _status.get("url") == url:
-                    self.pgupdater.cache_status(_status)
+                    self.client.pgupdater.cache_status(_status)
                     return _status
                 logging.debug(f"{url} did not match")
-        logging.debug(f"Could not find status for {url} on {self.server}")
+        logging.debug(f"Could not find status for {url} on {self.client.api_base_url}")
         return False
 
     async def get_trending_posts(
@@ -675,16 +674,17 @@ class Mastodon:
                 return []
             return cast(list[dict[str, str]], getting_trending_posts)
 
-        msg = f"Getting {limit} trending posts for {self.server}"
+        msg = f"Getting {limit} trending posts for {self.client.api_base_url}"
         logging.info(f"\033[1m{msg}\033[0m")
         got_trending_posts: list[dict[str, str]] = []
         try:
             got_trending_posts = await _get_trending_posts(0)
         except Exception:
             logging.exception(
-                f"Error getting trending posts for {self.server}")
+                f"Error getting trending posts for {self.client.api_base_url}")
             return []
-        logging.info(f"Got {len(got_trending_posts)} trending posts for {self.server}")
+        logging.info(
+        f"Got {len(got_trending_posts)} trending posts for {self.client.api_base_url}")
         trending_posts: list[dict[str, str]] = []
         trending_posts.extend(got_trending_posts)
         a_page = 40
@@ -695,18 +695,18 @@ class Mastodon:
                                                         len(trending_posts))
                 except Exception:
                     logging.exception(
-                        f"Error getting trending posts for {self.server}")
+                        f"Error getting trending posts for {self.client.api_base_url}")
                     break
                 old_length = len(trending_posts)
                 trending_posts.extend(got_trending_posts)
                 new_length = len(trending_posts)
                 logging.info(
-                    f"Got {new_length} trending posts for {self.server} ...")
+                f"Got {new_length} trending posts for {self.client.api_base_url} ...")
                 if (len(got_trending_posts) < a_page) or (old_length == new_length):
                     break
 
         logging.info(
-            f"Found {len(trending_posts)} trending posts total for {self.server}")
+    f"Found {len(trending_posts)} trending posts total for {self.client.api_base_url}")
         return trending_posts
 
     async def get_home_status_id_from_url(
@@ -727,29 +727,31 @@ class Mastodon:
         -------
         str | None: The status id of the toot, or None if the toot is not found.
         """
-        if not self.pgupdater:
+        if not self.client.pgupdater:
             return None
-        cached_status = self.pgupdater.get_from_cache(url)
+        cached_status = self.client.pgupdater.get_from_cache(url)
         if cached_status:
             status_id = cached_status.get("id")
             if status_id is not None:
                 return status_id
-        msg = f"Fetching status id for {url} from {self.server}"
+        msg = f"Fetching status id for {url} from {self.client.api_base_url}"
         logging.info(f"\033[1;33m{msg}\033[0m")
         result = await self.add_context_url(url)
         logging.debug(f"Result: {result}")
         if not isinstance(result, bool):
             if result.get("url") == url:
-                status = self.pgupdater.get_from_cache(url)
+                status = self.client.pgupdater.get_from_cache(url)
                 status_id = status.get("id") if status else None
-                logging.info(f"Got status id {status_id} for {url} from {self.server}")
+                logging.info(
+                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
                 return str(status_id)
             logging.error(
-                f"Something went wrong fetching: {url} from {self.server} , \
-    did not match {result.get('url')}")
+            f"Something went wrong fetching: {url} from {self.client.api_base_url} , \
+did not match {result.get('url')}")
             logging.debug(result)
         elif result is False:
-            logging.warning(f"Failed to get status id for {url} on {self.server}")
+            logging.warning(
+                f"Failed to get status id for {url} on {self.client.api_base_url}")
         logging.error(f"Status id for {url} not found")
         return None
 
@@ -771,11 +773,11 @@ class Mastodon:
         -------
         dict[str, str]: A dict of status ids, keyed by toot URL.
         """
-        if not self.pgupdater:
+        if not self.client.pgupdater:
             return {}
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
-            self.pgupdater.get_dict_from_cache(urls)
+            self.client.pgupdater.get_dict_from_cache(urls)
         promises : list[tuple[str, asyncio.Task[Status | bool]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
@@ -784,7 +786,7 @@ class Mastodon:
                 if status_id is not None:
                     status_ids[url] = status_id
                     continue
-            msg = f"Fetching status id for {url} from {self.server}"
+            msg = f"Fetching status id for {url} from {self.client.api_base_url}"
             logging.info(f"\033[1;33m{msg}\033[0m")
             promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
         await asyncio.gather(*[promise for _, promise in promises])
@@ -793,18 +795,19 @@ class Mastodon:
             logging.debug(_result)
             if not isinstance(_result, bool):
                 if _result.get("url") == url:
-                    status = self.pgupdater.get_from_cache(url)
+                    status = self.client.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None
                     status_ids[url] = status_id
                     logging.info(
-                        f"Got status id {status_id} for {url} from {self.server}")
+                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
                     continue
                 logging.error(
-                    f"Something went wrong fetching: {url} from {self.server} , \
-    did not match {_result.get('url')}")
+            f"Something went wrong fetching: {url} from {self.client.api_base_url} , \
+did not match {_result.get('url')}")
                 logging.debug(_result)
             elif _result is False:
-                logging.warning(f"Failed to get status id for {url} on {self.server}")
+                logging.warning(
+                f"Failed to get status id for {url} on {self.client.api_base_url}")
             logging.error(f"Status id for {url} not found")
         return status_ids
 
