@@ -1,6 +1,7 @@
 """Add context toots to the server."""
 import logging
 from collections.abc import Iterable
+from fedifetcher.api_firefish_types import Note
 
 from mastodon.types import Status
 
@@ -192,6 +193,8 @@ async def add_context_urls_wrapper(
                 home_server, access_token).add_context_url(url)
             if status_added:
                 count += 1
+                if isinstance(status_added, Note | Status):
+                    pgupdater.cache_status(status_added)
             else:
                 failed += 1
                 logging.warning(f"Failed {url}")
