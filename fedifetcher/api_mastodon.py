@@ -7,8 +7,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, cast
 
 import aiohttp
-from mastodon.types import Context, Status
 
+from fedifetcher.api_mastodon_types import Status
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from . import helpers
@@ -722,7 +722,7 @@ class Mastodon:
                 return status_id
         msg = f"Fetching status id for {url} from {self.server}"
         logging.info(f"\033[1;33m{msg}\033[0m")
-        result = self.add_context_url(url)
+        result = await self.add_context_url(url)
         if isinstance(result, dict | Status):
             if result.get("url") == url:
                 status = self.pgupdater.get_from_cache(url)

@@ -2,10 +2,9 @@
 import logging
 from collections.abc import Iterable
 
-from mastodon.types import Status
-
-from fedifetcher import api_mastodon, getter_wrappers, parsers
+from fedifetcher import api_firefish, getter_wrappers, parsers
 from fedifetcher.api_firefish_types import Note
+from fedifetcher.api_mastodon_types import Status
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 

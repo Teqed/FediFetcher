@@ -3,8 +3,10 @@
 import logging
 from datetime import UTC, datetime
 
-from mastodon.types import Status
 from psycopg2 import Error, OperationalError
+
+from fedifetcher.api_firefish_types import Note
+from fedifetcher.api_mastodon_types import Status
 
 
 class PostgreSQLUpdater:

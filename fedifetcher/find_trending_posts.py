@@ -6,10 +6,10 @@ import logging
 import re
 from collections.abc import Callable
 
-from mastodon.errors import MastodonError
-
 from fedifetcher import api_firefish, api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
+
+from .api_mastodon_errors import MastodonError
 
 
 def increment_count(post_url : str, incrementing_post : dict[str, str],

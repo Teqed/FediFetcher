@@ -11,7 +11,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dateutil import parser
-from mastodon.types import Status
 from psycopg2 import connect
 
 from fedifetcher import (
@@ -21,6 +20,7 @@ from fedifetcher import (
     getter_wrappers,
     helpers,
 )
+from fedifetcher.api_mastodon_types import Status
 from fedifetcher.find_posts_by_token import find_posts_by_token
 from fedifetcher.find_trending_posts import find_trending_posts
 from fedifetcher.ordered_set import OrderedSet
