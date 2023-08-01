@@ -641,7 +641,10 @@ class Mastodon:
                 if _status.get("url") == url:
                     self.client.pgupdater.cache_status(_status)
                     return _status
-                logging.debug(f"{url} did not match")
+                if _status.get("uri") == url:
+                    self.client.pgupdater.cache_status(_status)
+                    return _status
+                logging.debug(f"{url} did not match {_status.get('url')}")
         logging.debug(f"Could not find status for {url} on {self.client.api_base_url}")
         return False
 
