@@ -633,6 +633,8 @@ class Mastodon:
             for _status in statuses:
                 if _status.get("url") == url:
                     return _status
+                logging.debug(f"{url} did not match")
+        logging.debug(f"Could not find status for {url} on {self.server}")
         return False
 
     async def get_trending_posts(
