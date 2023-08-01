@@ -1,18 +1,16 @@
 """Mastodon API functions."""
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal
 from urllib.parse import urlparse
 
 import aiohttp
 
 from fedifetcher.api_firefish_types import Note, UserDetailedNotMe
+from fedifetcher.api_mastodon_types import Status
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from .helpers import Response, arguments
-
-if TYPE_CHECKING:
-    from mastodon.types import Status
 
 
 class FirefishClient:
