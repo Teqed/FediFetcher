@@ -127,7 +127,7 @@ async def add_post_with_context(
     bool: True if the post was added successfully, False otherwise.
     """
     added = await api_mastodon.Mastodon(
-        home_server, access_token).add_context_url(post["url"])
+        home_server, access_token, pgupdater).add_context_url(post["url"])
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
                 helpers.arguments, "backfill_with_context", 0) > 0:
@@ -189,7 +189,7 @@ async def add_context_urls_wrapper(
         for url in posts_to_fetch:
             logging.info(f"Fetching {url} through {home_server}")
             status_added = await api_mastodon.Mastodon(
-                home_server, access_token).add_context_url(url)
+                home_server, access_token, pgupdater).add_context_url(url)
             logging.debug(f"Got {status_added}")
             if status_added:
                 count += 1

@@ -151,7 +151,8 @@ below --lock-hours={helpers.arguments.lock_hours} provided.")
         try:
             logging.info("Getting active user IDs")
             user_ids = list(await api_mastodon.Mastodon(helpers.arguments.server,
-                admin_token).get_active_user_ids(helpers.arguments.reply_interval_in_hours))
+                admin_token, pgupdater).get_active_user_ids(
+                helpers.arguments.reply_interval_in_hours))
             logging.debug(f"Found user IDs: {user_ids}")
             """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""

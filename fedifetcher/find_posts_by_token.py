@@ -25,7 +25,7 @@ async def find_posts_by_token( # pylint: disable=too-many-arguments # pylint: di
         """Do the same with any toots on the key owner's home timeline """
         logging.info("Pulling context toots for home timeline")
         timeline_toots = await api_mastodon.Mastodon(helpers.arguments.server,
-            token).get_home_timeline(helpers.arguments.home_timeline_length)
+            token, pgupdater).get_home_timeline(helpers.arguments.home_timeline_length)
         logging.debug("Found home timeline toots, getting context URLs")
         known_context_urls = await getter_wrappers.get_all_known_context_urls(
             helpers.arguments.server,
@@ -98,7 +98,7 @@ mentioned users")
                 pgupdater,
                 )
     token_user_id = await api_mastodon.Mastodon(
-        helpers.arguments.server, token).get_me()
+        helpers.arguments.server, token, pgupdater).get_me()
     if not token_user_id:
         logging.debug("Could not get User ID, skipping replies/followings/followers")
     else:
@@ -232,7 +232,7 @@ mentioned users")
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_bookmarks} bookmarks")
         bookmarks = await api_mastodon.Mastodon(
-            helpers.arguments.server, token).get_bookmarks(
+            helpers.arguments.server, token, pgupdater).get_bookmarks(
             helpers.arguments.max_bookmarks)
         logging.debug("Got bookmarks, getting context URLs")
         known_context_urls = await getter_wrappers.get_all_known_context_urls(
@@ -255,7 +255,7 @@ mentioned users")
         logging.info(
     f"Pulling replies to the last {helpers.arguments.max_favourites} favourites")
         favourites = await api_mastodon.Mastodon(
-                        helpers.arguments.server, token).get_favourites(
+                        helpers.arguments.server, token, pgupdater).get_favourites(
                         helpers.arguments.max_favourites,
                         )
         logging.debug("Got favourites, getting context URLs")
