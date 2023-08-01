@@ -190,6 +190,7 @@ async def add_context_urls_wrapper(
             logging.info(f"Fetching {url} through {home_server}")
             status_added = await api_mastodon.Mastodon(
                 home_server, access_token).add_context_url(url)
+            logging.debug(f"Got {status_added}")
             if status_added:
                 count += 1
                 if isinstance(status_added, Note | Status):

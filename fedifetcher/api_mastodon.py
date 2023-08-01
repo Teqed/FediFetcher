@@ -621,7 +621,9 @@ class Mastodon:
         dict[str, str] | bool: The status of the request, or False if the \
             request fails.
         """
+        logging.debug(f"Adding context url {url} to {self.server}")
         if not self.pgupdater:
+            logging.debug(f"pgupdater not set for {self.server}")
             return False
         try:
             result = await self.search_v2(
