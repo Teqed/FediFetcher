@@ -9,8 +9,6 @@ Submodules:
 - ordered_set: Implements an ordered set data structure.
 - parsers: Provides parsing utilities for different data formats.
 """
-from main import main
-
 from . import (
     find_context,
     find_trending_posts,
@@ -21,6 +19,7 @@ from .api.lemmy import api_lemmy
 from .api.mastodon import api_mastodon, api_mastodon_types
 from .get import post_context
 from .helpers import argparser, cache_manager, helpers, ordered_set
+from .main import main
 from .mode import token_posts
 
 __all__ = [

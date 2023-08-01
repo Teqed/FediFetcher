@@ -7,8 +7,8 @@ Submodules:
     structures
 """
 
-from api_firefish import Firefish
-from api_firefish_types import Note, UserDetailedNotMe
+from .api_firefish import Firefish
+from .api_firefish_types import Note, UserDetailedNotMe
 
 __all__ = [
     "Firefish",

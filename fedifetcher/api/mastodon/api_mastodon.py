@@ -9,7 +9,7 @@ from typing import Any, ClassVar, cast
 import aiohttp
 
 from fedifetcher.api.mastodon.api_mastodon_types import Status
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.helpers import helpers
 from fedifetcher.helpers.helpers import Response
 

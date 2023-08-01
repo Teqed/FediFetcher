@@ -7,8 +7,7 @@ Submodules:
     structures
 """
 
-from api_mastodon import Mastodon
-
 from . import api_mastodon_types
+from .api_mastodon import Mastodon
 
 __all__ = ["Mastodon", "api_mastodon_types"]

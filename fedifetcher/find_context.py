@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from fedifetcher import getter_wrappers, parsers
 from fedifetcher.api.mastodon import api_mastodon
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 
 from .helpers import helpers
 

@@ -8,7 +8,7 @@ from collections.abc import Callable
 
 from fedifetcher import parsers
 from fedifetcher.api.mastodon import api_mastodon
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 
 from .api.mastodon.api_mastodon_errors import MastodonError
 

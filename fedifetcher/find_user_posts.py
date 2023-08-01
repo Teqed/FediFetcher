@@ -3,7 +3,7 @@ import logging
 
 from fedifetcher import get
 from fedifetcher.api.mastodon.api_mastodon_types import Status
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.find_context import add_post_with_context
 from fedifetcher.helpers.ordered_set import OrderedSet
 

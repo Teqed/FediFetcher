@@ -6,7 +6,7 @@ from typing import cast
 
 from fedifetcher import find_context, getter_wrappers
 from fedifetcher.api.mastodon import api_mastodon
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.find_user_posts import add_user_posts
 from fedifetcher.helpers import helpers
 from fedifetcher.helpers.ordered_set import OrderedSet

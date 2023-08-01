@@ -3,7 +3,7 @@ import logging
 
 from fedifetcher.api.lemmy import api_lemmy
 from fedifetcher.api.mastodon import api_mastodon
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 
 
 async def post_content(  # noqa: PLR0913, D417

@@ -10,7 +10,7 @@ from typing import Any, cast
 import requests
 
 from fedifetcher.api.mastodon import api_mastodon
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.get.post_context import (
     post_content,
 )

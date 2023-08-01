@@ -11,7 +11,7 @@ from pathlib import Path
 from dateutil import parser
 from psycopg2 import connect
 
-from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
+from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.helpers import cache_manager, helpers
 from fedifetcher.helpers.ordered_set import OrderedSet
 from fedifetcher.mode import active_users, token_posts, trending_posts

@@ -1,5 +1,5 @@
 """__init__.py for postgresql."""
 
-from . import api_postgresql
+from .postgresql import PostgreSQLUpdater
 
-__all__ = ["api_postgresql"]
+__all__ = ["PostgreSQLUpdater"]
