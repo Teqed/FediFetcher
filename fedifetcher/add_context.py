@@ -193,7 +193,6 @@ async def add_context_urls_wrapper(
             status_added = await api_mastodon.Mastodon(
                 home_server, access_token).add_context_url(url)
             if status_added:
-                # pgupdater.cache_status(status_added)
                 count += 1
                 if isinstance(status_added, Note | Status):
                     pgupdater.cache_status(status_added)
