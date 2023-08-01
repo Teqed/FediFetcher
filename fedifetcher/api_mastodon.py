@@ -376,7 +376,7 @@ class Mastodon:
         if not self.pgupdater:
             return []
         # Get the context of a toot
-        context: Context = await self.status_context(status_id=toot_id)
+        context = await self.status_context(status_id=toot_id)
         # List of status URLs
         ancestors = context.get("ancestors") or []
         descendants = context.get("descendants") or []
@@ -824,12 +824,12 @@ class Mastodon:
     def status_context(
             self,
             status_id: str,
-    ) -> Coroutine[Any, Any, Context]:
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
         """View statuses above and below this status in the thread.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#context
         """
-        return self.client.get(f"/api/v1/statuses/{status_id}/context") # type: ignore
+        return self.client.get(f"/api/v1/statuses/{status_id}/context")
 
     def account_lookup(
             self,
