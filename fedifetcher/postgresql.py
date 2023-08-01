@@ -69,12 +69,105 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.note: {e}")
 
-    def cache_status(self, status: Note) -> bool:
+    def cache_status(self, status: Status | Note) -> bool:
         """Cache a status in the database.
 
         Parameters
         ----------
         status : Status
+            The status to cache.
+
+
+        Returns
+        -------
+        bool
+            True if the status was newly cached or changed, False otherwise.
+        """
+        # First, make sure our required fields are present.
+        if status is None:
+            logging.error("Status is None")
+            return False
+        if isinstance(status, Note):
+            return self.cache_note(status)
+        required_attributes = [
+            "uri",
+            "url",
+            "created_at",
+        ]
+        for attribute in required_attributes:
+            if not status.get(attribute):
+                logging.error(
+                    f"Status missing required attribute: {attribute}")
+                logging.debug(status)
+                return False
+        # Cast these variables to the correct types.
+        uri = str(status.get("uri"))
+        url = str(status.get("url"))
+        replies_count = int(status.get("replies_count"))
+        reblogs_count = int(status.get("reblogs_count"))
+        favourites_count = int(status.get("favourites_count"))
+        # We can determine the originality of the status by comparing the ID in the URL
+        # to the ID in the status.
+        try:
+            query_exists = """
+                SELECT *
+                FROM public.note
+                WHERE uri = %s;
+            """
+            data = (uri,)
+            with self.conn.cursor() as cursor:
+                cursor.execute(query_exists, data)
+                row = cursor.fetchone()
+                if row:  # Check if row exists
+                    columns = [column[0] for column in cursor.description]
+                    row = dict(zip(columns, row, strict=False))
+                if row:
+                    try:
+                        got_reblogs_count = row.get("renoteCount")
+                        if got_reblogs_count:
+                            reblogs_count = max(reblogs_count, got_reblogs_count)
+                        reactions = row.get("reactions")
+                        got_favourites_count = reactions.get("⭐") \
+                            if reactions else None
+                        if got_favourites_count:
+                            favourites_count = max(
+                                favourites_count, got_favourites_count)
+                    except AttributeError:
+                        logging.warning(f"Attribute error for {uri}")
+                        logging.warning(row)
+                        return False
+                    query = """
+                    UPDATE public.note
+                    SET "repliesCount" = %s,
+                    "renoteCount" = %s,
+                    score = %s,
+                    reactions = %s
+                    WHERE uri = %s;
+                    """
+                    reactions = json.dumps({"⭐": favourites_count})
+                    data = (
+                        replies_count,
+                        reblogs_count,
+                        (reblogs_count + favourites_count),
+                        reactions,
+                        uri,
+                    )
+                    logging.info(f"Updating status {url}")
+                    cursor.execute(query, data)
+                else:
+                    logging.warning(f"Status {url} not found in public.note")
+                self.conn.commit()
+                return True
+        except (OperationalError, Error) as e:
+            logging.error(f"Error caching status: {e}")
+        return False
+
+    def cache_note(self, status: Note) -> bool:
+        """Cache a note in the database.
+
+        Parameters
+        ----------
+        status : Note
             The status to cache.
 
 
@@ -134,8 +227,8 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         if got_reactions:
                             for reaction in got_reactions:
                                 got_favourites_count += got_reactions.get(reaction)
-                        if got_favourites_count:
-                            if got_favourites_count > favourites_count:
+                        if got_favourites_count \
+                                    and got_favourites_count > favourites_count:
                                 reactions = got_reactions
                     except AttributeError:
                         logging.warning(f"Attribute error for {uri}")
