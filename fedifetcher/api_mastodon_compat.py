@@ -1,11 +1,12 @@
 # compat.py - backwards compatible optional imports
+import contextlib
 
 IMPL_HAS_CRYPTO = True
 try:
     import cryptography
     from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
 except:
     IMPL_HAS_CRYPTO = False
     cryptography = None
@@ -27,10 +28,9 @@ except:
     IMPL_HAS_BLURHASH = False
     blurhash = None
 
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+with contextlib.suppress(ImportError):
+    pass
+
 
 try:
     import magic
@@ -38,7 +38,7 @@ except ImportError:
     magic = None
 
 try:
-    from pathlib import PurePath, Path
+    from pathlib import Path, PurePath
 except:
     class PurePath:
         pass
