@@ -7,8 +7,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, cast
 
 import aiohttp
-from fedifetcher import api_firefish
 
+from fedifetcher import api_firefish
 from fedifetcher.api_mastodon_types import Status
 from fedifetcher.postgresql import PostgreSQLUpdater
 

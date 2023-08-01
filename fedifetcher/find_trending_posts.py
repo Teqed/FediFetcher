@@ -6,7 +6,7 @@ import logging
 import re
 from collections.abc import Callable
 
-from fedifetcher import api_firefish, api_mastodon, parsers
+from fedifetcher import api_mastodon, parsers
 from fedifetcher.postgresql import PostgreSQLUpdater
 
 from .api_mastodon_errors import MastodonError

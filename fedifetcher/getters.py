@@ -2,7 +2,6 @@
 import logging
 import re
 
-from fedifetcher import api_firefish
 from fedifetcher.ordered_set import OrderedSet
 from fedifetcher.postgresql import PostgreSQLUpdater
 
