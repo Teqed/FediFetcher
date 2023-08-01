@@ -199,8 +199,7 @@ async def add_context_urls_wrapper(
             logging.debug(f"Got {result}")
             if result and not isinstance(result, bool):
                 count += 1
-                if isinstance(result, Note | Status):
-                    pgupdater.cache_status(result)
+                pgupdater.cache_status(result)
             else:
                 failed += 1
                 logging.warning(f"Failed {result}")
