@@ -3,6 +3,6 @@
 
 import asyncio
 
-from fedifetcher.main import main
+from fedifetcher import main
 
 asyncio.run(main())
