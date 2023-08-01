@@ -242,10 +242,10 @@ async def get_all_known_context_urls(
         ]
         await asyncio.gather(*tasks)
         for post in tasks:
-            logging.debug(f"Got context for {post}")
-            if post:
-                _post = post.result()
-                known_context_urls.extend(_post)
+            result = post.result()
+            logging.debug(f"Got context {result}")
+            if result:
+                known_context_urls.extend(result)
 
     return known_context_urls
 
