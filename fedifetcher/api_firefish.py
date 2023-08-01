@@ -179,7 +179,7 @@ class Firefish:
             )
         self.client = Firefish.clients[server]
 
-    async def add_context_url_async(
+    async def add_context_url(
             self,
             url : str,
             ) -> Note | UserDetailedNotMe | bool:
@@ -205,6 +205,7 @@ class Firefish:
             uri = f"https://{base_url}/users/{user_name}/statuses/{status_id}"
         logging.debug(f"Adding {uri} to {self.server}")
         response = await self.client.ap_show(uri)
+        logging.debug(f"Got {response} for {uri} from {self.server}")
         if response and not isinstance(response, bool):
             response_body = response[1]
             if response[0] == "Note" and isinstance(response_body, Note):
@@ -212,26 +213,6 @@ class Firefish:
             if response[0] == "User" and isinstance(response_body, UserDetailedNotMe):
                 return response_body
         return False
-
-    async def add_context_url(
-            self,
-            url : str,
-            ) -> Note | UserDetailedNotMe | bool:
-        """Add the given toot URL to the server.
-
-        Args:
-        ----
-        url: The URL of the toot to add.
-        server: The server to add the toot to.
-        access_token: The access token to use to add the toot.
-
-        Returns:
-        -------
-        dict[str, str] | bool: The status of the request, or False if the \
-            request fails.
-        """
-        return await (self.add_context_url_async(url))
-
 
     async def get_home_status_id_from_url(
             self,
@@ -261,7 +242,7 @@ class Firefish:
                 return status_id
         msg = f"Fetching status id for {url} from {self.server}"
         logging.info(f"\033[1;33m{msg}\033[0m")
-        result = await self.add_context_url_async(url)
+        result = await self.add_context_url(url)
         if result:
             status_id = result.get("id") if isinstance(result, Note) else None
             logging.debug(f"Got status id {status_id} for {url} from {self.server}")
@@ -313,6 +294,7 @@ class Firefish:
             promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
+            logging.debug(f"Got {result} for {url} from {self.server}")
             _result = result.result()
             if isinstance(_result, dict | Status):
                 if _result.get("url") == url:
