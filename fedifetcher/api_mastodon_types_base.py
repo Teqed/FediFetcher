@@ -301,7 +301,7 @@ try:
 except:
     OrderedStrDict = OrderedDict
 
-class AttribAccessDict(OrderedStrDict):
+class AttribAccessDict(OrderedStrDict): # type: ignore
     """Base return object class for Mastodon.py.
 
     Inherits from dict, but allows access via attributes as well as if it was a dataclass.
