@@ -1,5 +1,4 @@
 """Add context toots to the server."""
-import asyncio
 import logging
 from collections.abc import Iterable
 
@@ -192,7 +191,6 @@ async def add_context_urls_wrapper(
             status_added = await api_firefish.Firefish(
                 home_server, access_token).add_context_url(url)
             if status_added:
-                # pgupdater.cache_status(status_added)
                 count += 1
             else:
                 failed += 1
