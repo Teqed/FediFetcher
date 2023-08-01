@@ -32,15 +32,16 @@ class MastodonClient:
         endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
         try:
-            logging.debug(f"Getting {endpoint} from {self.api_base_url}")
+            url = f"https://{self.api_base_url}{endpoint}"
+            logging.debug(f"Getting {url}")
             async with self.client_session.get(
-                f"https://{self.api_base_url}{endpoint}",
+                url,
                 headers={
                     "Authorization": f"Bearer {self.token}",
                 },
                 params=params,
             ) as response:
-                logging.debug(f"Got https://{self.api_base_url}{endpoint}")
+                logging.debug(f"Got {url}")
                 if response.status == Response.TOO_MANY_REQUESTS:
                     mastodon_ratelimit_reset_timer_in_minutes = 5
                     if tries > mastodon_ratelimit_reset_timer_in_minutes:
