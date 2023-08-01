@@ -624,6 +624,7 @@ class Mastodon:
         try:
             result = await self.search_v2(
                 q = url,
+                resolve = True,
             )
         except Exception:
             logging.exception(f"Error adding context url {url} to {self.server}")
