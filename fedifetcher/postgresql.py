@@ -69,7 +69,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         except (OperationalError, Error) as e:
             logging.error(f"Error updating public.note: {e}")
 
-    def cache_status(self, status: Status | Note) -> bool:
+    def cache_status(self, status: Note) -> bool:
         """Cache a status in the database.
 
         Parameters
@@ -90,7 +90,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         required_attributes = [
             "uri",
             "url",
-            "created_at",
+            "createdAt",
         ]
         for attribute in required_attributes:
             if not status.get(attribute):
@@ -101,9 +101,14 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         # Cast these variables to the correct types.
         uri = str(status.get("uri"))
         url = str(status.get("url"))
-        replies_count = int(status.get("replies_count"))
-        reblogs_count = int(status.get("reblogs_count"))
-        favourites_count = int(status.get("favourites_count"))
+        replies_count = int(status.get("repliesCount"))
+        reblogs_count = int(status.get("renoteCount"))
+        # Count the total number of reactions.
+        reactions = status.get("reactions")
+        favourites_count = 0
+        if reactions:
+            for reaction in reactions:
+                favourites_count += reactions.get(reaction)
         # We can determine the originality of the status by comparing the ID in the URL
         # to the ID in the status.
         try:
@@ -124,12 +129,14 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         got_reblogs_count = row.get("renoteCount")
                         if got_reblogs_count:
                             reblogs_count = max(reblogs_count, got_reblogs_count)
-                        reactions = row.get("reactions")
-                        got_favourites_count = reactions.get("⭐") \
-                            if reactions else None
+                        got_reactions = row.get("reactions")
+                        got_favourites_count = 0
+                        if got_reactions:
+                            for reaction in got_reactions:
+                                got_favourites_count += got_reactions.get(reaction)
                         if got_favourites_count:
-                            favourites_count = max(
-                                favourites_count, got_favourites_count)
+                            if got_favourites_count > favourites_count:
+                                reactions = got_reactions
                     except AttributeError:
                         logging.warning(f"Attribute error for {uri}")
                         logging.warning(row)
@@ -142,7 +149,6 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                     reactions = %s
                     WHERE uri = %s;
                     """
-                    reactions = json.dumps({"⭐": favourites_count})
                     data = (
                         replies_count,
                         reblogs_count,
