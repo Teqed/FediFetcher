@@ -33,15 +33,16 @@ class MastodonClient:
         endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
         try:
-            logging.debug(f"Getting {endpoint} from {self.api_base_url}")
+            url = f"https://{self.api_base_url}{endpoint}"
+            logging.debug(f"Getting {url} with {params}")
             async with self.client_session.get(
-                f"https://{self.api_base_url}{endpoint}",
+                url,
                 headers={
                     "Authorization": f"Bearer {self.token}",
                 },
                 params=params,
             ) as response:
-                logging.debug(f"Got https://{self.api_base_url}{endpoint}")
+                logging.debug(f"Got {url} with {params} status {response.status}")
                 if response.status == Response.TOO_MANY_REQUESTS:
                     mastodon_ratelimit_reset_timer_in_minutes = 5
                     if tries > mastodon_ratelimit_reset_timer_in_minutes:
@@ -624,6 +625,7 @@ class Mastodon:
         try:
             result = await self.search_v2(
                 q = url,
+                resolve = True,
             )
         except Exception:
             logging.exception(f"Error adding context url {url} to {self.server}")
@@ -724,7 +726,8 @@ class Mastodon:
         msg = f"Fetching status id for {url} from {self.server}"
         logging.info(f"\033[1;33m{msg}\033[0m")
         result = await self.add_context_url(url)
-        if isinstance(result, dict | Status):
+        logging.debug(f"Result: {result}")
+        if not isinstance(result, bool):
             if result.get("url") == url:
                 status = self.pgupdater.get_from_cache(url)
                 status_id = status.get("id") if status else None
@@ -774,9 +777,10 @@ class Mastodon:
             logging.info(f"\033[1;33m{msg}\033[0m")
             promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
         await asyncio.gather(*[promise for _, promise in promises])
-        for url, result in promises:
-            _result = result.result()
-            if isinstance(_result, dict | Status):
+        for url, task in promises:
+            _result = task.result()
+            logging.debug(_result)
+            if not isinstance(_result, bool):
                 if _result.get("url") == url:
                     status = self.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None

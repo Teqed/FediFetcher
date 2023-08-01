@@ -423,7 +423,7 @@ async def update_local_status_ids(trending_posts_dict: dict[str, dict[str, str]]
     """Update the local_status_id in the trending_posts_dict."""
     list_of_trending_posts_urls = [
         trending_post["url"] for trending_post in trending_posts_dict.values()]
-    home_status_dict = await api_firefish.Firefish(
+    home_status_dict = await api_mastodon.Mastodon(
         home_server, home_token, pgupdater).get_home_status_id_from_url_list(
         list_of_trending_posts_urls)
     for trending_post in trending_posts_dict.values():

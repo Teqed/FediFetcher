@@ -1,5 +1,5 @@
 {
-    "server": "firefish.shatteredsky.net",
+    "server": "mastodon.shatteredsky.net",
     "home-timeline-length": 40,
     "max-bookmarks": 40,
     "max-favourites": 40,
