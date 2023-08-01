@@ -373,7 +373,7 @@ class Mastodon:
             _pgupdater: PostgreSQLUpdater,
             ) -> list[str]:
         """Get the URLs of the context toots of the given toot asynchronously."""
-        if not self.pgupdater:
+        if not _pgupdater:
             return []
         # Get the context of a toot
         context = await self.status_context(status_id=toot_id)
@@ -394,7 +394,7 @@ class Mastodon:
                     home_status_id,
                     status.get("reblogs_count"), status.get("favourites_count"))
         # Commit status updates
-        self.pgupdater.commit_status_updates()
+        _pgupdater.commit_status_updates()
         return [status["url"] for status in context_statuses]
 
     async def get_notifications(
