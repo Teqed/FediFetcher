@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from collections.abc import Iterable
+from fedifetcher.api_firefish_types import Note
 
 from mastodon.types import Status
 
@@ -194,6 +195,8 @@ async def add_context_urls_wrapper(
             if status_added:
                 # pgupdater.cache_status(status_added)
                 count += 1
+                if isinstance(status_added, Note | Status):
+                    pgupdater.cache_status(status_added)
             else:
                 failed += 1
                 logging.warning(f"Failed {url}")
