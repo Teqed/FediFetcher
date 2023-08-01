@@ -1,4 +1,5 @@
 """Add context toots to the server."""
+import asyncio
 import logging
 from collections.abc import Iterable
 
@@ -186,19 +187,23 @@ async def add_context_urls_wrapper(
 
     if posts_to_fetch:
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
+        tasks = []
         for url in posts_to_fetch:
-            logging.info(f"Fetching {url} through {home_server}")
-            status_added = await api_mastodon.Mastodon(
-                home_server, access_token, pgupdater).add_context_url(url)
-            logging.debug(f"Got {status_added}")
-            if status_added:
+            logging.debug(f"Adding {url} to home server")
+            tasks.append(
+                api_mastodon.Mastodon(
+                home_server, access_token, pgupdater).add_context_url(url),
+            )
+        futures = await asyncio.gather(*tasks)
+        for result in futures:
+            logging.debug(f"Got {result}")
+            if result is True:
                 count += 1
-                if isinstance(status_added, Note | Status):
-                    pgupdater.cache_status(status_added)
+                if isinstance(result, Note | Status):
+                    pgupdater.cache_status(result)
             else:
                 failed += 1
-                logging.warning(f"Failed {url}")
-                failed += 1
+                logging.warning(f"Failed {result}")
 
     logging.info(f"\033[1mAdded {count} new statuses (with {failed} failures, \
 {already_added} already seen)\033[0m")
