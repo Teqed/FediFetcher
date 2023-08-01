@@ -33,7 +33,7 @@ class MastodonClient:
         """Perform a GET request to the Mastodon server."""
         try:
             url = f"https://{self.api_base_url}{endpoint}"
-            logging.debug(f"Getting {url}")
+            logging.debug(f"Getting {url} with {params}")
             async with self.client_session.get(
                 url,
                 headers={
@@ -41,7 +41,7 @@ class MastodonClient:
                 },
                 params=params,
             ) as response:
-                logging.debug(f"Got {url}")
+                logging.debug(f"Got {url} with status {response.status}")
                 if response.status == Response.TOO_MANY_REQUESTS:
                     mastodon_ratelimit_reset_timer_in_minutes = 5
                     if tries > mastodon_ratelimit_reset_timer_in_minutes:
