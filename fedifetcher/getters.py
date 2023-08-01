@@ -80,16 +80,20 @@ async def get_post_context(  # noqa: PLR0913, D417
     -------
     list[str]: The URLs of the context toots of the given toot.
     """
+    logging.debug(f"Getting context for toot {toot_url} from {server}")
     try:
         external_token = external_tokens.get(server)
 
         if toot_url.find("/comment/") != -1:
+            logging.debug("Getting comment context")
             return api_lemmy.get_comment_context(server, toot_id, toot_url)
 
         if toot_url.find("/post/") != -1:
+            logging.debug("Getting post context")
             return api_lemmy.get_comments_urls(server, toot_id, toot_url)
 
         if toot_url.find("/notes/") != -1:
+            logging.debug("Getting note ID")
             # This is a Calckey / Firefish post.
             # We need to get the Mastodon-compatible ID.
             # We can do this by getting the post from the home server.
@@ -102,6 +106,7 @@ async def get_post_context(  # noqa: PLR0913, D417
                 logging.warning(f"Couldn't get Mastodon-compatible ID for {toot_url}")
                 return []
 
+        logging.debug("Getting Mastodon context")
         return await api_mastodon.Mastodon(
             server, external_token).get_toot_context(
             toot_id, home_server, home_server_token, pgupdater)
