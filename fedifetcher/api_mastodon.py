@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, cast
 
 import aiohttp
+from fedifetcher import api_firefish
 
 from fedifetcher.api_mastodon_types import Status
 from fedifetcher.postgresql import PostgreSQLUpdater
@@ -385,7 +386,7 @@ class Mastodon:
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
         home_status_list: dict[str, str] = \
-            await Mastodon(home_server, home_token, _pgupdater,
+            await api_firefish.Firefish(home_server, home_token, _pgupdater,
                     ).get_home_status_id_from_url_list(context_statuses_url_list)
         for status in context_statuses:
             home_status_id = home_status_list.get(status["url"])
