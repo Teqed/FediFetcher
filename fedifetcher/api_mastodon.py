@@ -775,8 +775,9 @@ class Mastodon:
             logging.info(f"\033[1;33m{msg}\033[0m")
             promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
         await asyncio.gather(*[promise for _, promise in promises])
-        for url, result in promises:
-            _result = result.result()
+        for url, task in promises:
+            _result = task.result()
+            logging.debug(_result)
             if not isinstance(_result, bool):
                 if _result.get("url") == url:
                     status = self.pgupdater.get_from_cache(url)
