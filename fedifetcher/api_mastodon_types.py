@@ -1,17 +1,14 @@
 """Mastodon types."""
 from __future__ import annotations  # python< 3.9 compat
 
-from typing import TYPE_CHECKING
+from datetime import datetime  # noqa: TCH003
 
-from .api_mastodon_types_base import (
+from mastodon.types_base import (
     AttribAccessDict,
     EntityList,
     IdType,
     MaybeSnowflakeIdType,
 )
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 
 class Account(AttribAccessDict):
