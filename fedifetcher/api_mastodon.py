@@ -621,6 +621,8 @@ class Mastodon:
         dict[str, str] | bool: The status of the request, or False if the \
             request fails.
         """
+        if not self.pgupdater:
+            return False
         try:
             result = await self.search_v2(
                 q = url,
@@ -632,6 +634,7 @@ class Mastodon:
         if (statuses := result.get("statuses")):
             for _status in statuses:
                 if _status.get("url") == url:
+                    self.pgupdater.cache_status(_status)
                     return _status
                 logging.debug(f"{url} did not match")
         logging.debug(f"Could not find status for {url} on {self.server}")
