@@ -724,7 +724,8 @@ class Mastodon:
         msg = f"Fetching status id for {url} from {self.server}"
         logging.info(f"\033[1;33m{msg}\033[0m")
         result = await self.add_context_url(url)
-        if isinstance(result, dict | Status):
+        logging.debug(f"Result: {result}")
+        if not isinstance(result, bool):
             if result.get("url") == url:
                 status = self.pgupdater.get_from_cache(url)
                 status_id = status.get("id") if status else None
@@ -776,7 +777,7 @@ class Mastodon:
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
             _result = result.result()
-            if isinstance(_result, dict | Status):
+            if not isinstance(_result, bool):
                 if _result.get("url") == url:
                     status = self.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None
