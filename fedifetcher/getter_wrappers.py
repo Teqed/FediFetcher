@@ -240,12 +240,12 @@ async def get_all_known_context_urls(
             ))
             for x in toots_to_get_context_for
         ]
-        await asyncio.gather(*tasks)
-        for post in tasks:
-            result = post.result()
-            logging.debug(f"Got context {result}")
-            if result:
-                known_context_urls.extend(result)
+        futures = asyncio.gather(*tasks)
+        task_results = await futures
+        for post in task_results:
+            logging.debug(f"Got context {post}")
+            if post:
+                known_context_urls.extend(post)
 
     return known_context_urls
 
