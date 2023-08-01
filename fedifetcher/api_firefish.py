@@ -343,7 +343,7 @@ class Firefish:
             logging.error("No PostgreSQLUpdater instance provided")
             return []
         # Get the context of a toot
-        context: Context = await api_mastodon.Mastodon(
+        context = await api_mastodon.Mastodon(
             server=server, token=token).status_context(status_id=toot_id)
         # List of status URLs
         ancestors = context.get("ancestors") or []
