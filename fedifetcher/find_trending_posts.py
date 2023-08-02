@@ -194,16 +194,19 @@ async def find_trending_posts(  # noqa: C901
 less popular posts from {fetch_domain}"
         logging.info(
             f"\033[1;34m{msg}\033[0m")
-        promises_container = {} # key is status_id, value is tuple of domain, future
+        promises_container = {}
+        promises = []
         for status_id in remember_to_find_me[fetch_domain]:
             if str(status_id) not in trending_posts_dict \
                     or "original" not in trending_posts_dict[str(status_id)]:
-                promises_container[status_id] = asyncio.ensure_future(
+                promise = asyncio.ensure_future(
                         api_mastodon.Mastodon(fetch_domain,
                             external_tokens.get(fetch_domain)).get_status_by_id(
                             status_id),
                     )
-        await asyncio.gather(*promises_container)
+                promises_container[status_id] = promise
+                promises.append(promise)
+        await asyncio.gather(*promises)
         for _status_id, future in promises_container.items():
             original_post = future.result()
             if original_post:
