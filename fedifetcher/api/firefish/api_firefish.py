@@ -182,6 +182,7 @@ class Firefish:
     async def add_context_url(
             self,
             url : str,
+            semaphore : asyncio.Semaphore | None = None,
             ) -> Note | UserDetailedNotMe | bool:
         """Add the given toot URL to the server.
 
@@ -196,23 +197,27 @@ class Firefish:
         dict[str, str] | bool: The status of the request, or False if the \
             request fails.
         """
-        uri = url
-        if (url.find("/@") != -1):
-            uri_parts = url.split("/")
-            base_url = urlparse(url).netloc
-            user_name = uri_parts[3][1:]  # remove "@" from username
-            status_id = uri_parts[4]
-            uri = f"https://{base_url}/users/{user_name}/statuses/{status_id}"
-        logging.debug(f"Adding {uri} to {self.server}")
-        response = await self.client.ap_show(uri)
-        logging.debug(f"Got {response} for {uri} from {self.server}")
-        if response and not isinstance(response, bool):
-            response_body = response[1]
-            if response[0] == "Note" and isinstance(response_body, Note):
-                return response_body
-            if response[0] == "User" and isinstance(response_body, UserDetailedNotMe):
-                return response_body
-        return False
+        if semaphore is None:
+            semaphore = asyncio.Semaphore(1)
+        async with semaphore:
+            uri = url
+            if (url.find("/@") != -1):
+                uri_parts = url.split("/")
+                base_url = urlparse(url).netloc
+                user_name = uri_parts[3][1:]  # remove "@" from username
+                status_id = uri_parts[4]
+                uri = f"https://{base_url}/users/{user_name}/statuses/{status_id}"
+            logging.debug(f"Adding {uri} to {self.server}")
+            response = await self.client.ap_show(uri)
+            logging.debug(f"Got {response} for {uri} from {self.server}")
+            if response and not isinstance(response, bool):
+                response_body = response[1]
+                if response[0] == "Note" and isinstance(response_body, Note):
+                    return response_body
+                if response[0] == "User" and isinstance(
+                        response_body, UserDetailedNotMe):
+                    return response_body
+            return False
 
     async def get_home_status_id_from_url(
             self,
@@ -281,6 +286,8 @@ class Firefish:
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
             self.pgupdater.get_dict_from_cache(urls)
+        max_concurrent_tasks = 10
+        semaphore = asyncio.Semaphore(max_concurrent_tasks)
         promises : list[tuple[str, asyncio.Task[Note | UserDetailedNotMe | bool]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
@@ -291,7 +298,8 @@ class Firefish:
                     continue
             msg = f"Fetching status id for {url} from {self.server}"
             logging.info(f"\033[1;33m{msg}\033[0m")
-            promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
+            promises.append((url, asyncio.ensure_future(
+                self.add_context_url(url, semaphore))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
             logging.debug(f"Got {result} for {url} from {self.server}")

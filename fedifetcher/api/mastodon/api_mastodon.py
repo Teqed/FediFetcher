@@ -30,51 +30,55 @@ class MastodonClient:
             self.pgupdater = pgupdater
 
     async def get(self,
-        endpoint: str, params: dict | None = None, tries: int = 0) -> dict[str, Any]:
+        endpoint: str, params: dict | None = None, tries: int = 0,
+        semaphore: asyncio.Semaphore | None = None) -> dict[str, Any]:
         """Perform a GET request to the Mastodon server."""
-        try:
-            url = f"https://{self.api_base_url}{endpoint}"
-            logging.debug(f"Getting {url} with {params}")
-            async with self.client_session.get(
-                url,
-                headers={
-                    "Authorization": f"Bearer {self.token}",
-                },
-                params=params,
-            ) as response:
-                logging.debug(f"Got {url} with {params} status {response.status}")
-                if response.status == Response.TOO_MANY_REQUESTS:
-                    mastodon_ratelimit_reset_timer_in_minutes = 5
-                    if tries > mastodon_ratelimit_reset_timer_in_minutes:
-                        logging.error(
+        if semaphore is None:
+            semaphore = asyncio.Semaphore(1)
+        async with semaphore:
+            try:
+                url = f"https://{self.api_base_url}{endpoint}"
+                logging.debug(f"Getting {url} with {params}")
+                async with self.client_session.get(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {self.token}",
+                    },
+                    params=params,
+                ) as response:
+                    logging.debug(f"Got {url} with {params} status {response.status}")
+                    if response.status == Response.TOO_MANY_REQUESTS:
+                        mastodon_ratelimit_reset_timer_in_minutes = 5
+                        if tries > mastodon_ratelimit_reset_timer_in_minutes:
+                            logging.error(
                             f"Error with Mastodon API on server {self.api_base_url}. "
                             f"Too many requests: {response}",
+                            )
+                            return {}
+                        logging.warning(
+                            f"Too many requests to {self.api_base_url}. "
+                            f"Waiting 60 seconds before trying again.",
                         )
-                        return {}
-                    logging.warning(
-                        f"Too many requests to {self.api_base_url}. "
-                        f"Waiting 60 seconds before trying again.",
-                    )
-                    await asyncio.sleep(60)
-                    return await self.get(
-                        endpoint=endpoint, params=params, tries=tries + 1)
-                return await self.handle_response_errors(response)
-        except asyncio.TimeoutError:
-            logging.warning(
-                f"Timeout error with Mastodon API on server {self.api_base_url}.")
-        except aiohttp.ClientConnectorSSLError:
-            logging.warning(
-                f"SSL error with Mastodon API on server {self.api_base_url}.")
-        except aiohttp.ClientConnectorError:
-            logging.exception(
+                        await asyncio.sleep(60)
+                        return await self.get(
+                            endpoint=endpoint, params=params, tries=tries + 1)
+                    return await self.handle_response_errors(response)
+            except asyncio.TimeoutError:
+                logging.warning(
+                    f"Timeout error with Mastodon API on server {self.api_base_url}.")
+            except aiohttp.ClientConnectorSSLError:
+                logging.warning(
+                    f"SSL error with Mastodon API on server {self.api_base_url}.")
+            except aiohttp.ClientConnectorError:
+                logging.exception(
                 f"Connection error with Mastodon API on server {self.api_base_url}.")
-        except (aiohttp.ClientError):
-            logging.exception(
-                f"Error with Mastodon API on server {self.api_base_url}.")
-        except Exception:
-            logging.exception(
-                f"Unknown error with Mastodon API on server {self.api_base_url}.")
-        return {}
+            except (aiohttp.ClientError):
+                logging.exception(
+                    f"Error with Mastodon API on server {self.api_base_url}.")
+            except Exception:
+                logging.exception(
+                    f"Unknown error with Mastodon API on server {self.api_base_url}.")
+            return {}
 
     async def handle_response_errors(self, response: aiohttp.ClientResponse,
         ) -> dict:
@@ -621,44 +625,48 @@ class Mastodon:
     async def add_context_url(
             self,
             url : str,
+            semaphore: asyncio.Semaphore | None = None,
             ) -> Status | bool:
         """Add the given toot URL to the server.
 
         Args:
         ----
         url: The URL of the toot to add.
-        server: The server to add the toot to.
-        access_token: The access token to use to add the toot.
+        semaphore: The semaphore to use for the request.
 
         Returns:
         -------
         dict[str, str] | bool: The status of the request, or False if the \
             request fails.
         """
-        logging.debug(f"Adding context url {url} to {self.client.api_base_url}")
-        if not self.client.pgupdater:
-            logging.debug(f"pgupdater not set for {self.client.api_base_url}")
+        if semaphore is None:
+            semaphore = asyncio.Semaphore(1)
+        async with semaphore:
+            logging.debug(f"Adding context url {url} to {self.client.api_base_url}")
+            if not self.client.pgupdater:
+                logging.debug(f"pgupdater not set for {self.client.api_base_url}")
+                return False
+            try:
+                result = await self.search_v2(
+                    q = url,
+                    resolve = True,
+                )
+            except Exception:
+                logging.exception(
+                    f"Error adding context url {url} to {self.client.api_base_url}")
+                return False
+            if (statuses := result.get("statuses")):
+                for _status in statuses:
+                    if _status.get("url") == url:
+                        self.client.pgupdater.cache_status(_status)
+                        return _status
+                    if _status.get("uri") == url:
+                        self.client.pgupdater.cache_status(_status)
+                        return _status
+                    logging.debug(f"{url} did not match {_status.get('url')}")
+            logging.debug(
+                f"Could not find status for {url} on {self.client.api_base_url}")
             return False
-        try:
-            result = await self.search_v2(
-                q = url,
-                resolve = True,
-            )
-        except Exception:
-            logging.exception(
-                f"Error adding context url {url} to {self.client.api_base_url}")
-            return False
-        if (statuses := result.get("statuses")):
-            for _status in statuses:
-                if _status.get("url") == url:
-                    self.client.pgupdater.cache_status(_status)
-                    return _status
-                if _status.get("uri") == url:
-                    self.client.pgupdater.cache_status(_status)
-                    return _status
-                logging.debug(f"{url} did not match {_status.get('url')}")
-        logging.debug(f"Could not find status for {url} on {self.client.api_base_url}")
-        return False
 
     async def get_trending_posts(
             self,
@@ -792,6 +800,8 @@ did not match {result.get('url')}")
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
             self.client.pgupdater.get_dict_from_cache(urls)
+        max_concurrent_tasks = 10
+        semaphore = asyncio.Semaphore(max_concurrent_tasks)
         promises : list[tuple[str, asyncio.Task[Status | bool]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
@@ -802,7 +812,8 @@ did not match {result.get('url')}")
                     continue
             msg = f"Fetching status id for {url} from {self.client.api_base_url}"
             logging.info(f"\033[1;33m{msg}\033[0m")
-            promises.append((url, asyncio.ensure_future(self.add_context_url(url))))
+            promises.append((url, asyncio.ensure_future(
+                self.add_context_url(url, semaphore))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, task in promises:
             _result = task.result()
@@ -825,34 +836,34 @@ did not match {_result.get('url')}")
             logging.error(f"Status id for {url} not found")
         return status_ids
 
-    async def get_status_by_id(
+    def get_status_by_id(
             self,
             status_id : str,
-            ) -> dict[str, str] | None:
+            semaphore: asyncio.Semaphore | None = None,
+            ) -> Coroutine[Any, Any, dict[str, Any] | Status]:
         """Get the status from a toot URL.
 
         Args:
         ----
-        server (str): The server to get the status from.
         status_id (str): The ID of the toot to get the status of.
-        external_tokens (dict[str, str] | None): A dict of external tokens, keyed \
-            by server. If None, no external tokens will be used.
+        semaphoe (asyncio.Semaphore): The semaphore to use for the request.
 
         Returns:
         -------
         dict[str, str] | None: The status of the toot, or None if the toot is not found.
         """
-        return await self.status(status_id)
+        return self.status(status_id, semaphore=semaphore)
 
     def status(
             self,
             status_id: str,
+            semaphore: asyncio.Semaphore | None = None,
         ) -> Coroutine[Any, Any, dict[str, Any] | Status]:
         """Obtain information about a status.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#get
         """
-        return self.client.get(f"/api/v1/statuses/{status_id}")
+        return self.client.get(f"/api/v1/statuses/{status_id}", semaphore=semaphore)
 
     def status_context(
             self,

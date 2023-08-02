@@ -96,12 +96,14 @@ async def add_context_urls_wrapper(
 
     if posts_to_fetch:
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
+        max_concurrent_tasks = 10
+        semaphore = asyncio.Semaphore(max_concurrent_tasks)
         tasks = []
         for url in posts_to_fetch:
             logging.debug(f"Adding {url} to home server")
             tasks.append(
                 api_mastodon.Mastodon(
-                home_server, access_token, pgupdater).add_context_url(url),
+                home_server, access_token, pgupdater).add_context_url(url, semaphore),
             )
         futures = await asyncio.gather(*tasks)
         for result in futures:

@@ -229,6 +229,8 @@ async def get_all_known_context_urls(
                 toots_to_get_context_for.append(context)
         # Get the context for the toots
         logging.debug(f"Getting context for {len(toots_to_get_context_for)} toots")
+        max_concurrent_tasks = 10
+        semaphore = asyncio.Semaphore(max_concurrent_tasks)
         tasks = [
             asyncio.ensure_future(post_content(
                 x[0][0],
@@ -238,6 +240,7 @@ async def get_all_known_context_urls(
                 pgupdater,
                 home_server,
                 home_server_token,
+                semaphore,
             ))
             for x in toots_to_get_context_for
         ]
@@ -256,31 +259,35 @@ async def get_context_for_server(server : str,  # noqa: ARG001
             home_server : str,
             home_server_token : str,
             toots_to_get_context_for : list[tuple[tuple[str, str], str]],
+            semaphore : asyncio.Semaphore | None = None,
             ) -> list[str]:
     """Get the context for the given toots from their original server."""
-    known_context_urls = []
-    for post in toots_to_get_context_for:
-        parsed_url = post[0]
-        url = post[1]
-        try:
-            context = await post_content(
-                    parsed_url[0],
-                    parsed_url[1],
-                    url,
-                    external_tokens,
-                    pgupdater,
-                    home_server,
-                    home_server_token,
-                )
-        except Exception as ex:
-            logging.error(f"Error getting context for toot {url} : {ex}")
-            logging.debug(
-                    f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
-            continue
-        if context:
-            logging.info(f"Got {len(context)} context posts for {url}")
-            known_context_urls.extend(context)
-    return known_context_urls
+    if semaphore is None:
+        semaphore = asyncio.Semaphore(1)
+    async with semaphore:
+        known_context_urls = []
+        for post in toots_to_get_context_for:
+            parsed_url = post[0]
+            url = post[1]
+            try:
+                context = await post_content(
+                        parsed_url[0],
+                        parsed_url[1],
+                        url,
+                        external_tokens,
+                        pgupdater,
+                        home_server,
+                        home_server_token,
+                    )
+            except Exception as ex:
+                logging.error(f"Error getting context for toot {url} : {ex}")
+                logging.debug(
+                        f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
+                continue
+            if context:
+                logging.info(f"Got {len(context)} context posts for {url}")
+                known_context_urls.extend(context)
+        return known_context_urls
 
 def _get_context_url(toot : dict[str, str],
                 parsed_urls : dict[str, tuple[str | None, str | None]],
@@ -482,6 +489,8 @@ async def get_all_context_urls(  # noqa: PLR0913
             for toot in __replied_toot_ids[server]
         ]
 
+    max_concurrent_tasks = 10
+    semaphore = asyncio.Semaphore(max_concurrent_tasks)
     context_urls = []
     promises = []
     for server in __replied_toot_ids:
@@ -493,6 +502,7 @@ async def get_all_context_urls(  # noqa: PLR0913
                 home_server,
                 home_server_token,
                 ___replied_toot_ids[server],
+                semaphore,
             )),
         )
     results = await asyncio.gather(*promises)

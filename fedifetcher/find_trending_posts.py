@@ -168,6 +168,8 @@ async def find_trending_posts(  # noqa: C901
     #     for future in concurrent.futures.as_completed(futures):
     #         if result:
 
+    max_concurrent_requests = 10
+    semaphore = asyncio.Semaphore(max_concurrent_requests)
     promises_container = []
     for fetch_domain in external_feeds.copy():
         promises_container.append(
@@ -177,6 +179,7 @@ async def find_trending_posts(  # noqa: C901
                 var_manip,
                 aux_domain_fetcher,
                 fetch_domain,
+                semaphore,
             )),
         )
     await asyncio.gather(*promises_container)
@@ -194,6 +197,8 @@ async def find_trending_posts(  # noqa: C901
 less popular posts from {fetch_domain}"
         logging.info(
             f"\033[1;34m{msg}\033[0m")
+        max_concurrent_requests = 10
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
         promises_container = {}
         promises = []
         for status_id in remember_to_find_me[fetch_domain]:
@@ -202,7 +207,7 @@ less popular posts from {fetch_domain}"
                 promise = asyncio.ensure_future(
                         api_mastodon.Mastodon(fetch_domain,
                             external_tokens.get(fetch_domain)).get_status_by_id(
-                            status_id),
+                            status_id, semaphore),
                     )
                 promises_container[status_id] = promise
                 promises.append(promise)
@@ -242,21 +247,25 @@ async def fetch_and_return_missing(external_tokens : dict[str, str],
             var_manip,  # noqa: ANN001
             aux_domain_fetcher,  # noqa: ANN001
             fetch_domain : str,
+            semaphore : asyncio.Semaphore | None = None,
             ) -> None:
     """Fetch posts from a domain."""
-    await fetch_trending_from_domain(external_tokens,
-        add_post_to_dict,
-        var_manip.get_domains_to_fetch(),
-        var_manip.get_domains_fetched(),
-        var_manip.add_to_remembering,
-        var_manip.get_remembering,
-        aux_domain_fetcher, fetch_domain, trending_posts_dict)
-    try:
-        var_manip.add_to_fetched(fetch_domain)
-        var_manip.remove_from_fetching(fetch_domain)
-    except MastodonError:
-        logging.error(
-            f"Error occurred while fetching domain {fetch_domain}")
+    if semaphore is None:
+        semaphore = asyncio.Semaphore(1)
+    async with semaphore:
+        await fetch_trending_from_domain(external_tokens,
+            add_post_to_dict,
+            var_manip.get_domains_to_fetch(),
+            var_manip.get_domains_fetched(),
+            var_manip.add_to_remembering,
+            var_manip.get_remembering,
+            aux_domain_fetcher, fetch_domain, trending_posts_dict)
+        try:
+            var_manip.add_to_fetched(fetch_domain)
+            var_manip.remove_from_fetching(fetch_domain)
+        except MastodonError:
+            logging.error(
+                f"Error occurred while fetching domain {fetch_domain}")
 
 async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C901
                     add_post_to_dict : Callable[[dict[str, str], str,
@@ -266,39 +275,41 @@ async def aux_domain_fetch(external_tokens : dict[str, str],  # noqa: PLR0913, C
                     parsed_urls : list[tuple[str | None, str | None]],
                     trending_post_dict : dict[str, dict[str, str]],
                     pgupdater : PostgreSQLUpdater,
+                    semaphore : asyncio.Semaphore,
                     ) -> bool:
     """Fetch posts from an aux domain."""
-    msg = f"Finding aux trending posts from {parsed_urls[0][0]}"
-    logging.info(f"\033[1;35m{msg}\033[0m")
-    found_all = False
-    if parsed_urls[0][0] is not None:
-        cached_posts_dict = pgupdater.get_dict_from_cache(post_urls)
-        for cached_post in cached_posts_dict.values():
-            if cached_post and cached_post["url"] in post_urls:
-                logging.debug(f"Found {cached_post['url']} in cache")
-                post_urls.remove(cached_post["url"]) # Check originality?
+    async with semaphore:
+        msg = f"Finding aux trending posts from {parsed_urls[0][0]}"
+        logging.info(f"\033[1;35m{msg}\033[0m")
+        found_all = False
+        if parsed_urls[0][0] is not None:
+            cached_posts_dict = pgupdater.get_dict_from_cache(post_urls)
+            for cached_post in cached_posts_dict.values():
+                if cached_post and cached_post["url"] in post_urls:
+                    logging.debug(f"Found {cached_post['url']} in cache")
+                    post_urls.remove(cached_post["url"]) # Check originality?
+            if not post_urls:
+                return True
+            trending = await api_mastodon.Mastodon(parsed_urls[0][0],
+                    external_tokens.get(parsed_urls[0][0])).get_trending_posts(120)
+            domains_fetched.append(parsed_urls[0][0])
+            if trending:
+                for t_post in trending:
+                    if t_post["url"] in post_urls:
+                        post_urls.remove(t_post["url"])
+                    add_post_to_dict(t_post, parsed_urls[0][0], trending_post_dict)
+        for post_url in post_urls:
+            parsed = parsers.post(post_url)
+            if parsed and parsed[0] and parsed[0] == parsed_urls[0][0] and parsed[1]:
+                remote = await api_mastodon.Mastodon(parsed[0],
+                        external_tokens.get(parsed[0])).get_status_by_id(parsed[1])
+                if remote and remote["url"] == post_url:
+                    add_post_to_dict(remote, parsed[0], trending_post_dict)
+            else:
+                logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
         if not post_urls:
-            return True
-        trending = await api_mastodon.Mastodon(parsed_urls[0][0],
-                external_tokens.get(parsed_urls[0][0])).get_trending_posts(120)
-        domains_fetched.append(parsed_urls[0][0])
-        if trending:
-            for t_post in trending:
-                if t_post["url"] in post_urls:
-                    post_urls.remove(t_post["url"])
-                add_post_to_dict(t_post, parsed_urls[0][0], trending_post_dict)
-    for post_url in post_urls:
-        parsed = parsers.post(post_url)
-        if parsed and parsed[0] and parsed[0] == parsed_urls[0][0] and parsed[1]:
-            remote = await api_mastodon.Mastodon(parsed[0],
-                    external_tokens.get(parsed[0])).get_status_by_id(parsed[1])
-            if remote and remote["url"] == post_url:
-                add_post_to_dict(remote, parsed[0], trending_post_dict)
-        else:
-            logging.warning(f"Couldn't find {post_url} from {parsed_urls[0][0]}")
-    if not post_urls:
-        found_all = True
-    return found_all
+            found_all = True
+        return found_all
 
 # Let's define a class to store aux domain fetches. It'll have a function to queue
 # them up, and then we'll do them all at once later.
@@ -340,41 +351,52 @@ class AuxDomainFetch:
         async def fetching_domain(fetch_domain: str,
                                 trending_post_dict: dict[str, dict[str, str]],
                                 pgupdater: PostgreSQLUpdater,
+                                semaphore: asyncio.Semaphore,
                                 ) -> None:
             """Fetch less popular posts from a domain."""
-            msg = \
+            if semaphore is None:
+                semaphore = asyncio.Semaphore(1)
+            async with semaphore:
+                msg = \
     f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
-            logging.info(f"\033[1;34m{msg}\033[0m")
-            list_of_posts = []
-            list_of_parsed_urls = []
-            _promises = []
-            for parsed_url, post_url in self.aux_fetches[fetch_domain]:
-                list_of_posts.append(post_url)
-                list_of_parsed_urls.append(parsed_url)
-                _promises.append(
-                    asyncio.ensure_future(aux_domain_fetch(
-                        self.external_tokens,
-                        self.add_post_to_dict,
-                        self.domains_fetched,
-                        list_of_posts,
-                        list_of_parsed_urls,
+                logging.info(f"\033[1;34m{msg}\033[0m")
+                list_of_posts = []
+                list_of_parsed_urls = []
+                max_concurrent_requests = 10
+                _semaphore = asyncio.Semaphore(max_concurrent_requests)
+                _promises = []
+                for parsed_url, post_url in self.aux_fetches[fetch_domain]:
+                    list_of_posts.append(post_url)
+                    list_of_parsed_urls.append(parsed_url)
+                    _promises.append(
+                        asyncio.ensure_future(aux_domain_fetch(
+                            self.external_tokens,
+                            self.add_post_to_dict,
+                            self.domains_fetched,
+                            list_of_posts,
+                            list_of_parsed_urls,
+                            trending_post_dict,
+                            pgupdater,
+                            _semaphore,
+                        )),
+                    )
+                await asyncio.gather(*_promises)
+
+            max_concurrent_requests = 10
+            _semaphore = asyncio.Semaphore(max_concurrent_requests)
+            promises = []
+            for fetchable_domain in self.aux_fetches.copy():
+                promises.append(
+                    asyncio.ensure_future(fetching_domain(
+                        fetchable_domain,
                         trending_post_dict,
                         pgupdater,
+                        _semaphore,
                     )),
                 )
-            await asyncio.gather(*_promises)
-        promises = []
-        for fetchable_domain in self.aux_fetches.copy():
-            promises.append(
-                asyncio.ensure_future(fetching_domain(
-                    fetchable_domain,
-                    trending_post_dict,
-                    pgupdater,
-                )),
-            )
-        await asyncio.gather(*promises)
-        logging.debug(f"Clearing aux_fetches: {self.aux_fetches}")
-        self.aux_fetches.clear()
+            await asyncio.gather(*promises)
+            logging.debug(f"Clearing aux_fetches: {self.aux_fetches}")
+            self.aux_fetches.clear()
 
 async def fetch_trending_from_domain(  # noqa: C901, PLR0913
         external_tokens : dict[str, str],
