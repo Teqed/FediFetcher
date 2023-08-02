@@ -63,6 +63,18 @@ class MastodonClient:
             logging.warning(
                 f"Timeout error with Mastodon API on server {self.api_base_url}.")
             return {}
+        except aiohttp.ClientConnectorSSLError:
+            logging.warning(
+                f"SSL error with Mastodon API on server {self.api_base_url}.")
+            return {}
+        except aiohttp.ClientConnectorError:
+            logging.exception(
+                f"Connection error with Mastodon API on server {self.api_base_url}.")
+            return {}
+        except (aiohttp.ClientError):
+            logging.exception(
+                f"Error with Mastodon API on server {self.api_base_url}.")
+            return {}
 
     async def handle_response_errors(self, response: aiohttp.ClientResponse,
         ) -> dict:
