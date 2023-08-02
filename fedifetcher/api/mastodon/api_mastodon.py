@@ -664,6 +664,12 @@ class Mastodon:
                         self.client.pgupdater.cache_status(_status)
                         return _status
                     logging.debug(f"{url} did not match {_status.get('url')}")
+            elif result == {}:
+                logging.debug(
+                    f"Received empty results for {url} on {self.client.api_base_url} ",
+                    "The domain may be blocked.",
+                )
+                return False
             logging.debug(
                 f"Could not find status for {url} on {self.client.api_base_url}")
             return False
