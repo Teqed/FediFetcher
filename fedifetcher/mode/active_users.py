@@ -5,26 +5,28 @@ from fedifetcher import find_context, getter_wrappers, helpers
 from fedifetcher.api.mastodon.api_mastodon import Mastodon
 
 
-async def active_users(replied_toot_server_ids, parsed_urls, admin_token, external_tokens, pgupdater) -> None:
+async def active_users(
+        replied_toot_server_ids, parsed_urls, admin_token,
+        external_tokens, pgupdater, arguments) -> None:
     """Get posts of users which have active IDs on the local server."""
-    user_ids = list(await Mastodon(helpers.arguments.server,
+    user_ids = list(await Mastodon(arguments.server,
                 admin_token, pgupdater).get_active_user_ids(
-                helpers.arguments.reply_interval_in_hours))
+                arguments.reply_interval_in_hours))
     logging.debug(f"Found user IDs: {user_ids}")
     """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""
     logging.info("Pulling context toots for replies")
     logging.debug("Found user ID, getting reply toots")
     reply_toots = await getter_wrappers.get_all_reply_toots(
-                helpers.arguments.server,
+                arguments.server,
                 user_ids,
                 admin_token,
                 pgupdater,
-                helpers.arguments.reply_interval_in_hours,
+                arguments.reply_interval_in_hours,
             )
     logging.debug("Found reply toots, getting known context URLs")
     await getter_wrappers.get_all_known_context_urls(
-                helpers.arguments.server,
+                arguments.server,
                 reply_toots,
                 parsed_urls,
                 external_tokens,
@@ -33,23 +35,23 @@ async def active_users(replied_toot_server_ids, parsed_urls, admin_token, extern
                 )
     logging.debug("Found known context URLs, getting replied toot IDs")
     replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
-                helpers.arguments.server,
+                arguments.server,
                 reply_toots,
                 replied_toot_server_ids,
                 parsed_urls,
             )
     logging.debug("Found replied toot IDs, getting context URLs")
     context_urls = await getter_wrappers.get_all_context_urls(
-                helpers.arguments.server,
+                arguments.server,
                 replied_toot_ids,
                 external_tokens,
                 pgupdater,
-                helpers.arguments.server,
+                arguments.server,
                 admin_token,
             )
     logging.debug("Found context URLs, adding context URLs")
     await find_context.add_context_urls_wrapper(
-                helpers.arguments.server,
+                arguments.server,
                 admin_token,
                 context_urls,
                 pgupdater,

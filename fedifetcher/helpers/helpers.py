@@ -8,10 +8,7 @@ import colorlog
 import requests
 from dateutil import parser
 
-from .argparser import arguments
-
-
-def setup_logging() -> None:
+def setup_logging(log_level: str) -> None:
     """Set logging."""
     logger = logging.getLogger()
     stdout = colorlog.StreamHandler(stream=sys.stdout)
@@ -21,7 +18,7 @@ def setup_logging() -> None:
 %(log_color)s%(message)s%(reset)s")
     stdout.setFormatter(fmt)
     logger.addHandler(stdout)
-    logger.setLevel(arguments.log_level)
+    logger.setLevel(log_level)
 
 class Response:
     """HTTP response codes."""
@@ -42,7 +39,7 @@ class Response:
 def get(
         url : str,
         headers : dict | None = None,
-        timeout : int = 0,
+        timeout : int | None = None,
         max_tries : int = 2,
         ) -> requests.Response:
     """Get a URL.
@@ -56,9 +53,6 @@ def get(
     h = headers.copy()
     if "User-Agent" not in h:
         h["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0"  # noqa: E501
-
-    if timeout == 0:
-        timeout = arguments.http_timeout
 
     try:
         response = requests.get(url, headers=h, timeout=timeout)

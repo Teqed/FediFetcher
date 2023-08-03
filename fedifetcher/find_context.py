@@ -1,4 +1,5 @@
 """Add context toots to the server."""
+from argparse import Namespace
 import asyncio
 import logging
 from collections.abc import Iterable
@@ -20,6 +21,7 @@ async def add_post_with_context(
         access_token : str,
         external_tokens : dict[str, str],
         pgupdater : PostgreSQLUpdater,
+        arguments : Namespace,
         ) -> bool:
     """Add the given post to the server.
 
@@ -40,7 +42,7 @@ async def add_post_with_context(
         home_server, access_token, pgupdater).add_context_url(post["url"])
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
-                helpers.arguments, "backfill_with_context", 0) > 0:
+                arguments, "backfill_with_context", 0) > 0:
             parsed_urls : dict[str, tuple[str | None, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is not None and parsed[0] is not None:

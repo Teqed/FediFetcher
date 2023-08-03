@@ -1,4 +1,5 @@
-"""Mastodon API functions."""
+"""Firefish API functions."""
+from argparse import Namespace
 import asyncio
 import logging
 from typing import Any, ClassVar, Literal
@@ -10,7 +11,7 @@ from fedifetcher.api.firefish.api_firefish_types import Note, UserDetailedNotMe
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
-from fedifetcher.helpers.helpers import Response, arguments
+from fedifetcher.helpers.helpers import Response
 
 
 class FirefishClient:
@@ -174,7 +175,7 @@ class Firefish:
 
             Firefish.clients[server] = FirefishClient(
                 access_token=token if token else None,
-                api_base_url=server if server else arguments.server,
+                api_base_url=server,
                 client=client,
             )
         self.client = Firefish.clients[server]

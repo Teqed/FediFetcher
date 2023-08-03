@@ -1,5 +1,6 @@
 """Pull posts from a Mastodon server, using a token."""
 
+from argparse import Namespace
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -21,17 +22,18 @@ async def token_posts( # pylint: disable=too-many-arguments # pylint: disable=to
         known_followings : OrderedSet,
         external_tokens: dict[str, str],
         pgupdater: PostgreSQLUpdater,
+        arguments : Namespace,
         ) -> None:
     """Pull posts from a Mastodon server, using a token."""
     logging.info("Finding posts for provided token")
-    if helpers.arguments.home_timeline_length > 0:
+    if arguments.home_timeline_length > 0:
         """Do the same with any toots on the key owner's home timeline """
         logging.info("Pulling context toots for home timeline")
-        timeline_toots = await api_mastodon.Mastodon(helpers.arguments.server,
-            token, pgupdater).get_home_timeline(helpers.arguments.home_timeline_length)
+        timeline_toots = await api_mastodon.Mastodon(arguments.server,
+            token, pgupdater).get_home_timeline(arguments.home_timeline_length)
         logging.debug("Found home timeline toots, getting context URLs")
         known_context_urls = await getter_wrappers.get_all_known_context_urls(
-            helpers.arguments.server,
+            arguments.server,
             timeline_toots,
             parsed_urls,
             external_tokens,
@@ -40,16 +42,16 @@ async def token_posts( # pylint: disable=too-many-arguments # pylint: disable=to
             )
         logging.debug("Found known context URLs, getting context URLs")
         await find_context.add_context_urls_wrapper(
-            helpers.arguments.server,
+            arguments.server,
             token,
             known_context_urls,
             pgupdater,
             )
         logging.debug("Added context URLs")
         # Backfill any post authors, and any mentioned users
-        if helpers.arguments.backfill_mentioned_users > 0:
+        if arguments.backfill_mentioned_users > 0:
             logging.info(
-f"Backfilling posts from last {helpers.arguments.backfill_mentioned_users} \
+f"Backfilling posts from last {arguments.backfill_mentioned_users} \
 mentioned users")
             mentioned_users = []
             cut_off = datetime.now(
@@ -89,7 +91,7 @@ mentioned users")
                         mentioned_users.append(user)
             logging.debug(f"Mentioned users: {len(mentioned_users)}")
             await add_user_posts(
-                helpers.arguments.server,
+                arguments.server,
                 token,
                 getter_wrappers.filter_known_users(
                     mentioned_users,
@@ -99,27 +101,28 @@ mentioned users")
                 all_known_users,
                 external_tokens,
                 pgupdater,
+                arguments,
                 )
     token_user_id = await api_mastodon.Mastodon(
-        helpers.arguments.server, token, pgupdater).get_me()
+        arguments.server, token, pgupdater).get_me()
     if not token_user_id:
         logging.debug("Could not get User ID, skipping replies/followings/followers")
     else:
         logging.debug(f"Got User ID: {token_user_id}")
-        if helpers.arguments.reply_interval_in_hours > 0:
+        if arguments.reply_interval_in_hours > 0:
             """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""
             logging.info("Pulling context toots for replies")
             reply_toots = await getter_wrappers.get_all_reply_toots(
-                helpers.arguments.server,
+                arguments.server,
                 [token_user_id],
                 token,
                 pgupdater,
-                helpers.arguments.reply_interval_in_hours,
+                arguments.reply_interval_in_hours,
             )
             logging.debug("Found reply toots, getting context URLs")
             await getter_wrappers.get_all_known_context_urls(
-                helpers.arguments.server,
+                arguments.server,
                 reply_toots,
                 parsed_urls,
                 external_tokens,
@@ -128,118 +131,122 @@ mentioned users")
                 )
             logging.debug("Found known context URLs, getting context URLs")
             replied_toot_ids = getter_wrappers.get_all_replied_toot_server_ids(
-                helpers.arguments.server,
+                arguments.server,
                 reply_toots,
                 replied_toot_server_ids,
                 parsed_urls,
             )
             logging.debug("Found replied toot IDs, getting context URLs")
             context_urls = await getter_wrappers.get_all_context_urls(
-                helpers.arguments.server,
+                arguments.server,
                 replied_toot_ids,
                 external_tokens,
                 pgupdater,
-                helpers.arguments.server,
+                arguments.server,
                 token,
                 )
             logging.debug("Found context URLs, getting context URLs")
             await find_context.add_context_urls_wrapper(
-                helpers.arguments.server,
+                arguments.server,
                 token,
                 context_urls,
                 pgupdater,
                 )
             logging.debug("Added context URLs")
-        if helpers.arguments.max_followings > 0:
+        if arguments.max_followings > 0:
             logging.info(
-        f"Getting posts from last {helpers.arguments.max_followings} followings")
+        f"Getting posts from last {arguments.max_followings} followings")
             followings = await getter_wrappers.get_new_followings(
-                helpers.arguments.server,
+                arguments.server,
                 token,
                 token_user_id,
-                helpers.arguments.max_followings,
+                arguments.max_followings,
                 all_known_users,
                 )
             logging.debug("Got followings, getting context URLs")
             await add_user_posts(
-                helpers.arguments.server,
+                arguments.server,
                 token, followings,
                 known_followings,
                 all_known_users,
                 external_tokens,
                 pgupdater,
+                arguments,
                 )
             logging.debug("Added context URLs")
-        if helpers.arguments.max_followers > 0:
+        if arguments.max_followers > 0:
             logging.info(
-        f"Getting posts from last {helpers.arguments.max_followers} followers")
+        f"Getting posts from last {arguments.max_followers} followers")
             followers = await getter_wrappers.get_new_followers(
-                helpers.arguments.server,
+                arguments.server,
                 token,
                 token_user_id,
-                helpers.arguments.max_followers,
+                arguments.max_followers,
                 all_known_users,
                 )
             logging.debug("Got followers, getting context URLs")
             await add_user_posts(
-                helpers.arguments.server,
+                arguments.server,
                 token,
                 followers,
                 recently_checked_users,
                 all_known_users,
                 external_tokens,
                 pgupdater,
+                arguments,
                 )
             logging.debug("Added context URLs")
-    if helpers.arguments.max_follow_requests > 0:
+    if arguments.max_follow_requests > 0:
         logging.info(
-    f"Getting posts from last {helpers.arguments.max_follow_requests} follow requests")
+    f"Getting posts from last {arguments.max_follow_requests} follow requests")
         follow_requests = await getter_wrappers.get_new_follow_requests(
-                            helpers.arguments.server,
+                            arguments.server,
                             token,
-                            helpers.arguments.max_follow_requests,
+                            arguments.max_follow_requests,
                             all_known_users,
                             )
         logging.debug("Got follow requests, getting context URLs")
         await add_user_posts(
-            helpers.arguments.server,
+            arguments.server,
             token,
             follow_requests,
             recently_checked_users,
             all_known_users,
             external_tokens,
             pgupdater,
+            arguments,
             )
         logging.debug("Added context URLs")
-    if helpers.arguments.from_notifications > 0:
+    if arguments.from_notifications > 0:
         logging.info(
-    f"Getting notifications for last {helpers.arguments.from_notifications} hours")
+    f"Getting notifications for last {arguments.from_notifications} hours")
         notification_users = await getter_wrappers.get_notification_users(
-                                helpers.arguments.server,
+                                arguments.server,
                                 token,
                                 all_known_users,
-                                helpers.arguments.from_notifications,
+                                arguments.from_notifications,
                                 )
         logging.debug("Got notification users, getting context URLs")
         await add_user_posts(
-            helpers.arguments.server,
+            arguments.server,
             token,
             notification_users,
             recently_checked_users,
             all_known_users,
             external_tokens,
             pgupdater,
+            arguments,
             )
         logging.debug("Added context URLs")
-    if helpers.arguments.max_bookmarks > 0:
+    if arguments.max_bookmarks > 0:
         logging.info(
-    f"Pulling replies to the last {helpers.arguments.max_bookmarks} bookmarks")
+    f"Pulling replies to the last {arguments.max_bookmarks} bookmarks")
         bookmarks = await api_mastodon.Mastodon(
-            helpers.arguments.server, token, pgupdater).get_bookmarks(
-            helpers.arguments.max_bookmarks)
+            arguments.server, token, pgupdater).get_bookmarks(
+            arguments.max_bookmarks)
         logging.debug("Got bookmarks, getting context URLs")
         known_context_urls = await getter_wrappers.get_all_known_context_urls(
-                                helpers.arguments.server,
+                                arguments.server,
                                 list(bookmarks),
                                 parsed_urls,
                                 external_tokens,
@@ -248,22 +255,22 @@ mentioned users")
                                 )
         logging.debug("Got known context URLs, getting context URLs")
         await find_context.add_context_urls_wrapper(
-            helpers.arguments.server,
+            arguments.server,
             token,
             known_context_urls,
             pgupdater,
             )
         logging.debug("Added context URLs")
-    if helpers.arguments.max_favourites > 0:
+    if arguments.max_favourites > 0:
         logging.info(
-    f"Pulling replies to the last {helpers.arguments.max_favourites} favourites")
+    f"Pulling replies to the last {arguments.max_favourites} favourites")
         favourites = await api_mastodon.Mastodon(
-                        helpers.arguments.server, token, pgupdater).get_favourites(
-                        helpers.arguments.max_favourites,
+                        arguments.server, token, pgupdater).get_favourites(
+                        arguments.max_favourites,
                         )
         logging.debug("Got favourites, getting context URLs")
         known_context_urls = await getter_wrappers.get_all_known_context_urls(
-                                helpers.arguments.server,
+                                arguments.server,
                                 list(favourites),
                                 parsed_urls,
                                 external_tokens,
@@ -272,7 +279,7 @@ mentioned users")
                                 )
         logging.debug("Got known context URLs, getting context URLs")
         await find_context.add_context_urls_wrapper(
-            helpers.arguments.server,
+            arguments.server,
             token,
             known_context_urls,
             pgupdater,

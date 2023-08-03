@@ -1,4 +1,5 @@
 """Find user posts to the server."""
+from argparse import Namespace
 import logging
 
 from fedifetcher import get
@@ -16,6 +17,7 @@ async def add_user_posts( # noqa: PLR0913
         all_known_users: OrderedSet,
         external_tokens: dict[str, str],
         pgupdater: PostgreSQLUpdater,
+        arguments: Namespace,
 ) -> None:
     """Add the given user's posts to the server.
 
@@ -54,7 +56,7 @@ async def add_user_posts( # noqa: PLR0913
                     if post.get("reblog") is None:
                         added = await add_post_with_context(
                             post, home_server, access_token,
-                            external_tokens, pgupdater)
+                            external_tokens, pgupdater, arguments)
                         if added is True:
                             status = Status(
                                 id=post.get("id"),

@@ -6,12 +6,12 @@ from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.find_trending_posts import find_trending_posts
 
 
-async def trending_posts(parsed_urls, admin_token, external_tokens, pgupdater) -> None:
+async def trending_posts(parsed_urls, admin_token, external_tokens, pgupdater, arguments) -> None:
     """Get trending posts from supplied servers."""
-    external_feeds = helpers.arguments.external_feeds.split(",")
+    external_feeds = arguments.external_feeds.split(",")
     logging.info("Getting trending posts")
     trending_posts = await find_trending_posts(
-                helpers.arguments.server,
+                arguments.server,
                 admin_token,
                 external_feeds,
                 external_tokens,
@@ -89,7 +89,7 @@ f"Found {len(trending_posts)} trending posts")
 f"Found {len(trending_posts_changed)} trending posts with new replies, getting known \
 context URLs")
     known_context_urls = await getter_wrappers.get_all_known_context_urls(
-                helpers.arguments.server,
+                arguments.server,
                 trending_posts_changed,
                 parsed_urls,
                 external_tokens,
@@ -100,7 +100,7 @@ context URLs")
     logging.debug(
         f"Found {len(known_context_urls)} known context URLs, getting context URLs")
     await find_context.add_context_urls_wrapper(
-                helpers.arguments.server,
+                arguments.server,
                 admin_token,
                 known_context_urls,
                 pgupdater,

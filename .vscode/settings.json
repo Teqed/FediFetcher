@@ -1,6 +1,35 @@
 {
-    "python.analysis.extraPaths": [
-        "./src/mastodon-py"
+    "python.analysis.include": [
+        "./fedifetcher",
     ],
-    "python.analysis.typeCheckingMode": "basic"
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.inlayHints.variableTypes": true,
+    "python.analysis.inlayHints.functionReturnTypes": true,
+    "python.analysis.inlayHints.pytestParameters": true,
+    "editor.semanticTokenColorCustomizations": {
+        "enabled": true, // enable for all themes
+        "rules": {
+            "*.static": {
+                "foreground": "#ff0000",
+                "fontStyle": "bold",
+            },
+            "type": {
+                "foreground": "#00aa00",
+            },
+            "variable": {
+                // "foreground": "#0000aa"
+                "fontStyle": "italic",
+            },
+        }
+    },
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./tests",
+        "-p",
+        "test_*.py",
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true,
 }

@@ -10,7 +10,6 @@ import aiohttp
 
 from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.api.postgresql import PostgreSQLUpdater
-from fedifetcher.helpers import helpers
 from fedifetcher.helpers.helpers import Response
 
 
@@ -167,7 +166,7 @@ class Mastodon:
             })
 
             Mastodon.clients[server] = MastodonClient(
-                api_base_url=server if server else helpers.arguments.server,
+                api_base_url=server,
                 client_session=client,
                 token=token,
                 pgupdater=pgupdater,
@@ -193,13 +192,6 @@ class Mastodon:
         -------
         str | None: The user id if found, or None if the user is not found.
         """
-        if self.client.api_base_url == helpers.arguments.server or \
-                not self.client.api_base_url:
-            account = await self.account_lookup(
-                acct = f"{user}",
-            )
-            if not isinstance(account, bool):
-                return account["id"]
         account_search = await self.account_lookup(
             acct = f"{user}",
         )
@@ -852,7 +844,7 @@ did not match {_result.get('url')}")
         Args:
         ----
         status_id (str): The ID of the toot to get the status of.
-        semaphoe (asyncio.Semaphore): The semaphore to use for the request.
+        semaphore (asyncio.Semaphore): The semaphore to use for the request.
 
         Returns:
         -------
