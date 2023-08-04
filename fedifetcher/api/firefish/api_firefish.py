@@ -190,8 +190,7 @@ class Firefish:
         Args:
         ----
         url: The URL of the toot to add.
-        server: The server to add the toot to.
-        access_token: The access token to use to add the toot.
+        semaphore: The semaphore to use for the request.
 
         Returns:
         -------
@@ -324,15 +323,15 @@ class Firefish:
 
     async def get_toot_context(
             self,
-            server: str, toot_id: str, token: str | None,
+            toot_id: str,
+            mastodon: api_mastodon.Mastodon,
             ) -> list[str]:
         """Get the URLs of the context toots of the given toot asynchronously."""
         if self.pgupdater is None:
             logging.error("No PostgreSQLUpdater instance provided")
             return []
         # Get the context of a toot
-        context = await api_mastodon.Mastodon(
-            server=server, token=token).status_context(status_id=toot_id)
+        context = await mastodon.status_context(status_id=toot_id)
         # List of status URLs
         ancestors = context.get("ancestors") or []
         descendants = context.get("descendants") or []
