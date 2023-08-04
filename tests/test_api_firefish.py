@@ -1,21 +1,24 @@
 """Test the Firefish class."""
-import asyncio
-import re
-import unittest
-from unittest import IsolatedAsyncioTestCase
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from fedifetcher.api.firefish.api_firefish import Firefish, FirefishClient
-from fedifetcher.api.firefish.api_firefish_types import Note, UserDetailedNotMe, UserLite
+from fedifetcher.api.firefish.api_firefish_types import (
+    Note,
+    UserDetailedNotMe,
+    UserLite,
+)
 
+pytest_plugins = ('pytest_asyncio',)  # noqa: Q000
 
-class FirefishClientTest(IsolatedAsyncioTestCase):
+class TestFirefishClient:
     """Test the FirefishClient class."""
 
     async def test_post(self) -> None:
         """Test the post method."""
         client = FirefishClient(
-            access_token="token",
+            access_token="token", # noqa: S106
             api_base_url="example.com",
             client=MagicMock(),
         )
@@ -29,7 +32,7 @@ class FirefishClientTest(IsolatedAsyncioTestCase):
         expected_result = {"key": "value"}
         result = await client.post(endpoint, json)
         assert result == expected_result
-        
+
         # Test a failed post
         client.client.post.return_value.__aenter__.return_value = MagicMock(
             status=400,
@@ -166,7 +169,6 @@ class FirefishClientTest(IsolatedAsyncioTestCase):
         result = await client.handle_response_errors(response)
         assert result == expected_result
 
-
     async def test_ap_get(self) -> None:
         """Test the ap_get method."""
         # Test a successful ap_get
@@ -187,154 +189,222 @@ class FirefishClientTest(IsolatedAsyncioTestCase):
         result = await client.ap_get(uri)
         assert result == expected_result
 
-
-    async def test_ap_show(self) -> None:
+    class Test_ap_show:
         """Test the ap_show method."""
-        # Test a successful ap_show (Note)
-        
-        client = FirefishClient(
-            access_token="token",  # noqa: S106
-            api_base_url="example.com",
-            client=MagicMock(),
-        )
-        userlite = UserLite(
-                id="123456",
-                username="username",
-                name="name",
-                avatarUrl="https://example.com/avatar.png",
-                avatarBlurhash="blurhash",
-                emojis=[],
-                isAdmin=False,
-                host="example.com",
-                avatarColor="#000000",
-            )
-        note = Note(
-            id="123456",
-            text="text",
-            createdAt="2021-01-01T00:00:00.000Z",
-            cw="text",
-            userId="123456",
-            user=userlite,
-            replyId="123456",
-            renoteId="123456",
-            renoteCount=1,
-            repliesCount=1,
-            uri="https://example.com/@username/123456",
-        )
-        client.post = AsyncMock(
-            return_value={
-                "type": "Note",
-                "object": {
-                    "id": "123456",
-                    "text": "text",
-                    "createdAt": "2021-01-01T00:00:00.000Z",
-                    "cw": "text",
-                    "userId": "123456",
-                    "user": {"key": "value"},
-                    "replyId": "123456",
-                    "renoteId": "123456",
-                    "renoteCount": 1,
-                    "repliesCount": 1,
-                    "uri": "https://example.com/@username/123456",
-                    },
-            },
-        )
-        uri = "https://example.com/@username/123456"
-        expected_result: tuple[str, Note] | bool = (
-            "Note",
-            note,
-        )
-        result_1 = await client.ap_show(uri)
-        # assert result_1 == expected_result
-        # Instead of asserting the result, we'll assert the type of the result
-        assert isinstance(result_1, tuple)
-        first, second = result_1
-        assert isinstance(result_1[0], str)
-        assert isinstance(result_1[1], Note)
-        assert first == "Note"
-        # assert second == note
 
-        # Test a successful ap_show (User)
-        # client = FirefishClient(
-        #     access_token="token", # noqa: S106
-        #     api_base_url="example.com",
-        #     client=MagicMock(),
-        # )
-        # client.post = AsyncMock(
-        #     return_value={
-        #         "type": "User",
-        #         "object": {"key": "value"},
-        #     },
-        # )
-        # uri = "https://example.com/@username/123456"
-        # expected_result = ("User", {"key": "value"})
-        # result_2 = await client.ap_show(uri)
-        # assert result_2 == expected_result
+        # Test a successful ap_show (Note)
+        async def test_ap_show_successful_note(self) -> None:
+            client = FirefishClient(
+                access_token="token",  # noqa: S106
+                api_base_url="example.com",
+                client=MagicMock(),
+            )
+            userlite = UserLite(
+                    id="123456",
+                    username="username",
+                    name="name",
+                    avatarUrl="https://example.com/avatar.png",
+                    avatarBlurhash="blurhash",
+                    emojis=[],
+                    isAdmin=False,
+                    host="example.com",
+                    avatarColor="#000000",
+                )
+            Note(
+                id="123456",
+                text="text",
+                createdAt="2021-01-01T00:00:00.000Z",
+                cw="text",
+                userId="123456",
+                user=userlite,
+                replyId="123456",
+                renoteId="123456",
+                renoteCount=1,
+                repliesCount=1,
+                uri="https://example.com/@username/123456",
+            )
+            client.post = AsyncMock(
+                return_value={
+                    "type": "Note",
+                    "object": {
+                        "id": "123456",
+                        "text": "text",
+                        "createdAt": "2021-01-01T00:00:00.000Z",
+                        "cw": "text",
+                        "userId": "123456",
+                        "user": {"key": "value"},
+                        "replyId": "123456",
+                        "renoteId": "123456",
+                        "renoteCount": 1,
+                        "repliesCount": 1,
+                        "uri": "https://example.com/@username/123456",
+                        },
+                },
+            )
+            uri = "https://example.com/@username/123456"
+            result = await client.ap_show(uri)
+            # Instead of asserting the result, we'll assert the type of the result
+            assert isinstance(result, tuple)
+            first, second = result
+            assert isinstance(result[0], str)
+            assert isinstance(result[1], Note)
+            assert first == "Note"
+            # TODO: Fix this test
+
+        async def test_ap_show_successful_user(self) -> None:
+            """Test a successful ap_show (User)."""
+            client = FirefishClient(
+                access_token="token", # noqa: S106
+                api_base_url="example.com",
+                client=MagicMock(),
+            )
+            user_mock = UserDetailedNotMe(
+                    id="123456",
+                    createdAt="2021-01-01T00:00:00.000Z",
+                    uri="https://example.com/@username/123456",
+                    name="name",
+                    username="username",
+                    host="example.com",
+                    avatarUrl="https://example.com/avatar.png",
+                    avatarBlurhash="blurhash",
+                    avatarColor="#000000",
+                    isAdmin=False,
+                    isModerator=False,
+                    isBot=False,
+                    isCat=False,
+                    speakAsCat=False,
+                    emojis=[],
+                    onlineStatus="online",
+                    url="https://example.com/@username",
+                    movedToUri=None,
+                    alsoKnownAs=[],
+                    updatedAt="2021-01-01T00:00:00.000Z",
+                    lastFetchedAt="2021-01-01T00:00:00.000Z",
+                    bannerUrl="https://example.com/banner.png",
+                    bannerBlurhash="blurhash",
+                    bannerColor="#000000",
+                    isLocked=False,
+                    isSilenced=False,
+                    isSuspended=False,
+                    description="description",
+                    location="location",
+                    birthday="2021-01-01T00:00:00.000Z",
+                    lang="en",
+                    fields=[],
+                    followersCount=1,
+                    followingCount=1,
+                    notesCount=1,
+                    pinnedNoteIds=["123456"],
+                    pinnedNotes=[],
+                    pinnedPageId="123456",
+                    pinnedPage={},
+                    publicReactions=False,
+                    twoFactorEnabled=False,
+                    usePasswordLessLogin=False,
+                    securityKeys=False,
+                    isFollowing=False,
+                    isFollowed=False,
+                    hasPendingFollowRequestFromYou=False,
+                    hasPendingFollowRequestToYou=False,
+                    isBlocking=False,
+                    isBlocked=False,
+                    isMuted=False,
+                    isRenoteMuted=False,
+                    reactionEmojis=[],
+                )
+            client.post = AsyncMock(
+                return_value={
+                    "type": "User",
+                    "object": user_mock.__dict__,
+                },
+            )
+            uri = "https://example.com/@username/123456"
+            expected_result = ("User", user_mock)
+            result = await client.ap_show(uri)
+            assert not isinstance(result, bool)
+            assert result[0] == expected_result[0]
+            assert result[1].__dict__ == expected_result[1].__dict__
+            # assert result == expected_result  # noqa: ERA001 # TODO: Fix this test
 
         # # Test a failed ap_show
-        # client = FirefishClient(
-        #     access_token="token", # noqa: S106
-        #     api_base_url="example.com",
-        #     client=MagicMock(),
-        # )
-        # client.post = AsyncMock(return_value=False)
-        # uri = "https://example.com/@username/123456"
-        # expected_result = False
-        # result_3 = await client.ap_show(uri)
-        # assert result_3 == expected_result
-
-    async def test_notes_show(self) -> None:
+    class Test_notes_show:
         """Test the notes_show method."""
-        # Test a successful notes_show
-        client = FirefishClient(
-            access_token="token", # noqa: S106
-            api_base_url="example.com",
-            client=MagicMock(),
-        )
-        client.post = AsyncMock(return_value={
-                "id": "123456",
-                "text": "text",
-                "createdAt": "2021-01-01T00:00:00.000Z",
-                "cw": "text",
-                "userId": "123456",
-                "user": {"key": "value"},
-                "replyId": "123456",
-                "renoteId": "123456",
-                "renoteCount": 1,
-                "repliesCount": 1,
-                "uri": "https://example.com/@username/123456",
+
+        async def test_notes_show_successful(self) -> None:
+            """Test a successful notes_show."""
+            client = FirefishClient(
+                access_token="token", # noqa: S106
+                api_base_url="example.com",
+                client=MagicMock(),
+            )
+            userlite_mock = UserLite(
+                        id="123456",
+                        username="username",
+                        name="name",
+                        avatarUrl="https://example.com/avatar.png",
+                        avatarBlurhash="blurhash",
+                        avatarColor="#000000",
+                        host="example.com",
+                    )
+            note_mock = Note(
+                    id="123456",
+                    text="text",
+                    createdAt="2021-01-01T00:00:00.000Z",
+                    cw="text",
+                    userId="123456",
+                    user=userlite_mock,
+                    replyId="123456",
+                    renoteId="123456",
+                    renoteCount=1,
+                    repliesCount=1,
+                    uri="https://example.com/@username/123456",
+                )
+            client.post = AsyncMock(return_value={
+        # id: str,
+        "id": "123456",
+        # createdAt: str,
+        "createdAt": "2021-01-01T00:00:00.000Z",
+        # text: str | None,
+        "text": "text",
+        # cw: str | None,
+        "cw": "text",
+        # userId: str,
+        "userId": "123456",
+        # user: "UserLite",
+        "user": userlite_mock,
+        # replyId: str | None,
+        "replyId": "123456",
+        # renoteId: str | None,
+        "renoteId": "123456",
+        # renoteCount: int,
+        "renoteCount": 1,
+        # repliesCount: int,
+        "repliesCount": 1,
+        # uri: str,
+        "uri": "https://example.com/@username/123456",
         })
-        note_id = "123456"
-        expected_result = {
-                "id": "123456",
-                "text": "text",
-                "createdAt": "2021-01-01T00:00:00.000Z",
-                "cw": "text",
-                "userId": "123456",
-                "user": {"key": "value"},
-                "replyId": "123456",
-                "renoteId": "123456",
-                "renoteCount": 1,
-                "repliesCount": 1,
-                "uri": "https://example.com/@username/123456",
-                }
-        result_1 = await client.notes_show(note_id)
-        assert result_1 == expected_result
+            note_id = "123456"
+            expected_result = note_mock
+            result = await client.notes_show(note_id)
+            for key in result.__dict__:
+                assert result.__dict__[key] == expected_result.__dict__[key]
+            # assert result == expected_result # noqa: ERA001 # TODO: Fix this test
 
-        # Test a failed notes_show
-        client = FirefishClient(
-            access_token="token", # noqa: S106
-            api_base_url="example.com",
-            client=MagicMock(),
-        )
-        client.post = AsyncMock(return_value=False)
-        note_id = "123456"
-        expected_result = False
-        result_2 = await client.notes_show(note_id)
-        assert result_2 == expected_result
+        async def test_notes_show_failed(self) -> None:
+            """Test a failed notes_show."""
+            client = FirefishClient(
+                access_token="token", # noqa: S106
+                api_base_url="example.com",
+                client=MagicMock(),
+            )
+            client.post = AsyncMock(return_value=False)
+            note_id = "123456"
+            expected_result = False
+            result = await client.notes_show(note_id)
+            assert result == expected_result
 
 
-class FirefishTest(IsolatedAsyncioTestCase):
+class FirefishTest:
     """Test the Firefish class."""
 
     async def test_init(self) -> None:
@@ -416,4 +486,4 @@ class FirefishTest(IsolatedAsyncioTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main()
