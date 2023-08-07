@@ -1,5 +1,4 @@
 """Firefish API functions."""
-from argparse import Namespace
 import asyncio
 import logging
 from typing import Any, ClassVar, Literal
