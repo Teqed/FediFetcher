@@ -1,11 +1,13 @@
 """Firefish API functions."""
 import asyncio
 import logging
+from collections.abc import Coroutine
 from typing import Any, ClassVar, Literal
 from urllib.parse import urlparse
 
 import aiohttp
 
+from fedifetcher.api.api import API
 from fedifetcher.api.firefish.api_firefish_types import Note, UserDetailedNotMe
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.mastodon.api_mastodon_types import Status
@@ -148,7 +150,7 @@ class FirefishClient:
             return Note(**shown_object)
         return False
 
-class Firefish:
+class Firefish(API):
     """A class representing a Firefish instance."""
 
     clients : ClassVar[dict[str, FirefishClient]] = {}
@@ -179,7 +181,7 @@ class Firefish:
             )
         self.client = Firefish.clients[server]
 
-    async def add_context_url(
+    async def _add_context_url(
             self,
             url : str,
             semaphore : asyncio.Semaphore | None = None,
@@ -218,7 +220,7 @@ class Firefish:
                     return response_body
             return False
 
-    async def get_home_status_id_from_url(
+    async def _get_home_status_id_from_url(
             self,
             url: str,
     ) -> str | None:
@@ -246,7 +248,7 @@ class Firefish:
                 return status_id
         msg = f"Fetching status id for {url} from {self.server}"
         logging.info(f"\033[1;33m{msg}\033[0m")
-        result = await self.add_context_url(url)
+        result = await self._add_context_url(url)
         if result:
             status_id = result.get("id") if isinstance(result, Note) else None
             logging.debug(f"Got status id {status_id} for {url} from {self.server}")
@@ -262,7 +264,7 @@ class Firefish:
         logging.warning(f"Status id for {url} not found")
         return None
 
-    async def get_home_status_id_from_url_list(
+    async def _get_home_status_id_from_url_list(
             self,
             urls: list[str],
     ) -> dict[str, str]:
@@ -298,7 +300,7 @@ class Firefish:
             msg = f"Fetching status id for {url} from {self.server}"
             logging.info(f"\033[1;33m{msg}\033[0m")
             promises.append((url, asyncio.ensure_future(
-                self.add_context_url(url, semaphore))))
+                self._add_context_url(url, semaphore))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
             logging.debug(f"Got {result} for {url} from {self.server}")
@@ -320,7 +322,7 @@ class Firefish:
             logging.error(f"Status id for {url} not found")
         return status_ids
 
-    async def get_toot_context(
+    async def _get_toot_context(
             self,
             toot_id: str,
             mastodon: api_mastodon.Mastodon,
@@ -338,7 +340,7 @@ class Firefish:
         # Sort by server
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
-        home_status_list: dict[str, str] = await self.get_home_status_id_from_url_list(
+        home_status_list: dict[str, str] = await self._get_home_status_id_from_url_list(
             context_statuses_url_list)
         for status in context_statuses:
             home_status_id = home_status_list.get(status["url"])
@@ -349,3 +351,23 @@ class Firefish:
         # Commit status updates
         self.pgupdater.commit_status_updates()
         return [status["url"] for status in context_statuses]
+
+    def get(
+        self, uri: str) -> Coroutine[Any, Any, Note | UserDetailedNotMe | bool]:
+        """Get an object by URI."""
+        return self._add_context_url(uri)
+
+    def get_id(self, uri: str) -> Coroutine[Any, Any, str | None]:
+        """Get the ID of an object by URI."""
+        return self._get_home_status_id_from_url(uri)
+
+    def get_ids_from_list(
+        self, uris: list[str]) -> Coroutine[Any, Any, dict[str, str]]:
+        """Get the IDs of objects by URIs."""
+        return self._get_home_status_id_from_url_list(uris)
+
+    def get_context(
+        self, uri: str,
+        mastodon: api_mastodon.Mastodon) -> Coroutine[Any, Any, list[str]]:
+        """Get the context of an object by URI."""
+        return self._get_toot_context(uri, mastodon)

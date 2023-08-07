@@ -7,6 +7,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, cast
 
 import aiohttp
+from fedifetcher.api.api import API
+from fedifetcher.api.firefish.api_firefish_types import UserLite
 
 from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.api.postgresql import PostgreSQLUpdater
@@ -140,7 +142,7 @@ class MastodonClient:
             )
         return {}
 
-class Mastodon:
+class Mastodon(API):
     """A class representing a Mastodon instance."""
 
     clients : ClassVar[dict[str, MastodonClient]] = {}
@@ -1251,6 +1253,26 @@ did not match {_result.get('url')}")
         if limit:
             params["limit"] = limit
         return self.client.get("/api/v1/timelines/public", params=params)
+
+    def get(
+        self, uri: str) -> Coroutine[Any, Any, Status | bool]:
+        """Get an object by URI."""
+        return self.add_context_url(uri)
+
+    def get_id(self, uri: str) -> Coroutine[Any, Any, str | None]:
+        """Get the ID of an object by URI."""
+        return self.get_home_status_id_from_url(uri)
+
+    def get_ids_from_list(
+        self, uris: list[str]) -> Coroutine[Any, Any, dict[str, str]]:
+        """Get the IDs of objects by URIs."""
+        return self.get_home_status_id_from_url_list(uris)
+
+    def get_context(
+        self, uri: str) -> Coroutine[Any, Any, list[str]] | type[NotImplementedError]:
+        """Get the context of an object by URI."""
+        logging.debug(f"Getting context for {uri} on {self.client.api_base_url}")
+        return NotImplementedError
 
 def filter_language(
         toots : Iterable[dict[str, str]],

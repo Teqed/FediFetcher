@@ -406,13 +406,13 @@ class TestFirefish:
         """Test the add_context_url method."""
         # Test a successful add_context_url
         self.firefish.client.ap_show = AsyncMock(return_value=("Note", self.note_mock))
-        result = await self.firefish.add_context_url("url")
+        result = await self.firefish.get("url")
         assert result == self.note_mock
 
     async def test_add_context_url_failed(self)-> None:
         """Test the add_context_url method."""
         self.firefish.client.ap_show = AsyncMock(return_value=False)
-        result = await self.firefish.add_context_url("url")
+        result = await self.firefish.get("url")
         assert result is False
 
     async def test_get_home_status_id_from_url(self) -> None:
@@ -420,18 +420,18 @@ class TestFirefish:
         self.firefish.pgupdater = MagicMock()
         self.firefish.pgupdater.get_from_cache = MagicMock(
             return_value={"id": "123456"})
-        self.firefish.add_context_url = AsyncMock(return_value={"id": "123456"})
+        self.firefish.get = AsyncMock(return_value={"id": "123456"})
         expected_result = "123456"
-        result = await self.firefish.get_home_status_id_from_url("url")
+        result = await self.firefish.get_id("url")
         assert result == expected_result
 
     async def test_get_home_status_id_from_url_failed(self) -> None:
         """Test the get_home_status_id_from_url method."""
         self.firefish.pgupdater = MagicMock()
         self.firefish.pgupdater.get_from_cache = MagicMock(return_value=None)
-        self.firefish.add_context_url = AsyncMock(return_value=False)
+        self.firefish.get = AsyncMock(return_value=False)
         expected_result = None
-        result = await self.firefish.get_home_status_id_from_url("url")
+        result = await self.firefish.get_id("url")
         assert result == expected_result
 
     async def test_get_home_status_id_from_url_list(self) -> None:
@@ -439,9 +439,9 @@ class TestFirefish:
         self.firefish.pgupdater = MagicMock()
         self.firefish.pgupdater.get_dict_from_cache = MagicMock(
             return_value={"url": {"id": "123456"}})
-        self.firefish.add_context_url = AsyncMock(return_value={"id": "123456"})
+        self.firefish.get = AsyncMock(return_value={"id": "123456"})
         expected_result = {"url": "123456"}
-        result = await self.firefish.get_home_status_id_from_url_list(["url"])
+        result = await self.firefish.get_ids_from_list(["url"])
         assert result == expected_result
 
     async def test_get_toot_context(self) -> None:
@@ -449,14 +449,14 @@ class TestFirefish:
         self.firefish.pgupdater = MagicMock()
         self.firefish.pgupdater.queue_status_update = MagicMock()
         self.firefish.pgupdater.commit_status_updates = MagicMock()
-        self.firefish.get_home_status_id_from_url_list = AsyncMock(
+        self.firefish.get_ids_from_list = AsyncMock(
             return_value={"url": "123456"})
         mastodon = MagicMock()
         mastodon.status_context = AsyncMock(
             return_value={
                 "ancestors": [{"url": "https://example.com"}], "descendants": []})
         expected_result = ["https://example.com"]
-        result = await self.firefish.get_toot_context(
+        result = await self.firefish.get_context(
             "123456", mastodon,
         )
         assert result == expected_result
