@@ -86,7 +86,7 @@ class TestFirefishClient:
             assert result == expected_result
 
         async def test_failure_no_body(self) -> None:
-            """Test a 400 response without a body (failure, {})."""
+            """Test a 401 response."""
             response = MagicMock(
                 status=401,
                 json=AsyncMock(return_value={"error": "error"}),
@@ -96,7 +96,7 @@ class TestFirefishClient:
             assert result == expected_result
 
         async def test_failure_no_json(self) -> None:
-            """Test a 400 response without a body (failure, no json)."""
+            """Test a 403 response."""
             response = MagicMock(
                 status=403,
                 json=AsyncMock(return_value={"error": "error"}),
@@ -106,7 +106,7 @@ class TestFirefishClient:
             assert result == expected_result
 
         async def test_failure_no_error(self) -> None:
-            """Test a 400 response without a body (failure, no error)."""
+            """Test a 418 response."""
             response = MagicMock(
                 status=418,
                 json=AsyncMock(return_value={"error": "error"}),
@@ -116,7 +116,7 @@ class TestFirefishClient:
             assert result == expected_result
 
         async def test_failure_no_status(self) -> None:
-            """Test a 400 response without a body (failure, no status)."""
+            """Test a 429 response."""
             response = MagicMock(
                 status=429,
                 json=AsyncMock(return_value={"error": "error"}),
@@ -126,7 +126,7 @@ class TestFirefishClient:
             assert result == expected_result
 
         async def test_failure_no_response(self) -> None:
-            """Test a 400 response without a body (failure, no response)."""
+            """Test a 500 response."""
             response = MagicMock(
                 status=500,
                 json=AsyncMock(return_value={"error": "error"}),
