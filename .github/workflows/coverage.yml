@@ -14,6 +14,6 @@ jobs:
         with:
           fail_ci_if_error: true
           flags: unittests
-          files: coverage.xml
+          files: ./coverage.xml
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
