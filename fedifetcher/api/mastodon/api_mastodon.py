@@ -7,9 +7,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, cast
 
 import aiohttp
-from fedifetcher.api.api import API
-from fedifetcher.api.firefish.api_firefish_types import UserLite
 
+from fedifetcher.api.api import API
 from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.helpers.helpers import Response
@@ -32,7 +31,7 @@ class MastodonClient:
 
     async def get(self,
         endpoint: str, params: dict | None = None, tries: int = 0,
-        semaphore: asyncio.Semaphore | None = None) -> dict[str, Any]:
+        semaphore: asyncio.Semaphore | None = None) -> dict[str, Any] | None:
         """Perform a GET request to the Mastodon server."""
         if semaphore is None:
             semaphore = asyncio.Semaphore(1)
@@ -55,7 +54,7 @@ class MastodonClient:
                             f"Error with Mastodon API on server {self.api_base_url}. "
                             f"Too many requests: {response}",
                             )
-                            return {}
+                            return None
                         logging.warning(
                             f"Too many requests to {self.api_base_url}. "
                             f"Waiting 60 seconds before trying again.",
@@ -63,7 +62,7 @@ class MastodonClient:
                         await asyncio.sleep(60)
                         return await self.get(
                             endpoint=endpoint, params=params, tries=tries + 1)
-                    return await self.handle_response_errors(response)
+                    return await self.handle_response(response)
             except asyncio.TimeoutError:
                 logging.warning(
                     f"Timeout error with Mastodon API on server {self.api_base_url}.")
@@ -79,37 +78,47 @@ class MastodonClient:
             except Exception:
                 logging.exception(
                     f"Unknown error with Mastodon API on server {self.api_base_url}.")
-            return {}
+            return None
 
-    async def handle_response_errors(self, response: aiohttp.ClientResponse,
-        ) -> dict:
+    def handle_response_lists(self,
+            body : dict | list[dict],
+            ) -> dict[str, Any]:
+        """Process the response into a dict."""
+        if isinstance(body, list):
+            body = {"list": body}
+        if not isinstance(body, dict):
+            msg = \
+                f"Error with Mastodon API on server {self.api_base_url}. \
+The server returned an unexpected response: {body}"
+            raise TypeError(
+                msg,
+            )
+        return body
+
+    def handle_response_pagination(self,
+            body : dict,
+            response : aiohttp.ClientResponse,
+            ) -> dict[str, Any]:
+        """Handle pagination in the response."""
+        link_header = response.headers.get("Link")
+        if link_header:
+            links = {}
+            link_parts = link_header.split(", ")
+            for link_part in link_parts:
+                url, rel = link_part.split("; ")
+                url = url.strip("<>")
+                rel = rel.strip('rel="')
+                links[rel] = url
+            if links.get("next"):
+                body["_pagination_next"] = links["next"]
+            if links.get("prev"):
+                body["_pagination_prev"] = links["prev"]
+        return body
+
+    def handle_response_errors(self,
+            response : aiohttp.ClientResponse,
+            ) -> None:
         """Handle errors in the response."""
-        if response.status == Response.OK:
-            body = await response.json()
-            if body:
-                if isinstance(body, list):
-                    body = {"list": body}
-                if not isinstance(body, dict):
-                    logging.error(
-                        f"Error with Mastodon API on server {self.api_base_url}. "
-                        f"The server returned an unexpected response: {body}",
-                    )
-                    return {}
-                link_header = response.headers.get("Link")
-                if link_header:
-                    links = {}
-                    link_parts = link_header.split(", ")
-                    for link_part in link_parts:
-                        url, rel = link_part.split("; ")
-                        url = url.strip("<>")
-                        rel = rel.strip('rel="')
-                        links[rel] = url
-                    if links.get("next"):
-                        body["_pagination_next"] = links["next"]
-                    if links.get("prev"):
-                        body["_pagination_prev"] = links["prev"]
-                return body
-            return {"Status": "OK"}
         if response.status == Response.BAD_REQUEST:
             logging.error(
                 f"Error with Mastodon API on server {self.api_base_url}. "
@@ -140,7 +149,24 @@ class MastodonClient:
                 f"Error with Mastodon API on server {self.api_base_url}. "
                 f"The server encountered an error: {response}",
             )
-        return {}
+
+    async def handle_response(self, response: aiohttp.ClientResponse,
+        ) -> dict | None:
+        """Handle errors in the response."""
+        if response.status != Response.OK:
+            return self.handle_response_errors(response)
+        body = await response.json()
+        if not body: # Successful response with no body
+            return {"Status": "OK"}
+        try:
+            body: dict[str, Any] = self.handle_response_lists(body)
+        except TypeError:
+            logging.error(
+                f"Error with Mastodon API on server {self.api_base_url}. "
+                f"The server returned an unexpected response: {body}",
+            )
+            return None
+        return self.handle_response_pagination(body, response)
 
 class Mastodon(API):
     """A class representing a Mastodon instance."""
@@ -197,8 +223,8 @@ class Mastodon(API):
         account_search = await self.account_lookup(
             acct = f"{user}",
         )
-        if not isinstance(account_search, bool) \
-            and account_search.get("username") == user:
+        if account_search and \
+                account_search.get("username") == user:
             return account_search["id"]
         return None
 
@@ -226,7 +252,8 @@ class Mastodon(API):
         Exception: If the server returns an unexpected status code.
         """
         timeline_toots_dict = await self.timelines_home(limit=limit)
-        if not (timeline_toots := timeline_toots_dict.get("list")):
+        if not timeline_toots_dict or (
+                timeline_toots := timeline_toots_dict.get("list")):
             return []
         toots = cast(list[dict[str, str]], (
             timeline_toots))
@@ -235,7 +262,7 @@ class Mastodon(API):
         while isinstance(toots, dict) and number_of_toots_received < limit and \
                 timeline_toots_dict.get("_pagination_next"):
             toots_dict = await self.fetch_next(toots)
-            if not (toots := toots_dict.get("list")):
+            if not toots_dict or not (toots := toots_dict.get("list")):
                 break
             number_of_toots_received += len(toots)
             toots_result.extend(toots)
@@ -268,10 +295,13 @@ class Mastodon(API):
         logging.debug(f"Reply interval: {reply_interval_hours} hours")
         since = datetime.now(UTC) - timedelta(days=reply_interval_hours / 24 + 1)
         logging.debug(f"Since: {since}")
-        local_accounts = (await self.admin_accounts_v2(
+        account_list = await self.admin_accounts_v2(
             origin="local",
             status="active",
-        )).get("list")
+        )
+        if not account_list:
+            return []
+        local_accounts = (account_list).get("list")
         active_user_ids = []
         if local_accounts:
             logging.debug(f"Found {len(local_accounts)} accounts")
@@ -308,7 +338,10 @@ class Mastodon(API):
         Exception: If the access token does not have the correct scope.
         Exception: If the server returns an unexpected status code.
         """
-        return (await self.account_verify_credentials()).get("id")
+        me = await self.account_verify_credentials()
+        if me:
+            return (me).get("id")
+        return None
 
     async def get_user_posts_from_id(
             self,
@@ -390,6 +423,8 @@ class Mastodon(API):
             return []
         # Get the context of a toot
         context = await self.status_context(status_id=toot_id)
+        if not context:
+            return []
         # List of status URLs
         ancestors = context.get("ancestors") or []
         descendants = context.get("descendants") or []
@@ -443,7 +478,8 @@ class Mastodon(API):
             exclude_types=exclude_types,
             account_id=account_id,
         )
-        if not (notifications := notifications_dict.get("list")):
+        if not notifications_dict or \
+                not (notifications := notifications_dict.get("list")):
             return []
         number_of_notifications_received = len(notifications)
         notifications_result = notifications.copy()
@@ -451,7 +487,8 @@ class Mastodon(API):
                 and number_of_notifications_received < limit \
                     and notifications_dict.get("_pagination_next"):
             more_notifications_dict = await self.fetch_next(notifications_dict)
-            if not (more_notifications := more_notifications_dict.get("list")):
+            if not more_notifications_dict or \
+                    not (more_notifications := more_notifications_dict.get("list")):
                 break
             number_of_notifications_received += len(more_notifications)
             notifications_result.extend(more_notifications)
@@ -474,7 +511,7 @@ class Mastodon(API):
         list[dict[str, str]]: A list of bookmarks, or [] if the request fails.
         """
         bookmarks_dict = await self.bookmarks(limit=limit)
-        if not (bookmarks := bookmarks_dict.get("list")):
+        if not bookmarks_dict or not (bookmarks := bookmarks_dict.get("list")):
             return []
         number_of_bookmarks_received = len(bookmarks)
         bookmarks_result = bookmarks.copy()
@@ -482,7 +519,8 @@ class Mastodon(API):
                 and number_of_bookmarks_received < limit \
                     and bookmarks_dict.get("_pagination_next"):
             more_bookmarks_dict = await self.fetch_next(bookmarks_dict)
-            if not (more_bookmarks := more_bookmarks_dict.get("list")):
+            if not more_bookmarks_dict or \
+                    not (more_bookmarks := more_bookmarks_dict.get("list")):
                 break
             number_of_bookmarks_received += len(more_bookmarks)
             bookmarks_result.extend(more_bookmarks)
@@ -505,7 +543,7 @@ class Mastodon(API):
         list[dict[str, str]]: A list of favourites, or [] if the request fails.
         """
         favourites_dict = await self.favourites(limit=limit)
-        if not (favourites := favourites_dict.get("list")):
+        if not favourites_dict or not (favourites := favourites_dict.get("list")):
             return []
         number_of_favourites_received = len(favourites)
         favourites_result = favourites.copy()
@@ -513,7 +551,8 @@ class Mastodon(API):
             while number_of_favourites_received < limit \
                     and favourites_dict.get("_pagination_next"):
                 more_favourites_dict = await self.fetch_next(favourites_dict)
-                if not (more_favourites := more_favourites_dict.get("list")):
+                if not more_favourites_dict or \
+                        not (more_favourites := more_favourites_dict.get("list")):
                     break
                 number_of_favourites_received += len(more_favourites)
                 favourites_result.extend(more_favourites)
@@ -536,7 +575,8 @@ class Mastodon(API):
         list[dict[str, str]]: A list of follow requests, or [] if the request fails.
         """
         follow_requests_dict = await self.follow_requests(limit=limit)
-        if not (follow_requests := follow_requests_dict.get("list")):
+        if not follow_requests_dict or \
+                not (follow_requests := follow_requests_dict.get("list")):
             return []
         number_of_follow_requests_received = len(follow_requests)
         follow_requests_result = follow_requests.copy()
@@ -569,7 +609,7 @@ class Mastodon(API):
         list[dict[str, str]]: A list of followers, or [] if the request fails.
         """
         followers_dict = await self.account_followers(account_id=user_id, limit=limit)
-        if not (followers := followers_dict.get("list")):
+        if not followers_dict or not (followers := followers_dict.get("list")):
             return []
         number_of_followers_received = len(followers)
         followers_result = followers.copy()
@@ -577,7 +617,8 @@ class Mastodon(API):
                 and number_of_followers_received < limit \
                     and followers_dict.get("_pagination_next"):
             more_followers_dict = await self.fetch_next(followers_dict)
-            if not (more_followers := more_followers_dict.get("list")):
+            if not more_followers_dict or \
+                    not (more_followers := more_followers_dict.get("list")):
                 break
             number_of_followers_received += len(more_followers)
             followers_result.extend(more_followers)
@@ -602,7 +643,7 @@ class Mastodon(API):
         list[dict[str, str]]: A list of following, or [] if the request fails.
         """
         following_dict = await self.account_following(account_id=user_id, limit=limit)
-        if not (following := following_dict.get("list")):
+        if not following_dict or not (following := following_dict.get("list")):
             return []
         number_of_following_received = len(following)
         following_result = following.copy()
@@ -610,7 +651,8 @@ class Mastodon(API):
                 and number_of_following_received < limit \
                     and following_dict.get("_pagination_next"):
             more_following_dict = await self.fetch_next(following_dict)
-            if not (more_following := more_following_dict.get("list")):
+            if not more_following_dict or \
+                    not (more_following := more_following_dict.get("list")):
                 break
             number_of_following_received += len(more_following)
             following_result.extend(more_following)
@@ -649,7 +691,7 @@ class Mastodon(API):
                 logging.exception(
                     f"Error adding context url {url} to {self.client.api_base_url}")
                 return False
-            if (statuses := result.get("statuses")):
+            if result and (statuses := result.get("statuses")):
                 for _status in statuses:
                     if _status.get("url") == url:
                         self.client.pgupdater.cache_status(_status)
@@ -692,7 +734,8 @@ class Mastodon(API):
             """Get a page of trending posts and return it."""
             getting_trending_posts_dict = await self.trending_statuses(
                                                 limit=40, offset=offset)
-            if not (getting_trending_posts := getting_trending_posts_dict.get("list")):
+            if not getting_trending_posts_dict or not (
+                    getting_trending_posts := getting_trending_posts_dict.get("list")):
                 return []
             return cast(list[dict[str, str]], getting_trending_posts)
 
@@ -858,7 +901,7 @@ did not match {_result.get('url')}")
             self,
             status_id: str,
             semaphore: asyncio.Semaphore | None = None,
-        ) -> Coroutine[Any, Any, dict[str, Any] | Status]:
+        ) -> Coroutine[Any, Any, dict[str, Any] | Status | None]:
         """Obtain information about a status.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#get
@@ -868,7 +911,7 @@ did not match {_result.get('url')}")
     def status_context(
             self,
             status_id: str,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """View statuses above and below this status in the thread.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#context
@@ -878,7 +921,7 @@ did not match {_result.get('url')}")
     def account_lookup(
             self,
             acct: str,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Quickly lookup a username to see if it is available.
 
         Skips WebFinger resolution.
@@ -926,14 +969,16 @@ did not match {_result.get('url')}")
 
         status_json = await self.client.get(
             f"/api/v1/accounts/{account_id}/statuses", params=params)
+        if not status_json:
+            return []
         status_list = status_json.get("list")
-        if status_list:
-            return status_list
-        return []
+        if not status_list:
+            return []
+        return status_list
 
     def account_verify_credentials(
         self,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Test to make sure that the user token works.
 
         Reference: https://docs.joinmastodon.org/methods/accounts/#verify_credentials
@@ -950,7 +995,7 @@ did not match {_result.get('url')}")
             types: list[str] | None = None,
             exclude_types: list[str] | None = None,
             account_id: str | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Notifications concerning the user.
 
         Reference: https://docs.joinmastodon.org/methods/notifications/#get
@@ -982,7 +1027,7 @@ did not match {_result.get('url')}")
             since_id: str | None = None,
             min_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Statuses the user has bookmarked.
 
         Reference: https://docs.joinmastodon.org/methods/bookmarks/#get
@@ -1004,7 +1049,7 @@ did not match {_result.get('url')}")
             min_id: str | None = None,
             since_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Statuses the user has favourited.
 
         Reference: https://docs.joinmastodon.org/methods/favourites/#get
@@ -1025,7 +1070,7 @@ did not match {_result.get('url')}")
             max_id: str | None = None,
             since_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Follow requests the user has received.
 
         Reference: https://docs.joinmastodon.org/methods/follow_requests/#get
@@ -1051,7 +1096,7 @@ did not match {_result.get('url')}")
             min_id: str | None = None,
             limit: int | None = None,
             offset: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Perform a search.
 
         Reference: https://docs.joinmastodon.org/methods/search/#v2
@@ -1093,7 +1138,7 @@ did not match {_result.get('url')}")
             since_id: str | None = None,
             min_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """View all accounts.
 
         View all accounts, optionally matching certain criteria for filtering,
@@ -1134,7 +1179,7 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v2/admin/accounts", params=params)
 
     def fetch_next(self, previous_page: dict[str, Any],
-        ) -> Coroutine[Any, Any, dict[str, Any]]:
+        ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Fetch the next page of results.
 
         Reference: https://docs.joinmastodon.org/api/guidelines/#pagination
@@ -1147,7 +1192,7 @@ did not match {_result.get('url')}")
             max_id: str | None = None,
             since_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Accounts which follow the given account.
 
         If network is not hidden by the account owner.
@@ -1170,7 +1215,7 @@ did not match {_result.get('url')}")
             max_id: str | None = None,
             since_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Accounts which the given account is following.
 
         If network is not hidden by the account owner.
@@ -1191,7 +1236,7 @@ did not match {_result.get('url')}")
             self,
             limit: int | None = None,
             offset: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Get trending statuses.
 
         Reference: https://docs.joinmastodon.org/methods/trends/#statuses
@@ -1209,7 +1254,7 @@ did not match {_result.get('url')}")
             since_id: str | None = None,
             min_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Home timeline.
 
         Reference: https://docs.joinmastodon.org/methods/timelines/#home
@@ -1234,7 +1279,7 @@ did not match {_result.get('url')}")
             since_id: str | None = None,
             min_id: str | None = None,
             limit: int | None = None,
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Public timeline.
 
         Reference: https://docs.joinmastodon.org/methods/timelines/#public
