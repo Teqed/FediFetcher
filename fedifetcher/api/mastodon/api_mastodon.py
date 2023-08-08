@@ -212,8 +212,6 @@ class Mastodon(API):
 
         Args:
         ----
-        server (str): The server to get the user id from.
-        token (str): The access token to use for the request.
         user (str): The username for which to retrieve the user id.
 
         Returns:
