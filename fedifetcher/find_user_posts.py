@@ -1,6 +1,6 @@
 """Find user posts to the server."""
-from argparse import Namespace
 import logging
+from argparse import Namespace
 
 from fedifetcher import get
 from fedifetcher.api.mastodon.api_mastodon_types import Status

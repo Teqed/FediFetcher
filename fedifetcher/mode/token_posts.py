@@ -1,7 +1,7 @@
 """Pull posts from a Mastodon server, using a token."""
 
-from argparse import Namespace
 import logging
+from argparse import Namespace
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
@@ -9,7 +9,6 @@ from fedifetcher import find_context, getter_wrappers
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 from fedifetcher.find_user_posts import add_user_posts
-from fedifetcher.helpers import helpers
 from fedifetcher.helpers.ordered_set import OrderedSet
 
 

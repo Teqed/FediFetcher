@@ -1,15 +1,13 @@
 """Add context toots to the server."""
-from argparse import Namespace
 import asyncio
 import logging
+from argparse import Namespace
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from fedifetcher import getter_wrappers, parsers
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.postgresql import PostgreSQLUpdater
-
-from .helpers import helpers
 
 if TYPE_CHECKING:
     from fedifetcher.api.mastodon.api_mastodon_types import Status

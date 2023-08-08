@@ -1,12 +1,11 @@
 """FediFetcher - a tool to fetch posts from the fediverse."""
 
-from argparse import Namespace
-from ast import arguments
 import json
 import logging
 import re
 import sys
 import uuid
+from argparse import Namespace
 from datetime import UTC, datetime
 from pathlib import Path
 

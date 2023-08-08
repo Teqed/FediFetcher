@@ -49,10 +49,12 @@ async def post_content(  # noqa: PLR0913, D417
                 # This is a Calckey / Firefish post.
                 # We need to get the Mastodon-compatible ID.
                 # We can do this by getting the post from the home server.
-                _fake_id = (await api_mastodon.Mastodon(
-                    server, external_token).search_v2(toot_url)).get("id")
-                if _fake_id:
-                    toot_id = _fake_id
+                _status = await api_mastodon.Mastodon(
+                    server, external_token).search_v2(toot_url)
+                if _status:
+                    _fake_id = _status.get("id")
+                    if _fake_id:
+                        toot_id = _fake_id
                 else:
                     # The Calckey API is out of date and requires auth on this endpoint.
                     logging.warning(

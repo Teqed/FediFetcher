@@ -1,7 +1,7 @@
 """Get posts of users which have active IDs on the local server."""
 import logging
 
-from fedifetcher import find_context, getter_wrappers, helpers
+from fedifetcher import find_context, getter_wrappers
 from fedifetcher.api.mastodon.api_mastodon import Mastodon
 
 

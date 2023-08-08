@@ -4,6 +4,7 @@
 import asyncio
 
 from fedifetcher import main
+
 from .argparser import parse_arguments
 
 if __name__ == "__main__":

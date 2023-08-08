@@ -1,7 +1,7 @@
 """Get trending posts from supplied servers."""
 import logging
 
-from fedifetcher import find_context, getter_wrappers, helpers
+from fedifetcher import find_context, getter_wrappers
 from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.find_trending_posts import find_trending_posts
 
