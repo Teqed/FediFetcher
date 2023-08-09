@@ -31,6 +31,7 @@ async def add_user_posts(  # noqa: PLR0913
     external_tokens: A dict of external tokens, keyed by server. If None, no \
         external tokens will be used.
     pgupdater: The PostgreSQL updater.
+    arguments: The arguments passed to the program.
     """
     for user in followings:
         if user["acct"] not in all_known_users and not user["url"].startswith(
@@ -108,8 +109,8 @@ async def add_user_posts(  # noqa: PLR0913
                         else:
                             failed += 1
                 logging.info(
-                    f"Added {count} posts for user {user['acct']} with {failed} errors and \
-{already_added} already seen",
+                    f"Added {count} posts for user {user['acct']} with {failed} errors "
+                    f"and {already_added} already seen",
                 )
                 if failed == 0:
                     know_followings.add(user["acct"])
