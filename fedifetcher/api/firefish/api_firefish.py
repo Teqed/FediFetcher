@@ -1,94 +1,49 @@
 """Firefish API functions."""
 import asyncio
 import logging
-from collections.abc import Coroutine
-from typing import Any, ClassVar, Literal
+from typing import ClassVar, Literal
 from urllib.parse import urlparse
 
 import aiohttp
 
 from fedifetcher.api.api import API
+from fedifetcher.api.client import HttpMethod
 from fedifetcher.api.firefish.api_firefish_types import Note, UserDetailedNotMe
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
-from fedifetcher.helpers.helpers import Response
 
 
-class FirefishClient:
+class Firefish(API):
     """A class representing a Firefish instance."""
 
-    def __init__(self,
-                access_token : str | None,
-                api_base_url : str,
-                client : aiohttp.ClientSession) -> None:
+    connections : ClassVar[dict[str, HttpMethod]] = {}
+    def __init__(self, server: str, token: str | None = None,
+            pgupdater: PostgreSQLUpdater | None = None) -> None:
         """Initialize a Firefish object."""
-        self.access_token = access_token
-        self.api_base_url = api_base_url
-        self.client = client
+        if server not in Firefish.connections or (
+            token is not None and Firefish.connections[server].token is None):
+            msg = f"Creating Firefish session for {server}"
+            logging.info(f"\033[1;33m{msg}\033[0m")
+            if token:
+                msg = "Using provided token"
+                logging.info(f"\033[1;33m{msg}\033[0m")
 
-    async def post(self,
-        endpoint : str, json : dict[str, Any] | None = None,
-        ) -> dict | bool:
-        """POST to the API."""
-        try:
-            async with self.client.post(
-                f"https://{self.api_base_url}{endpoint}",
-                json=json,
-                headers={"Authorization": f"Bearer {self.access_token}"},
-            ) as response:
-                    return await self.handle_response_errors(response)
-        except asyncio.TimeoutError:
-            logging.warning(
-                f"Timeout error with Mastodon API on server {self.api_base_url}.")
-            return False
+            client = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=60),
+                headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
+            })
 
-    async def handle_response_errors(self, response: aiohttp.ClientResponse,
-            ) -> dict | bool:
-        """Handle errors from the API."""
-        if response.status == Response.OK:
-            body = await response.json()
-            if body:
-                return body
-            return True
-        if response.status == Response.BAD_REQUEST:
-            logging.error(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"400 Client error: {response}",
+            Firefish.connections[server] = HttpMethod(
+                token=token if token else None,
+                api_base_url=server,
+                session=client,
+                pgupdater=pgupdater,
             )
-        elif response.status == Response.UNAUTHORIZED:
-            logging.error(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"401 Authentication error: {response}",
-            )
-        elif response.status == Response.FORBIDDEN:
-            logging.error(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"403 Forbidden error: {response}",
-            )
-        elif response.status == Response.TEAPOT:
-            logging.error(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"418 I'm Calc: {response}",
-            )
-        elif response.status == Response.TOO_MANY_REQUESTS:
-            logging.error(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"429 Too many requests: {response}",
-            )
-        elif response.status == Response.INTERNAL_SERVER_ERROR:
-            logging.warning(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"500 Internal server error: {response}",
-            )
-        else:
-            logging.error(
-                f"Error with Firefish API on server {self.api_base_url}. "
-                f"The server encountered an error: {response}",
-            )
-        return False
+        self.client = Firefish.connections[server]
 
-    async def ap_get(self, uri: str) -> bool:
+    async def _ap_get(self, uri: str) -> bool:
         """POST to the API to do a ActivityPub get from a remote server.
 
         Args:
@@ -106,13 +61,13 @@ class FirefishClient:
             status_id = uri_parts[4]
             uri = f"https://{base_url}/users/{user_name}/statuses/{status_id}"
 
-        result = await self.post("/api/ap/get", json={"uri": uri})
+        result = await self.client.post("/api/ap/get", json={"uri": uri})
         if result:
             return True
-        logging.warning(f"Could not get {uri} from {self.api_base_url}")
+        logging.warning(f"Could not get {uri} from {self.client.api_base_url}")
         return False
 
-    async def ap_show(self, uri: str) -> tuple[str, (UserDetailedNotMe | Note)] | bool:
+    async def _ap_show(self, uri: str) -> tuple[str, (UserDetailedNotMe | Note)] | bool:
         """POST to the API to do a ActivityPub show from a remote server.
 
         Args:
@@ -124,7 +79,7 @@ class FirefishClient:
         tuple[str, UserDetailedNotMe]: The type of the object, and the object \
             itself.
         """
-        shown_object = await self.post("/api/ap/show", json={"uri": uri})
+        shown_object = await self.client.post("/api/ap/show", json={"uri": uri})
         if shown_object and isinstance(shown_object, dict):
             if shown_object["type"] == "Note":
                 return (shown_object["type"], Note(**shown_object["object"]))
@@ -134,7 +89,7 @@ class FirefishClient:
         return False
 
 
-    async def notes_show(self, note_id: str) -> Note | Literal[False]:
+    async def _notes_show(self, note_id: str) -> Note | Literal[False]:
         """POST to the API to do a notes show from a remote server.
 
         Args:
@@ -145,45 +100,13 @@ class FirefishClient:
         -------
         Note: The object itself.
         """
-        shown_object = await self.post("/api/notes/show", json={"noteId": note_id})
+        shown_object = await self.client.post(
+            "/api/notes/show", json={"noteId": note_id})
         if shown_object and isinstance(shown_object, dict):
             return Note(**shown_object)
         return False
 
-class Firefish(API):
-    """A class representing a Firefish instance."""
-
-    clients : ClassVar[dict[str, FirefishClient]] = {}
-    def __init__(self, server: str, token: str | None = None,
-            pgupdater: PostgreSQLUpdater | None = None) -> None:
-        """Initialize a Firefish object."""
-        self.server = server
-        self.token = token
-        self.pgupdater = pgupdater
-        if server not in Firefish.clients or (
-            token is not None and Firefish.clients[server].access_token is None):
-            msg = f"Creating Firefish session for {server}"
-            logging.info(f"\033[1;33m{msg}\033[0m")
-            if token:
-                msg = "Using provided token"
-                logging.info(f"\033[1;33m{msg}\033[0m")
-
-            client = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=60),
-                headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
-            })
-
-            Firefish.clients[server] = FirefishClient(
-                access_token=token if token else None,
-                api_base_url=server,
-                client=client,
-            )
-        self.client = Firefish.clients[server]
-
-    async def _add_context_url(
-            self,
-            url : str,
+    async def get(self, url : str,
             semaphore : asyncio.Semaphore | None = None,
             ) -> Note | UserDetailedNotMe | bool:
         """Add the given toot URL to the server.
@@ -208,9 +131,9 @@ class Firefish(API):
                 user_name = uri_parts[3][1:]  # remove "@" from username
                 status_id = uri_parts[4]
                 uri = f"https://{base_url}/users/{user_name}/statuses/{status_id}"
-            logging.debug(f"Adding {uri} to {self.server}")
-            response = await self.client.ap_show(uri)
-            logging.debug(f"Got {response} for {uri} from {self.server}")
+            logging.debug(f"Adding {uri} to {self.client.api_base_url}")
+            response = await self._ap_show(uri)
+            logging.debug(f"Got {response} for {uri} from {self.client.api_base_url}")
             if response and not isinstance(response, bool):
                 response_body = response[1]
                 if response[0] == "Note" and isinstance(response_body, Note):
@@ -220,10 +143,7 @@ class Firefish(API):
                     return response_body
             return False
 
-    async def _get_home_status_id_from_url(
-            self,
-            url: str,
-    ) -> str | None:
+    async def get_id(self, url: str) -> str | None:
         """Get the status id from a toot URL asynchronously.
 
         Args:
@@ -238,33 +158,35 @@ class Firefish(API):
         -------
         str | None: The status id of the toot, or None if the toot is not found.
         """
-        if self.pgupdater is None:
+        if self.client.pgupdater is None:
             logging.error("No PostgreSQLUpdater instance provided")
             return None
-        cached_status = self.pgupdater.get_from_cache(url)
+        cached_status = self.client.pgupdater.get_from_cache(url)
         if cached_status:
             status_id = cached_status.get("id")
             if status_id is not None:
                 return status_id
-        msg = f"Fetching status id for {url} from {self.server}"
+        msg = f"Fetching status id for {url} from {self.client.api_base_url}"
         logging.info(f"\033[1;33m{msg}\033[0m")
-        result = await self._add_context_url(url)
+        result = await self.get(url)
         if result:
             status_id = result.get("id") if isinstance(result, Note) else None
-            logging.debug(f"Got status id {status_id} for {url} from {self.server}")
-            status = self.pgupdater.get_from_cache(url)
+            logging.debug(
+                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
+            status = self.client.pgupdater.get_from_cache(url)
             status_id = status.get("id") if status else None
             if status_id:
-                logging.info(f"Got status id {status_id} for {url} from {self.server}")
+                logging.info(
+                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
                 return str(status_id)
             logging.error(
-                f"Something went wrong fetching: {url} from {self.server} , \
-    did not match {result}")
+            f"Something went wrong fetching: {url} from {self.client.api_base_url} , \
+did not match {result}")
         logging.debug(result)
         logging.warning(f"Status id for {url} not found")
         return None
 
-    async def _get_home_status_id_from_url_list(
+    async def get_ids_from_list(
             self,
             urls: list[str],
     ) -> dict[str, str]:
@@ -282,11 +204,11 @@ class Firefish(API):
         -------
         dict[str, str]: A dict of status ids, keyed by toot URL.
         """
-        if not self.pgupdater:
+        if not self.client.pgupdater:
             return {}
         status_ids = {}
         cached_statuses: dict[str, Status | None] = \
-            self.pgupdater.get_dict_from_cache(urls)
+            self.client.pgupdater.get_dict_from_cache(urls)
         max_concurrent_tasks = 10
         semaphore = asyncio.Semaphore(max_concurrent_tasks)
         promises : list[tuple[str, asyncio.Task[Note | UserDetailedNotMe | bool]]] = []
@@ -297,77 +219,60 @@ class Firefish(API):
                 if status_id is not None:
                     status_ids[url] = status_id
                     continue
-            msg = f"Fetching status id for {url} from {self.server}"
+            msg = f"Fetching status id for {url} from {self.client.api_base_url}"
             logging.info(f"\033[1;33m{msg}\033[0m")
             promises.append((url, asyncio.ensure_future(
-                self._add_context_url(url, semaphore))))
+                self.get(url, semaphore))))
         await asyncio.gather(*[promise for _, promise in promises])
         for url, result in promises:
-            logging.debug(f"Got {result} for {url} from {self.server}")
+            logging.debug(f"Got {result} for {url} from {self.client.api_base_url}")
             _result = result.result()
             if isinstance(_result, dict | Status):
                 if _result.get("url") == url:
-                    status = self.pgupdater.get_from_cache(url)
+                    status = self.client.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None
                     status_ids[url] = status_id
                     logging.info(
-                        f"Got status id {status_id} for {url} from {self.server}")
+                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
                     continue
                 logging.error(
-                    f"Something went wrong fetching: {url} from {self.server} , \
-    did not match {_result.get('url')}")
+            f"Something went wrong fetching: {url} from {self.client.api_base_url} , \
+did not match {_result.get('url')}")
                 logging.debug(_result)
             elif _result is False:
-                logging.warning(f"Failed to get status id for {url} on {self.server}")
+                logging.warning(
+                    f"Failed to get status id for {url} on {self.client.api_base_url}")
             logging.error(f"Status id for {url} not found")
         return status_ids
 
-    async def _get_toot_context(
+    async def get_context(
             self,
             toot_id: str,
             mastodon: api_mastodon.Mastodon,
             ) -> list[str]:
         """Get the URLs of the context toots of the given toot asynchronously."""
-        if self.pgupdater is None:
+        if self.client.pgupdater is None:
             logging.error("No PostgreSQLUpdater instance provided")
             return []
         # Get the context of a toot
         context = await mastodon.status_context(status_id=toot_id)
         # List of status URLs
+        if not context:
+            return []
         ancestors = context.get("ancestors") or []
         descendants = context.get("descendants") or []
         context_statuses = list(ancestors + descendants)
         # Sort by server
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
-        home_status_list: dict[str, str] = await self._get_home_status_id_from_url_list(
+        home_status_list: dict[str, str] = await self.get_ids_from_list(
             context_statuses_url_list)
         for status in context_statuses:
             home_status_id = home_status_list.get(status["url"])
             if home_status_id:
-                self.pgupdater.queue_status_update(
+                self.client.pgupdater.queue_status_update(
                     home_status_id,
                     status.get("reblogs_count"), status.get("favourites_count"))
         # Commit status updates
-        self.pgupdater.commit_status_updates()
+        self.client.pgupdater.commit_status_updates()
         return [status["url"] for status in context_statuses]
-
-    def get(
-        self, uri: str) -> Coroutine[Any, Any, Note | UserDetailedNotMe | bool]:
-        """Get an object by URI."""
-        return self._add_context_url(uri)
-
-    def get_id(self, uri: str) -> Coroutine[Any, Any, str | None]:
-        """Get the ID of an object by URI."""
-        return self._get_home_status_id_from_url(uri)
-
-    def get_ids_from_list(
-        self, uris: list[str]) -> Coroutine[Any, Any, dict[str, str]]:
-        """Get the IDs of objects by URIs."""
-        return self._get_home_status_id_from_url_list(uris)
-
-    def get_context(
-        self, uri: str,
-        mastodon: api_mastodon.Mastodon) -> Coroutine[Any, Any, list[str]]:
-        """Get the context of an object by URI."""
-        return self._get_toot_context(uri, mastodon)

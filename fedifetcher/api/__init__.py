@@ -1,6 +1,7 @@
 """__init__.py for api."""
 
 from .api import API, FederationInterface
+from .client import HttpMethod
 from .firefish import api_firefish, api_firefish_types
 from .lemmy import api_lemmy
 from .mastodon import api_mastodon, api_mastodon_types
@@ -8,6 +9,7 @@ from .postgresql import postgresql
 
 __all__ = [
     "API",
+    "HttpMethod",
     "FederationInterface",
     "api_firefish",
     "api_firefish_types",

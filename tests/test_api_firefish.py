@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from fedifetcher.api.firefish.api_firefish import Firefish, FirefishClient
+from fedifetcher.api.client import HttpMethod
+from fedifetcher.api.firefish.api_firefish import Firefish
 from fedifetcher.api.firefish.api_firefish_types import (
     Note,
     UserDetailedNotMe,
@@ -13,13 +14,13 @@ from fedifetcher.api.firefish.api_firefish_types import (
 
 pytest_plugins = ('pytest_asyncio',)  # noqa: Q000
 
-class TestFirefishClient:
-    """Test the FirefishClient class."""
+class TestHttpMethod:
+    """Test the HttpMethod class."""
 
-    client: ClassVar[FirefishClient] = FirefishClient(
-        access_token="token",  # noqa: S106
+    client: ClassVar[HttpMethod] = HttpMethod(
+        token="token",  # noqa: S106
         api_base_url="example.com",
-        client=MagicMock(),
+        session=MagicMock(),
     )
 
     class TestPost:
@@ -30,30 +31,30 @@ class TestFirefishClient:
 
         async def test_post_success(self) -> None:
             """Test a successful post."""
-            TestFirefishClient.client.client.post = MagicMock()
-            TestFirefishClient.client.client.\
+            TestHttpMethod.client.session.post = MagicMock()
+            TestHttpMethod.client.session.\
                     post.return_value.__aenter__.return_value = MagicMock(
                 status=200,
                 json=AsyncMock(return_value={"key": "value"}),
             )
             expected_result = self.json
-            result = await TestFirefishClient.client.post(self.endpoint, self.json)
+            result = await TestHttpMethod.client.post(self.endpoint, self.json)
             assert result == expected_result
 
         async def test_post_no_json(self) -> None:
             """Test a successful post without a JSON body."""
-            TestFirefishClient.client.client.\
+            TestHttpMethod.client.session.\
                     post.return_value.__aenter__.return_value = MagicMock(
                 status=400,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.post(self.endpoint, self.json)
+            expected_result = None
+            result = await TestHttpMethod.client.post(self.endpoint, self.json)
             assert result == expected_result
 
-    # async def test_handle_response_errors(self) -> None:
+    # async def test_handle_response(self) -> None:
     class TestHandleResponseErrors:
-        """Test the handle_response_errors method."""
+        """Test the handle_response method."""
 
         async def test_success(self) -> None:
             """Test a 200 response with a body (success)."""
@@ -62,7 +63,7 @@ class TestFirefishClient:
                 json=AsyncMock(return_value={"key": "value"}),
             )
             expected_result = {"key": "value"}
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_success_no_body(self) -> None:
@@ -71,8 +72,8 @@ class TestFirefishClient:
                 status=200,
                 json=AsyncMock(return_value={}),
             )
-            expected_result = True
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = {"Status": "OK"}
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_failure(self) -> None:
@@ -81,8 +82,8 @@ class TestFirefishClient:
                 status=400,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_failure_no_body(self) -> None:
@@ -91,8 +92,8 @@ class TestFirefishClient:
                 status=401,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_failure_no_json(self) -> None:
@@ -101,8 +102,8 @@ class TestFirefishClient:
                 status=403,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_failure_no_error(self) -> None:
@@ -111,8 +112,8 @@ class TestFirefishClient:
                 status=418,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_failure_no_status(self) -> None:
@@ -121,8 +122,8 @@ class TestFirefishClient:
                 status=429,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_failure_no_response(self) -> None:
@@ -131,8 +132,8 @@ class TestFirefishClient:
                 status=500,
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
         async def test_unknown_response(self) -> None:
@@ -140,17 +141,53 @@ class TestFirefishClient:
             response = MagicMock(
                 json=AsyncMock(return_value={"error": "error"}),
             )
-            expected_result = False
-            result = await TestFirefishClient.client.handle_response_errors(response)
+            expected_result = None
+            result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
+
+
+
+class TestFirefish:
+    """Test the Firefish class."""
+
+    pgupdater: ClassVar = MagicMock()
+    firefish: ClassVar[Firefish] = Firefish("example.com", "token", pgupdater)
+
+    userlite_mock: ClassVar[UserLite] = UserLite(
+                id="123456",
+                username="username",
+                name="name",
+                avatarUrl="https://example.com/avatar.png",
+                avatarBlurhash="blurhash",
+                avatarColor="#000000",
+                host="example.com",
+            )
+    note_mock: ClassVar[Note] = Note(
+            id="123456",
+            text="text",
+            createdAt="2021-01-01T00:00:00.000Z",
+            cw="text",
+            userId="123456",
+            user=userlite_mock,
+            replyId="123456",
+            renoteId="123456",
+            renoteCount=1,
+            repliesCount=1,
+            uri="https://example.com/@username/123456",
+        )
+
+    async def test_init(self) -> None:
+        """Test the __init__ method."""
+        # Test a successful __init__
+        assert isinstance(self.firefish, Firefish)
 
     class TestActivityPubGet:
         """Test the ap_get method."""
 
-        client = FirefishClient(
-            access_token="token",  # noqa: S106
+        client = HttpMethod(
+            token="token",  # noqa: S106
             api_base_url="example.com",
-            client=MagicMock(),
+            session=MagicMock(),
         )
         uri = "https://example.com/@username/123456"
 
@@ -158,14 +195,14 @@ class TestFirefishClient:
             """Test a successful ap_get."""
             self.client.post = AsyncMock(return_value={"key": "value"})
             expected_result = True
-            result = await self.client.ap_get(self.uri)
+            result = await TestFirefish.firefish._ap_get(self.uri)  # noqa: SLF001
             assert result == expected_result
 
         async def test_ap_get_failed(self) -> None:
             """Test a failed ap_get."""
             self.client.post = AsyncMock(return_value=False)
             expected_result = False
-            result = await self.client.ap_get(self.uri)
+            result = await TestFirefish.firefish._ap_get(self.uri)  # noqa: SLF001
             assert result == expected_result
 
     class TestAcitivityPubShow:
@@ -173,10 +210,10 @@ class TestFirefishClient:
 
         async def test_ap_show_successful_note(self) -> None:
             """Test a successful ap_show (Note)."""
-            client = FirefishClient(
-                access_token="token",  # noqa: S106
+            client = HttpMethod(
+                token="token",  # noqa: S106
                 api_base_url="example.com",
-                client=MagicMock(),
+                session=MagicMock(),
             )
             userlite = UserLite(
                     id="123456",
@@ -221,7 +258,7 @@ class TestFirefishClient:
                 },
             )
             uri = "https://example.com/@username/123456"
-            result = await client.ap_show(uri)
+            result = await TestFirefish.firefish._ap_show(uri)  # noqa: SLF001
             # Instead of asserting the result, we'll assert the type of the result
             assert isinstance(result, tuple)
             first, second = result
@@ -286,7 +323,7 @@ class TestFirefishClient:
                     isRenoteMuted=False,
                     reactionEmojis=[],
                 )
-            TestFirefishClient.client.post = AsyncMock(
+            TestHttpMethod.client.post = AsyncMock(
                 return_value={
                     "type": "User",
                     "object": user_mock.__dict__,
@@ -294,7 +331,7 @@ class TestFirefishClient:
             )
             uri = "https://example.com/@username/123456"
             expected_result = ("User", user_mock)
-            result = await TestFirefishClient.client.ap_show(uri)
+            result = await TestFirefish.firefish._ap_show(uri)  # noqa: SLF001
             assert not isinstance(result, bool)
             assert result[0] == expected_result[0]
             assert result[1].__dict__ == expected_result[1].__dict__
@@ -328,7 +365,7 @@ class TestFirefishClient:
                     repliesCount=1,
                     uri="https://example.com/@username/123456",
                 )
-            TestFirefishClient.client.post = AsyncMock(return_value={
+            TestHttpMethod.client.post = AsyncMock(return_value={
         # id: str,
         "id": "123456",
         # createdAt: str,
@@ -354,71 +391,37 @@ class TestFirefishClient:
         })
             note_id = "123456"
             expected_result = note_mock
-            result = await TestFirefishClient.client.notes_show(note_id)
+            result = await TestFirefish.firefish._notes_show(note_id)  # noqa: SLF001
             for key in result.__dict__:
                 assert result.__dict__[key] == expected_result.__dict__[key]
             # assert result == expected_result # noqa: ERA001 # TODO: Fix this test
 
         async def test_notes_show_failed(self) -> None:
             """Test a failed notes_show."""
-            TestFirefishClient.client.post = AsyncMock(return_value=False)
+            TestHttpMethod.client.post = AsyncMock(return_value=False)
             note_id = "123456"
             expected_result = False
-            result = await TestFirefishClient.client.notes_show(note_id)
+            result = await TestFirefish.firefish._notes_show(note_id)  # noqa: SLF001
             assert result == expected_result
-
-
-class TestFirefish:
-    """Test the Firefish class."""
-
-    pgupdater: ClassVar = MagicMock()
-    firefish: ClassVar[Firefish] = Firefish("example.com", "token", pgupdater)
-
-    userlite_mock: ClassVar[UserLite] = UserLite(
-                id="123456",
-                username="username",
-                name="name",
-                avatarUrl="https://example.com/avatar.png",
-                avatarBlurhash="blurhash",
-                avatarColor="#000000",
-                host="example.com",
-            )
-    note_mock: ClassVar[Note] = Note(
-            id="123456",
-            text="text",
-            createdAt="2021-01-01T00:00:00.000Z",
-            cw="text",
-            userId="123456",
-            user=userlite_mock,
-            replyId="123456",
-            renoteId="123456",
-            renoteCount=1,
-            repliesCount=1,
-            uri="https://example.com/@username/123456",
-        )
-
-    async def test_init(self) -> None:
-        """Test the __init__ method."""
-        # Test a successful __init__
-        assert isinstance(self.firefish, Firefish)
 
     async def test_add_context_url_success(self)-> None:
         """Test the add_context_url method."""
         # Test a successful add_context_url
-        self.firefish.client.ap_show = AsyncMock(return_value=("Note", self.note_mock))
+        self.firefish.client.session.ap_show = AsyncMock(
+            return_value=("Note", self.note_mock))
         result = await self.firefish.get("url")
         assert result == self.note_mock
 
     async def test_add_context_url_failed(self)-> None:
         """Test the add_context_url method."""
-        self.firefish.client.ap_show = AsyncMock(return_value=False)
+        self.firefish.client.session.ap_show = AsyncMock(return_value=False)
         result = await self.firefish.get("url")
         assert result is False
 
     async def test_get_home_status_id_from_url(self) -> None:
         """Test the get_home_status_id_from_url method."""
-        self.firefish.pgupdater = MagicMock()
-        self.firefish.pgupdater.get_from_cache = MagicMock(
+        self.firefish.client.pgupdater = MagicMock()
+        self.firefish.client.pgupdater.get_from_cache = MagicMock(
             return_value={"id": "123456"})
         self.firefish.get = AsyncMock(return_value={"id": "123456"})
         expected_result = "123456"
@@ -427,8 +430,8 @@ class TestFirefish:
 
     async def test_get_home_status_id_from_url_failed(self) -> None:
         """Test the get_home_status_id_from_url method."""
-        self.firefish.pgupdater = MagicMock()
-        self.firefish.pgupdater.get_from_cache = MagicMock(return_value=None)
+        self.firefish.client.pgupdater = MagicMock()
+        self.firefish.client.pgupdater.get_from_cache = MagicMock(return_value=None)
         self.firefish.get = AsyncMock(return_value=False)
         expected_result = None
         result = await self.firefish.get_id("url")
@@ -436,8 +439,8 @@ class TestFirefish:
 
     async def test_get_home_status_id_from_url_list(self) -> None:
         """Test the get_home_status_id_from_url_list method."""
-        self.firefish.pgupdater = MagicMock()
-        self.firefish.pgupdater.get_dict_from_cache = MagicMock(
+        self.firefish.client.pgupdater = MagicMock()
+        self.firefish.client.pgupdater.get_dict_from_cache = MagicMock(
             return_value={"url": {"id": "123456"}})
         self.firefish.get = AsyncMock(return_value={"id": "123456"})
         expected_result = {"url": "123456"}
@@ -446,9 +449,9 @@ class TestFirefish:
 
     async def test_get_toot_context(self) -> None:
         """Test the get_toot_context method."""
-        self.firefish.pgupdater = MagicMock()
-        self.firefish.pgupdater.queue_status_update = MagicMock()
-        self.firefish.pgupdater.commit_status_updates = MagicMock()
+        self.firefish.client.pgupdater = MagicMock()
+        self.firefish.client.pgupdater.queue_status_update = MagicMock()
+        self.firefish.client.pgupdater.commit_status_updates = MagicMock()
         self.firefish.get_ids_from_list = AsyncMock(
             return_value={"url": "123456"})
         mastodon = MagicMock()
