@@ -1,5 +1,11 @@
 # FediFetcher for Mastodon
 
+[![codecov](https://codecov.io/gh/Teqed/FediFetcher/branch/main/graph/badge.svg?token=Q4DK2GB9YR)](https://codecov.io/gh/Teqed/FediFetcher)
+[![Maintainability](https://api.codeclimate.com/v1/badges/2b153e3b1dcb4943f493/maintainability)](https://codeclimate.com/github/Teqed/FediFetcher/maintainability)
+
+[![codecov](https://codecov.io/gh/Teqed/FediFetcher/branch/main/graphs/icicle.svg?token=Q4DK2GB9YR)](https://codecov.io/gh/Teqed/FediFetcher)
+
+
 This GitHub repository provides a simple script that can pull missing posts into Mastodon using the Mastodon API. FediFetcher has no further dependencies, and can be run as either a GitHub Action, as a scheduled cron job, or a pre-packaged container. Here is what FediFetcher can do:
 
 1. It can pull missing remote replies to posts that are already on your server into your server. Specifically, it can
