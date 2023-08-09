@@ -137,6 +137,6 @@ async def add_context_urls_wrapper(
                 logging.warning(f"Failed {result}")
 
     logging.info(
-        f"\033[1mAdded {count} new statuses (with {failed} failures, \
-{already_added} already seen)\033[0m",
+        f"\033[1mAdded {count} new statuses (with {failed} failures, {already_added} "
+        f"already seen)\033[0m",
     )

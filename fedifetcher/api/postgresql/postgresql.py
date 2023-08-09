@@ -284,8 +284,8 @@ class PostgreSQLUpdater:
                     columns = [column[0] for column in cursor.description]
                     result = dict(zip(columns, result, strict=False))
                     logging.info(
-                        f"Got status from cache: {url} \
-Original: {result.get('original')}, ID: {result.get('status_id')}",
+                        f"Got status from cache: {url} Original: "
+                        f"{result.get('original')}, ID: {result.get('status_id')}",
                     )
                     status = Status(
                         id=result.get("status_id"),

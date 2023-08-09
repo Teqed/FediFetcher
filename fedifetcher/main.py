@@ -71,8 +71,8 @@ async def main(arguments: Namespace) -> None:  # noqa: PLR0912, C901, PLR0915
                 logging.info("Lock file has expired. Removed lock file.")
             else:
                 logging.info(
-                    f"Lock file age is {datetime.now(UTC) - lock_time} - \
-below --lock-hours={arguments.lock_hours} provided.",
+                    f"Lock file age is {datetime.now(UTC) - lock_time} - "
+                    f"below --lock-hours={arguments.lock_hours} provided.",
                 )
                 if arguments.on_fail:
                     try:
@@ -151,16 +151,15 @@ below --lock-hours={arguments.lock_hours} provided.",
             )
         except Exception:
             logging.warning(
-                "Error getting active user IDs. This optional feature \
-requires the admin:read:accounts scope to be enabled on the first access token \
-provided. Continuing without active user IDs.",
+                "Error getting active user IDs. This optional feature requires the "
+                "admin:read:accounts scope to be enabled on the first access token "
+                "provided. Continuing without active user IDs.",
             )
 
         for _token in arguments.access_token:
             index = arguments.access_token.index(_token)
             logging.info(
-                f"Getting posts for token {index + 1} of \
-{len(arguments.access_token)}",
+                f"Getting posts for token {index + 1} of {len(arguments.access_token)}",
             )
             await token_posts(
                 _token,
@@ -201,8 +200,8 @@ provided. Continuing without active user IDs.",
                 logging.error(f"Error getting callback url: {ex}")
 
         logging.info(
-            f"\033[1m\033[38;5;208mProcessing finished in \
-\033[38;5;208m{datetime.now(UTC) - start}.\033[0m",
+            f"\033[1m\033[38;5;208mProcessing finished in "
+            f"\033[38;5;208m{datetime.now(UTC) - start}.\033[0m",
         )
 
     except Exception:

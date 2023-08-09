@@ -57,9 +57,9 @@ def add_post_to_dict(
     )
     if original:
         logging.info(
-            f"Reblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']} \
-From: {t_post_url}",
+            f"Reblogs: {trending_post['reblogs_count']} "
+            f"Favourites: {trending_post['favourites_count']} "
+            f"From: {t_post_url}",
         )
         trending_posts_dict[t_post_url] = trending_post
         trending_posts_dict[t_post_url]["original"] = "Yes"
@@ -67,18 +67,18 @@ From: {t_post_url}",
     if t_post_url in trending_posts_dict:
         if "original" not in trending_posts_dict[t_post_url]:
             logging.debug(
-                f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']} \
-Copy: {t_post_url}\033[0m",
+                f"\033[3;33mReblogs: {trending_post['reblogs_count']} "
+                f"Favourites: {trending_post['favourites_count']} "
+                f"Copy: {t_post_url}\033[0m",
             )
             increment_count(t_post_url, trending_post, trending_posts_dict)
             return False
         logging.debug(f"Already seen {t_post_url} from origin")
         return True  # We already have the original
     logging.debug(
-        f"\033[3;33mReblogs: {trending_post['reblogs_count']} \
-Favourites: {trending_post['favourites_count']} \
-Copy: {t_post_url}\033[0m",
+        f"\033[3;33mReblogs: {trending_post['reblogs_count']} "
+        f"Favourites: {trending_post['favourites_count']} "
+        f"Copy: {t_post_url}\033[0m",
     )
     trending_posts_dict[t_post_url] = trending_post
     return False
@@ -217,8 +217,8 @@ async def find_trending_posts(  # noqa: C901
             remember_to_find_me.pop(fetch_domain)
 
     for fetch_domain in remember_to_find_me:
-        msg = f"Fetching {len(remember_to_find_me[fetch_domain])} \
-less popular posts from {fetch_domain}"
+        msg = (f"Fetching {len(remember_to_find_me[fetch_domain])} "
+                    f"less popular posts from {fetch_domain}")
         logging.info(f"\033[1;34m{msg}\033[0m")
         max_concurrent_requests = 10
         semaphore = asyncio.Semaphore(max_concurrent_requests)
@@ -383,8 +383,8 @@ class AuxDomainFetch:
                 logging.debug(f"Adding {post_url} to aux_fetches[{parsed_url[0]}]")
                 self.aux_fetches[parsed_url[0]].append((parsed_url, post_url))
                 logging.debug(
-                    f"aux_fetches[{parsed_url[0]}] is now \
-{self.aux_fetches[parsed_url[0]]}",
+                    f"aux_fetches[{parsed_url[0]}] is now "
+                    f"{self.aux_fetches[parsed_url[0]]}",
                 )
 
     async def do_aux_fetches(
@@ -404,7 +404,8 @@ class AuxDomainFetch:
             if semaphore is None:
                 semaphore = asyncio.Semaphore(1)
             async with semaphore:
-                msg = f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts from {fetch_domain}"
+                msg = (f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts "
+                            f"from {fetch_domain}")
                 logging.info(f"\033[1;34m{msg}\033[0m")
                 list_of_posts = []
                 list_of_parsed_urls = []

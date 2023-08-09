@@ -630,8 +630,8 @@ class Mastodon(API):
             )
             return []
         logging.info(
-            f"Got {len(got_trending_posts)} trending posts for \
-                {self.client.api_base_url}",
+            f"Got {len(got_trending_posts)} trending posts for "
+            f"{self.client.api_base_url}",
         )
         trending_posts: list[dict[str, str]] = []
         trending_posts.extend(got_trending_posts)

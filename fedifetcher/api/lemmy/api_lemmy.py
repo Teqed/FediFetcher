@@ -9,7 +9,7 @@ from fedifetcher.helpers import helpers
 
 
 def get_user_posts_from_url(
-        parsed_url : tuple[str, str],
+    parsed_url: tuple[str, str],
 ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user."""
     logging.info(f"Getting posts from {parsed_url[0]} for user {parsed_url[1]}")
@@ -26,21 +26,23 @@ def get_user_posts_from_url(
             return all_posts
     except requests.HTTPError:
         logging.error(
-f"Error getting user posts for user {parsed_url[1]}: {response.text}")
+            f"Error getting user posts for user {parsed_url[1]}: {response.text}",
+        )
     except requests.JSONDecodeError:
         logging.error(
-f"Error decoding JSON for user {parsed_url[1]}. \
-{parsed_url[0]} may not be a Lemmy instance.")
+            f"Error decoding JSON for user {parsed_url[1]}. "
+            f"{parsed_url[0]} may not be a Lemmy instance.",
+        )
     except Exception:
-        logging.exception(
-f"Error getting user posts from {url}")
+        logging.exception(f"Error getting user posts from {url}")
         return None
 
+
 def get_community_posts_from_url(
-        parsed_url : tuple[str, str]) -> list[dict[str, str]] | None:
+    parsed_url: tuple[str, str],
+) -> list[dict[str, str]] | None:
     """Get a list of posts from a community."""
-    logging.info(
-        f"Getting posts from {parsed_url[0]} for community {parsed_url[1]}")
+    logging.info(f"Getting posts from {parsed_url[0]} for community {parsed_url[1]}")
     try:
         url = f"https://{parsed_url[0]}/api/v3/post/list?community_name={parsed_url[1]}&sort=New&limit=50"
         response = helpers.get(url)
@@ -50,15 +52,15 @@ def get_community_posts_from_url(
                 post["url"] = post["ap_id"]
             return posts
     except requests.exceptions.Timeout:
-        logging.error(
-f"Timeout getting posts for community {parsed_url[1]}")
+        logging.error(f"Timeout getting posts for community {parsed_url[1]}")
     except requests.exceptions.RequestException:
-        logging.exception(
-f"Error getting posts for community {parsed_url[1]}")
+        logging.exception(f"Error getting posts for community {parsed_url[1]}")
     else:
         logging.error(
-f"Error getting posts for community {parsed_url[1]}: {response.text}")
+            f"Error getting posts for community {parsed_url[1]}: {response.text}",
+        )
     return None
+
 
 def get_comment_context(
     server: str,
@@ -83,7 +85,8 @@ def get_comment_context(
         resp = helpers.get(comment)
     except Exception as ex:
         logging.error(
-f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
+            f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}",
+        )
         return []
     if resp.status_code == helpers.Response.OK:
         try:
@@ -92,24 +95,29 @@ f"Error getting comment {toot_id} from {toot_url}. Exception: {ex}")
             return get_comments_urls(server, post_id, toot_url)
         except Exception as ex:
             logging.error(
-f"Error parsing context for comment {toot_url}. Exception: {ex}")
+                f"Error parsing context for comment {toot_url}. Exception: {ex}",
+            )
         return []
     if resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
-        reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
-            "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
+        reset = datetime.strptime(
+            resp.headers["x-ratelimit-reset"],
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+        ).astimezone(UTC)
         logging.warning(
-f"Rate Limit hit when getting context for {toot_url}. \
-Waiting to retry at {resp.headers['x-ratelimit-reset']}")
+            f"Rate Limit hit when getting context for {toot_url}. Waiting to retry at "
+            f"{resp.headers['x-ratelimit-reset']}",
+        )
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return get_comment_context(server, toot_id, toot_url)
 
     return []
 
+
 def get_comments_urls(  # noqa: PLR0912
-        server : str,
-        post_id : str,
-        toot_url : str,
-        ) -> list[str]:
+    server: str,
+    post_id: str,
+    toot_url: str,
+) -> list[str]:
     """Get the URLs of the comments of the given post.
 
     Args:
@@ -138,37 +146,47 @@ def get_comments_urls(  # noqa: PLR0912
                 return []
             urls.append(res["post_view"]["post"]["ap_id"])
         except Exception as ex:
-            logging.error(f"Error parsing post {post_id} from {toot_url}. \
-                        Exception: {ex}")
+            logging.error(
+                f"Error parsing post {post_id} from {toot_url}. Exception: {ex}",
+            )
 
     url = f"https://{server}/api/v3/comment/list?post_id={post_id}&sort=New&limit=50"
     try:
         resp = helpers.get(url)
     except Exception as ex:
-        logging.error(f"Error getting comments for post {post_id} from {toot_url}. \
-Exception: {ex}")
+        logging.error(
+            f"Error getting comments for post {post_id} from {toot_url}. Exception: "
+            f"{ex}",
+        )
         return []
 
     if resp.status_code == helpers.Response.OK:
         try:
             res = resp.json()
-            list_of_urls = \
-                [comment_info["comment"]["ap_id"] for comment_info in res["comments"]]
+            list_of_urls = [
+                comment_info["comment"]["ap_id"] for comment_info in res["comments"]
+            ]
             logging.info(f"Got {len(list_of_urls)} comments for post {toot_url}")
             urls.extend(list_of_urls)
         except Exception as ex:
             logging.error(
-f"Error parsing comments for post {toot_url}. Exception: {ex}")
+                f"Error parsing comments for post {toot_url}. Exception: {ex}",
+            )
         else:
             return urls
     elif resp.status_code == helpers.Response.TOO_MANY_REQUESTS:
-        reset = datetime.strptime(resp.headers["x-ratelimit-reset"],
-            "%Y-%m-%dT%H:%M:%S.%fZ").astimezone(UTC)
-        logging.info(f"Rate Limit hit when getting comments for {toot_url}. Waiting to \
-                    retry at {resp.headers['x-ratelimit-reset']}")
+        reset = datetime.strptime(
+            resp.headers["x-ratelimit-reset"],
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+        ).astimezone(UTC)
+        logging.info(
+            f"Rate Limit hit when getting comments for {toot_url}. Waiting to retry at "
+            f"{resp.headers['x-ratelimit-reset']}",
+        )
         time.sleep((reset - datetime.now(UTC)).total_seconds() + 1)
         return get_comments_urls(server, post_id, toot_url)
 
     logging.error(
-f"Error getting comments for post {toot_url}. Status code: {resp.status_code}")
+        f"Error getting comments for post {toot_url}. Status code: {resp.status_code}",
+    )
     return []

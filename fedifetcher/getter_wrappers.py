@@ -64,8 +64,8 @@ async def get_notification_users(
     new_notification_users = filter_known_users(notification_users, known_users)
 
     logging.info(
-        f"Found {len(notification_users)} users in notifications, \
-{len(new_notification_users)} of which are new",
+        f"Found {len(notification_users)} users in notifications, "
+        f"{len(new_notification_users)} of which are new",
     )
 
     # return [user.get("account") for user in filter_known_users(
@@ -109,8 +109,8 @@ async def get_new_follow_requests(
     new_follow_requests = filter_known_users(follow_requests, known_followings)
 
     logging.info(
-        f"Got {len(follow_requests)} follow_requests, \
-{len(new_follow_requests)} of which are new",
+        f"Got {len(follow_requests)} follow_requests, "
+        f"{len(new_follow_requests)} of which are new",
     )
 
     return new_follow_requests

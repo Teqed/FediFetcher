@@ -53,8 +53,8 @@ async def token_posts(  # pylint: disable=too-many-arguments # pylint: disable=t
         # Backfill any post authors, and any mentioned users
         if arguments.backfill_mentioned_users > 0:
             logging.info(
-                f"Backfilling posts from last {arguments.backfill_mentioned_users} \
-mentioned users",
+                f"Backfilling posts from last {arguments.backfill_mentioned_users} "
+                f"mentioned users",
             )
             mentioned_users = []
             cut_off = datetime.now(datetime.now(UTC).astimezone().tzinfo) - timedelta(

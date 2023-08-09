@@ -18,8 +18,7 @@ def parse_arguments() -> argparse.Namespace:
     argparser.add_argument(
         "--server",
         required=False,
-        help="Required: The name of \
-        your server (e.g. `mstdn.thms.uk`)",
+        help="Required: The name of your server (e.g. `mstdn.thms.uk`)",
     )
     argparser.add_argument(
         "--access-token",
@@ -148,25 +147,22 @@ def parse_arguments() -> argparse.Namespace:
         "--on-done",
         required=False,
         default=None,
-        help="Provide \
-        a url that will be pinged when processing has completed. You can use this for "
-        "'dead man switch' monitoring of your task",
+        help="Provide a url that will be pinged when processing has completed. You can "
+        "use this for 'dead man switch' monitoring of your task",
     )
     argparser.add_argument(
         "--on-start",
         required=False,
         default=None,
-        help="Provide \
-        a url that will be pinged when processing is starting. You can use this for "
-        "'dead man switch' monitoring of your task",
+        help="Provide a url that will be pinged when processing is starting. You can "
+        "use this for 'dead man switch' monitoring of your task",
     )
     argparser.add_argument(
         "--on-fail",
         required=False,
         default=None,
-        help="Provide \
-        a url that will be pinged when processing has failed. You can use this for "
-        "'dead man switch' monitoring of your task",
+        help="Provide a url that will be pinged when processing has failed. You can "
+        "use this for 'dead man switch' monitoring of your task",
     )
     argparser.add_argument(
         "--log-level",
