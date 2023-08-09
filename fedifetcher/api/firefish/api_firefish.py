@@ -1,7 +1,7 @@
 """Firefish API functions."""
 import asyncio
 import logging
-from typing import ClassVar, Literal
+from typing import Any, ClassVar
 from urllib.parse import urlparse
 
 import aiohttp
@@ -43,7 +43,7 @@ class Firefish(API):
             )
         self.client = Firefish.connections[server]
 
-    async def _ap_get(self, uri: str) -> bool:
+    async def _ap_get(self, uri: str) -> dict[str, Any] | None:
         """POST to the API to do a ActivityPub get from a remote server.
 
         Args:
@@ -52,7 +52,7 @@ class Firefish(API):
 
         Returns:
         -------
-        bool: True if response status was 200, False otherwise.
+        dict[str, Any] | None: The object itself.
         """
         if "/@" in uri:
             uri_parts = uri.split("/")
@@ -61,13 +61,9 @@ class Firefish(API):
             status_id = uri_parts[4]
             uri = f"https://{base_url}/users/{user_name}/statuses/{status_id}"
 
-        result = await self.client.post("/api/ap/get", json={"uri": uri})
-        if result:
-            return True
-        logging.warning(f"Could not get {uri} from {self.client.api_base_url}")
-        return False
+        return await self.client.post("/api/ap/get", json={"uri": uri})
 
-    async def _ap_show(self, uri: str) -> tuple[str, (UserDetailedNotMe | Note)] | bool:
+    async def _ap_show(self, uri: str) -> tuple[str, (UserDetailedNotMe | Note)] | None:
         """POST to the API to do a ActivityPub show from a remote server.
 
         Args:
@@ -86,10 +82,10 @@ class Firefish(API):
             if shown_object["type"] == "User":
                 return (shown_object["type"], UserDetailedNotMe(
                     **shown_object["object"]))
-        return False
+        return None
 
 
-    async def _notes_show(self, note_id: str) -> Note | Literal[False]:
+    async def _notes_show(self, note_id: str) -> Note | None:
         """POST to the API to do a notes show from a remote server.
 
         Args:
@@ -104,11 +100,11 @@ class Firefish(API):
             "/api/notes/show", json={"noteId": note_id})
         if shown_object and isinstance(shown_object, dict):
             return Note(**shown_object)
-        return False
+        return None
 
     async def get(self, url : str,
             semaphore : asyncio.Semaphore | None = None,
-            ) -> Note | UserDetailedNotMe | bool:
+            ) -> Note | UserDetailedNotMe | None:
         """Add the given toot URL to the server.
 
         Args:
@@ -118,8 +114,8 @@ class Firefish(API):
 
         Returns:
         -------
-        dict[str, str] | bool: The status of the request, or False if the \
-            request fails.
+        dict[str, str] | None: The status id of the toot, \
+            or None if the toot is not found.
         """
         if semaphore is None:
             semaphore = asyncio.Semaphore(1)
@@ -134,14 +130,15 @@ class Firefish(API):
             logging.debug(f"Adding {uri} to {self.client.api_base_url}")
             response = await self._ap_show(uri)
             logging.debug(f"Got {response} for {uri} from {self.client.api_base_url}")
-            if response and not isinstance(response, bool):
-                response_body = response[1]
-                if response[0] == "Note" and isinstance(response_body, Note):
-                    return response_body
-                if response[0] == "User" and isinstance(
-                        response_body, UserDetailedNotMe):
-                    return response_body
-            return False
+            if not response:
+                return None
+            response_body = response[1]
+            if response[0] == "Note" and isinstance(response_body, Note):
+                return response_body
+            if response[0] == "User" and isinstance(
+                    response_body, UserDetailedNotMe):
+                return response_body
+            return None
 
     async def get_id(self, url: str) -> str | None:
         """Get the status id from a toot URL asynchronously.
@@ -211,7 +208,7 @@ did not match {result}")
             self.client.pgupdater.get_dict_from_cache(urls)
         max_concurrent_tasks = 10
         semaphore = asyncio.Semaphore(max_concurrent_tasks)
-        promises : list[tuple[str, asyncio.Task[Note | UserDetailedNotMe | bool]]] = []
+        promises : list[tuple[str, asyncio.Task[Note | UserDetailedNotMe | None]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
             if cached_status:

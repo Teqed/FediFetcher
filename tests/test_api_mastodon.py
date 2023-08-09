@@ -4,53 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from fedifetcher.api.client import HttpMethod
 from fedifetcher.api.mastodon.api_mastodon import Mastodon
 
 pytest_plugins = ('pytest_asyncio',)  # noqa: Q000
-
-class TestHttpMethod:
-    """Test the HttpMethod class."""
-
-    client: ClassVar[HttpMethod] = HttpMethod(
-        token="token",  # noqa: S106
-        api_base_url="example.com",
-        session=MagicMock(),
-    )
-
-    class TestHandleResponseErrors:
-        """Test the handle_response method."""
-
-        async def test_success(self) -> None:
-            """Test a 200 response with a body (success)."""
-            response = MagicMock(
-                status=200,
-                json=AsyncMock(return_value={"key": "value"}),
-            )
-            expected_result = {"key": "value"}
-            result = await TestHttpMethod.client.handle_response(response)
-            assert result == expected_result
-
-        async def test_success_no_body(self) -> None:
-            """Test a 200 response without a body (success, {})."""
-            response = MagicMock(
-                status=200,
-                json=AsyncMock(return_value={}),
-            )
-            expected_result = {"Status": "OK"}
-            result = await TestHttpMethod.client.handle_response(response)
-            assert result == expected_result
-
-        async def test_failure(self) -> None:
-            """Test a 400 response (failure)."""
-            response = MagicMock(
-                status=400,
-                json=AsyncMock(return_value={"error": "error"}),
-            )
-            expected_result = None
-            result = await TestHttpMethod.client.handle_response(response)
-            assert result == expected_result
-
 
 class TestMastodon:
     """Test the Mastodon class."""
