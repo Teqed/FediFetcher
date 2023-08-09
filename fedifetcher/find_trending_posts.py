@@ -217,8 +217,10 @@ async def find_trending_posts(  # noqa: C901
             remember_to_find_me.pop(fetch_domain)
 
     for fetch_domain in remember_to_find_me:
-        msg = (f"Fetching {len(remember_to_find_me[fetch_domain])} "
-                    f"less popular posts from {fetch_domain}")
+        msg = (
+            f"Fetching {len(remember_to_find_me[fetch_domain])} "
+            f"less popular posts from {fetch_domain}"
+        )
         logging.info(f"\033[1;34m{msg}\033[0m")
         max_concurrent_requests = 10
         semaphore = asyncio.Semaphore(max_concurrent_requests)
@@ -404,8 +406,10 @@ class AuxDomainFetch:
             if semaphore is None:
                 semaphore = asyncio.Semaphore(1)
             async with semaphore:
-                msg = (f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts "
-                            f"from {fetch_domain}")
+                msg = (
+                    f"Fetching {len(self.aux_fetches[fetch_domain])} popular posts "
+                    f"from {fetch_domain}"
+                )
                 logging.info(f"\033[1;34m{msg}\033[0m")
                 list_of_posts = []
                 list_of_parsed_urls = []
