@@ -150,8 +150,10 @@ class HttpMethod:
         if isinstance(body, list):
             body = {"list": body}
         if not isinstance(body, dict):
-            msg = (f"Error with API on server {self.api_base_url}. "
-                        f"The server returned an unexpected response: {body}")
+            msg = (
+                f"Error with API on server {self.api_base_url}. "
+                f"The server returned an unexpected response: {body}"
+            )
             raise TypeError(
                 msg,
             )
