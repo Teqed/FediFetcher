@@ -9,10 +9,10 @@ from fedifetcher.helpers.ordered_set import OrderedSet
 
 
 async def user_posts(
-        user: dict[str, str],
-        know_followings: OrderedSet,
-        server: str,
-        external_tokens: dict[str, str] | None,
+    user: dict[str, str],
+    know_followings: OrderedSet,
+    server: str,
+    external_tokens: dict[str, str] | None,
 ) -> list[dict[str, str]] | None:
     """Get a list of posts from a user.
 
@@ -44,10 +44,13 @@ async def user_posts(
 
     try:
         logging.info(f"Getting user ID for user {user['acct']}")
-        _external_token = external_tokens.get(parsed_url[0]) \
-            if external_tokens else None
-        user_id = await api_mastodon.Mastodon(parsed_url[0],
-                _external_token).get_user_id(parsed_url[1])
+        _external_token = (
+            external_tokens.get(parsed_url[0]) if external_tokens else None
+        )
+        user_id = await api_mastodon.Mastodon(
+            parsed_url[0],
+            _external_token,
+        ).get_user_id(parsed_url[1])
         logging.debug(f"User ID: {user_id}")
     except Exception:
         logging.exception(f"Error getting user ID for user {user['acct']}")

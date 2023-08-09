@@ -9,15 +9,15 @@ from fedifetcher.find_context import add_post_with_context
 from fedifetcher.helpers.ordered_set import OrderedSet
 
 
-async def add_user_posts( # noqa: PLR0913
-        home_server: str,
-        access_token: str,
-        followings: list[dict[str, str]],
-        know_followings: OrderedSet,
-        all_known_users: OrderedSet,
-        external_tokens: dict[str, str],
-        pgupdater: PostgreSQLUpdater,
-        arguments: Namespace,
+async def add_user_posts(  # noqa: PLR0913
+    home_server: str,
+    access_token: str,
+    followings: list[dict[str, str]],
+    know_followings: OrderedSet,
+    all_known_users: OrderedSet,
+    external_tokens: dict[str, str],
+    pgupdater: PostgreSQLUpdater,
+    arguments: Namespace,
 ) -> None:
     """Add the given user's posts to the server.
 
@@ -33,9 +33,15 @@ async def add_user_posts( # noqa: PLR0913
     pgupdater: The PostgreSQL updater.
     """
     for user in followings:
-        if user["acct"] not in all_known_users and not user["url"].startswith(f"https://{home_server}/"):
+        if user["acct"] not in all_known_users and not user["url"].startswith(
+            f"https://{home_server}/",
+        ):
             posts = await get.user_posts(
-                user, know_followings, home_server, external_tokens)
+                user,
+                know_followings,
+                home_server,
+                external_tokens,
+            )
 
             if posts is not None:
                 count = 0
@@ -44,7 +50,8 @@ async def add_user_posts( # noqa: PLR0913
                 list_of_post_urls = [post.get("url") for post in posts]
                 list_of_post_urls = [url for url in list_of_post_urls if url]
                 cached_posts: dict[str, Status | None] = pgupdater.get_dict_from_cache(
-                                                                    list_of_post_urls)
+                    list_of_post_urls,
+                )
                 for post in posts:
                     post_url = post.get("url")
                     if post_url:
@@ -55,8 +62,13 @@ async def add_user_posts( # noqa: PLR0913
                             continue
                     if post.get("reblog") is None:
                         added = await add_post_with_context(
-                            post, home_server, access_token,
-                            external_tokens, pgupdater, arguments)
+                            post,
+                            home_server,
+                            access_token,
+                            external_tokens,
+                            pgupdater,
+                            arguments,
+                        )
                         if added is True:
                             status = Status(
                                 id=post.get("id"),
@@ -65,7 +77,8 @@ async def add_user_posts( # noqa: PLR0913
                                 account=post.get("account"),
                                 in_reply_to_id=post.get("in_reply_to_id"),
                                 in_reply_to_account_id=post.get(
-                                    "in_reply_to_account_id"),
+                                    "in_reply_to_account_id",
+                                ),
                                 reblog=post.get("reblog"),
                                 content=post.get("content"),
                                 created_at=post.get("created_at"),
@@ -77,8 +90,7 @@ async def add_user_posts( # noqa: PLR0913
                                 spoiler_text=post.get("spoiler_text"),
                                 visibility=post.get("visibility"),
                                 mentions=post.get("mentions"),
-                                media_attachments=post.get(
-                                    "media_attachments"),
+                                media_attachments=post.get("media_attachments"),
                                 emojis=post.get("emojis"),
                                 tags=post.get("tags"),
                                 bookmarked=post.get("bookmarked"),
@@ -96,7 +108,7 @@ async def add_user_posts( # noqa: PLR0913
                         else:
                             failed += 1
                 logging.info(
-f"Added {count} posts for user {user['acct']} with {failed} errors and \
+                    f"Added {count} posts for user {user['acct']} with {failed} errors and \
 {already_added} already seen",
                 )
                 if failed == 0:

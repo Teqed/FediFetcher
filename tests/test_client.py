@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 from fedifetcher.api.client import HttpMethod
 
-pytest_plugins = ('pytest_asyncio',)  # noqa: Q000
+pytest_plugins = ("pytest_asyncio",)
+
 
 class TestHttpMethod:
     """Test the HttpMethod class."""
@@ -48,7 +49,6 @@ class TestHttpMethod:
             result = await TestHttpMethod.client.handle_response(response)
             assert result == expected_result
 
-
     class TestPost:
         """Test the post method."""
 
@@ -58,10 +58,11 @@ class TestHttpMethod:
         async def test_post_success(self) -> None:
             """Test a successful post."""
             TestHttpMethod.client.session.post = MagicMock()
-            TestHttpMethod.client.session.\
-                    post.return_value.__aenter__.return_value = MagicMock(
-                status=200,
-                json=AsyncMock(return_value={"key": "value"}),
+            TestHttpMethod.client.session.post.return_value.__aenter__.return_value = (
+                MagicMock(
+                    status=200,
+                    json=AsyncMock(return_value={"key": "value"}),
+                )
             )
             expected_result = self.json
             result = await TestHttpMethod.client.post(self.endpoint, self.json)
@@ -69,10 +70,11 @@ class TestHttpMethod:
 
         async def test_post_no_json(self) -> None:
             """Test a successful post without a JSON body."""
-            TestHttpMethod.client.session.\
-                    post.return_value.__aenter__.return_value = MagicMock(
-                status=400,
-                json=AsyncMock(return_value={"error": "error"}),
+            TestHttpMethod.client.session.post.return_value.__aenter__.return_value = (
+                MagicMock(
+                    status=400,
+                    json=AsyncMock(return_value={"error": "error"}),
+                )
             )
             expected_result = None
             result = await TestHttpMethod.client.post(self.endpoint, self.json)

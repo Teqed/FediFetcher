@@ -99,9 +99,7 @@ class SeenFilesManager:
 
     def get_seen_data(
         self,
-    ) -> tuple[
-        dict[str, str | None], OrderedSet, OrderedSet,
-    ]:
+    ) -> tuple[dict[str, str | None], OrderedSet, OrderedSet]:
         """Load seen files from disk.
 
         Returns

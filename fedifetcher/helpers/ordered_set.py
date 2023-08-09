@@ -13,8 +13,10 @@ class OrderedSet:
     _dict (dict[str, datetime]): The dict that stores the ordered set.
     """
 
-    def __init__(self: "OrderedSet",
-        iterable: set[str] | list[str] | dict[str, datetime] | None = None) -> None:
+    def __init__(
+        self: "OrderedSet",
+        iterable: set[str] | list[str] | dict[str, datetime] | None = None,
+    ) -> None:
         """Initialize the ordered set.
 
         Args:

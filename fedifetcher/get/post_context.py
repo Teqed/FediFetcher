@@ -8,14 +8,14 @@ from fedifetcher.api.postgresql import PostgreSQLUpdater
 
 
 async def post_content(  # noqa: PLR0913, D417
-        server: str,
-        toot_id: str,
-        toot_url: str,
-        external_tokens: dict[str, str],
-        pgupdater: PostgreSQLUpdater,
-        home_server: str,
-        home_server_token: str,
-        semaphore: asyncio.Semaphore | None = None,
+    server: str,
+    toot_id: str,
+    toot_url: str,
+    external_tokens: dict[str, str],
+    pgupdater: PostgreSQLUpdater,
+    home_server: str,
+    home_server_token: str,
+    semaphore: asyncio.Semaphore | None = None,
 ) -> list[str]:
     """Get the URLs of the context toots of the given toot asynchronously.
 
@@ -49,8 +49,9 @@ async def post_content(  # noqa: PLR0913, D417
                 # This is a Calckey / Firefish post.
                 # We need to get the Mastodon-compatible ID.
                 # We can do this by getting the post from the home server.
-                _status = await api_mastodon.Mastodon(
-                    server, external_token).search_v2(toot_url)
+                _status = await api_mastodon.Mastodon(server, external_token).search_v2(
+                    toot_url,
+                )
                 if _status:
                     _fake_id = _status.get("id")
                     if _fake_id:
@@ -58,14 +59,17 @@ async def post_content(  # noqa: PLR0913, D417
                 else:
                     # The Calckey API is out of date and requires auth on this endpoint.
                     logging.warning(
-                        f"Couldn't get Mastodon-compatible ID for {toot_url}")
+                        f"Couldn't get Mastodon-compatible ID for {toot_url}",
+                    )
                     return []
 
             logging.debug("Getting Mastodon context")
-            return await api_mastodon.Mastodon(
-                server, external_token).get_toot_context(
-                toot_id, home_server, home_server_token, pgupdater)
-
+            return await api_mastodon.Mastodon(server, external_token).get_toot_context(
+                toot_id,
+                home_server,
+                home_server_token,
+                pgupdater,
+            )
 
         except Exception:
             logging.exception(f"Error getting context for toot {toot_url}.")

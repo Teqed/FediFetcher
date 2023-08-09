@@ -11,13 +11,17 @@ from fedifetcher.api.mastodon.api_mastodon_types import Status
 class PostgreSQLUpdater:
     """A class for updating the PostgreSQL database."""
 
-    def __init__(self, conn) -> None: # noqa: ANN001
+    def __init__(self, conn) -> None:  # noqa: ANN001
         """Initialize the PostgreSQLUpdater."""
         self.conn = conn
         self.updates = []
 
-    def queue_status_update(self,
-                    status_id: str, reblogs_count: int, favourites_count: int) -> None:
+    def queue_status_update(
+        self,
+        status_id: str,
+        reblogs_count: int,
+        favourites_count: int,
+    ) -> None:
         """Queue an update to be processed later."""
         if reblogs_count > 0 or favourites_count > 0:
             self.updates.append((status_id, reblogs_count, favourites_count))
@@ -32,7 +36,9 @@ class PostgreSQLUpdater:
                 now = datetime.now(UTC)
                 for update in self.updates:
                     logging.debug(
-f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
+                        f"Updating {update[0]} to {update[1]} reblogs and {update[2]} "
+                        f"favourites",
+                    )
                     status_id, reblogs_count, favourites_count = update
                     cursor.execute(
                         """
@@ -58,8 +64,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                 (status_id, reblogs_count, favourites_count, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s);
                                 """
-                        data = (
-                            status_id, reblogs_count, favourites_count, now, now)
+                        data = (status_id, reblogs_count, favourites_count, now, now)
                     cursor.execute(query, data)
                 logging.debug("Committing updates")
                 self.conn.commit()
@@ -96,8 +101,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
         ]
         for attribute in required_attributes:
             if not status.get(attribute):
-                logging.error(
-                    f"Status missing required attribute: {attribute}")
+                logging.error(f"Status missing required attribute: {attribute}")
                 return False
         # Cast these variables to the correct types.
         status_id_fetched = str(status.get("id"))
@@ -114,7 +118,7 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
             original = False
             status_id = None
             status_id_original = None
-            if (status_id_fetched == url.split("/")[-1]):
+            if status_id_fetched == url.split("/")[-1]:
                 logging.debug(f"Status {url} is original")
                 original = True
                 status_id_original = status_id_fetched
@@ -138,7 +142,8 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         if not original:
                             if row.get("original"):
                                 logging.debug(
-                                    f"Already have original status for {uri}, skipping")
+                                    f"Already have original status for {uri}, skipping",
+                                )
                                 return False
                             logging.debug("No original status found, caching")
                             got_reblogs_count = row.get("reblogs_count")
@@ -147,7 +152,9 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                             got_favourites_count = row.get("favourites_count")
                             if got_favourites_count:
                                 favourites_count = max(
-                                    favourites_count, got_favourites_count)
+                                    favourites_count,
+                                    got_favourites_count,
+                                )
                     except AttributeError:
                         logging.warning(f"Attribute error for {uri}")
                         logging.warning(row)
@@ -173,8 +180,9 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         status.get("reply"),
                         status.get("language"),
                         original,
-                        status.get("poll").get("id") \
-                            if status.get("poll") is not None else None,
+                        status.get("poll").get("id")
+                        if status.get("poll") is not None
+                        else None,
                         created_at_original,
                         edited_at_original,
                         status_id,
@@ -210,8 +218,9 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                         status.get("reply"),
                         status.get("language"),
                         original,
-                        status.get("poll").get("id") \
-                            if status.get("poll") is not None else None,
+                        status.get("poll").get("id")
+                        if status.get("poll") is not None
+                        else None,
                         created_at_original,
                         edited_at_original,
                         status_id,
@@ -274,8 +283,10 @@ f"Updating {update[0]} to {update[1]} reblogs and {update[2]} favourites")
                 if result is not None:
                     columns = [column[0] for column in cursor.description]
                     result = dict(zip(columns, result, strict=False))
-                    logging.info(f"Got status from cache: {url} \
-Original: {result.get('original')}, ID: {result.get('status_id')}")
+                    logging.info(
+                        f"Got status from cache: {url} \
+Original: {result.get('original')}, ID: {result.get('status_id')}",
+                    )
                     status = Status(
                         id=result.get("status_id"),
                         uri=result.get("uri"),
@@ -291,7 +302,9 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                         spoiler_text=result.get("spoiler_text"),
                         reply=result.get("reply"),
                         language=result.get("language"),
-                        in_reply_to_account_id=result.get("in_reply_to_account_id_original"),
+                        in_reply_to_account_id=result.get(
+                            "in_reply_to_account_id_original",
+                        ),
                         poll_id=result.get("poll_id_original"),
                         account_id=result.get("account_id"),
                     )
@@ -322,15 +335,15 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                             self.conn.commit()
                         else:
                             logging.warning(
-                                f"Status {url} not found in public.statuses")
+                                f"Status {url} not found in public.statuses",
+                            )
                     return status
         except (OperationalError, Error) as e:
             logging.error(f"Error getting status from cache: {e}")
         logging.debug(f"Status not found in cache: {url}")
         return None
 
-    def get_dict_from_cache(
-            self, urls: list[str]) -> dict[str, Status | None]:
+    def get_dict_from_cache(self, urls: list[str]) -> dict[str, Status | None]:
         """Get a list of statuses from the cache.
 
         Parameters
@@ -382,7 +395,9 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                             spoiler_text=status_dict.get("spoiler_text"),
                             reply=status_dict.get("reply"),
                             language=status_dict.get("language"),
-                            in_reply_to_account_id=status_dict.get("in_reply_to_account_id_original"),
+                            in_reply_to_account_id=status_dict.get(
+                                "in_reply_to_account_id_original",
+                            ),
                             poll_id=status_dict.get("poll_id_original"),
                             account_id=status_dict.get("account_id"),
                         )
@@ -397,14 +412,20 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                             cursor.execute(query_statuses, data)
                             public_status = cursor.fetchone()
                             if public_status is not None:
-                                public_status_columns = \
-                                    [column[0] for column in cursor.description]
+                                public_status_columns = [
+                                    column[0] for column in cursor.description
+                                ]
                                 public_status_result = dict(
-                                    zip(public_status_columns, public_status,
-                                        strict=False))
+                                    zip(
+                                        public_status_columns,
+                                        public_status,
+                                        strict=False,
+                                    ),
+                                )
                                 public_status_id = public_status_result.get("id")
                                 logging.debug(
-                                    f"Found public.statuses ID: {public_status_id}")
+                                    f"Found public.statuses ID: {public_status_id}",
+                                )
                                 # Put it back into public.fetched_statuses
                                 query = """
                                 UPDATE public.fetched_statuses
@@ -417,7 +438,8 @@ Original: {result.get('original')}, ID: {result.get('status_id')}")
                                 status.update(status_id=public_status_id)
                             else:
                                 logging.warning(
-                                    f"Status {url} not found in public.statuses")
+                                    f"Status {url} not found in public.statuses",
+                                )
                         statuses[url] = status
                     return statuses
         except (OperationalError, Error) as e:

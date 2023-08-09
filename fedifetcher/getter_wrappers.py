@@ -21,11 +21,11 @@ from .helpers import helpers
 
 
 async def get_notification_users(
-        server : str,
-        access_token : str,
-        known_users : OrderedSet,
-        max_age : int = 24,
-        ) -> list[dict[str, str]]:
+    server: str,
+    access_token: str,
+    known_users: OrderedSet,
+    max_age: int = 24,
+) -> list[dict[str, str]]:
     """Get a list of users that have interacted with the user in last `max_age` hours.
 
     Args:
@@ -42,24 +42,31 @@ async def get_notification_users(
         `max_age` hours.
 
     """
-    since = datetime.now(
-        datetime.now(UTC).astimezone().tzinfo) - timedelta(hours=max_age)
-    notifications = await api_mastodon.Mastodon(server,
-        access_token).get_notifications(since_id=str(int(since.timestamp())))
+    since = datetime.now(datetime.now(UTC).astimezone().tzinfo) - timedelta(
+        hours=max_age,
+    )
+    notifications = await api_mastodon.Mastodon(server, access_token).get_notifications(
+        since_id=str(int(since.timestamp())),
+    )
     notification_users = []
     for notification in notifications:
         created_at = notification["created_at"]
-        notification_date : datetime = datetime.strptime(
-            created_at, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=UTC)
-        if(notification_date >= since and notification["account"] not in \
-                notification_users):
+        notification_date: datetime = datetime.strptime(
+            created_at,
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+        ).replace(tzinfo=UTC)
+        if (
+            notification_date >= since
+            and notification["account"] not in notification_users
+        ):
             notification_users.append(notification["account"])
 
     new_notification_users = filter_known_users(notification_users, known_users)
 
     logging.info(
-f"Found {len(notification_users)} users in notifications, \
-{len(new_notification_users)} of which are new")
+        f"Found {len(notification_users)} users in notifications, \
+{len(new_notification_users)} of which are new",
+    )
 
     # return [user.get("account") for user in filter_known_users(
     #                                         notification_users, known_users)]
@@ -71,12 +78,13 @@ f"Found {len(notification_users)} users in notifications, \
 
     return users
 
+
 async def get_new_follow_requests(
-        server : str,
-        access_token : str,
-        limit : int, # = 40,
-        known_followings : OrderedSet,
-        ) -> list[dict]:
+    server: str,
+    access_token: str,
+    limit: int,  # = 40,
+    known_followings: OrderedSet,
+) -> list[dict]:
     """Get any new follow requests for the specified user.
 
     Args:
@@ -91,25 +99,30 @@ async def get_new_follow_requests(
     -------
     list[dict]: A list of follow requests.
     """
-    follow_requests = list(await api_mastodon.Mastodon(server,
-        access_token).get_follow_requests(limit=limit))
+    follow_requests = list(
+        await api_mastodon.Mastodon(server, access_token).get_follow_requests(
+            limit=limit,
+        ),
+    )
 
     # Remove any we already know about
-    new_follow_requests = filter_known_users(
-        follow_requests, known_followings)
+    new_follow_requests = filter_known_users(follow_requests, known_followings)
 
-    logging.info(f"Got {len(follow_requests)} follow_requests, \
-{len(new_follow_requests)} of which are new")
+    logging.info(
+        f"Got {len(follow_requests)} follow_requests, \
+{len(new_follow_requests)} of which are new",
+    )
 
     return new_follow_requests
 
+
 async def get_new_followers(
-        server : str,
-        token: str | None,
-        user_id : str,
-        limit : int, # = 40,
-        known_followers : OrderedSet,
-        ) -> list[dict]:
+    server: str,
+    token: str | None,
+    user_id: str,
+    limit: int,  # = 40,
+    known_followers: OrderedSet,
+) -> list[dict]:
     """Get any new followings for the specified user, up to the max number provided.
 
     Args:
@@ -126,25 +139,27 @@ async def get_new_followers(
     -------
     list[dict]: A list of followers.
     """
-    followers = list(await api_mastodon.Mastodon(
-        server, token).get_followers(user_id, limit))
+    followers = list(
+        await api_mastodon.Mastodon(server, token).get_followers(user_id, limit),
+    )
 
     # Remove any we already know about
-    new_followers = filter_known_users(
-        followers, known_followers)
+    new_followers = filter_known_users(followers, known_followers)
 
     logging.info(
-f"Got {len(followers)} followers, {len(new_followers)} of which are new")
+        f"Got {len(followers)} followers, {len(new_followers)} of which are new",
+    )
 
     return new_followers
 
+
 async def get_new_followings(
-        server : str,
-        token: str | None,
-        user_id : str,
-        limit : int, # = 40,
-        known_followings : OrderedSet,
-        ) -> list[dict]:
+    server: str,
+    token: str | None,
+    user_id: str,
+    limit: int,  # = 40,
+    known_followings: OrderedSet,
+) -> list[dict]:
     """Get any new followings for the specified user, up to the max number provided.
 
     Args:
@@ -160,17 +175,19 @@ async def get_new_followings(
     -------
     list[dict]: A list of followings.
     """
-    following = list(await api_mastodon.Mastodon(server, token).get_following(
-        user_id, limit))
+    following = list(
+        await api_mastodon.Mastodon(server, token).get_following(user_id, limit),
+    )
 
     # Remove any we already know about
-    new_followings = filter_known_users(
-        list(following), known_followings)
+    new_followings = filter_known_users(list(following), known_followings)
 
     logging.info(
-f"Got {len(following)} followings, {len(new_followings)} of which are new")
+        f"Got {len(following)} followings, {len(new_followings)} of which are new",
+    )
 
     return new_followings
+
 
 async def get_all_reply_toots(
     server: str,
@@ -202,8 +219,11 @@ async def get_all_reply_toots(
     replies_since = datetime.now(UTC) - timedelta(hours=reply_interval_hours)
     all_replies = []
     for user_id in user_ids:
-        replies = await api_mastodon.Mastodon(server,
-            access_token, pgupdater).get_reply_posts_from_id(
+        replies = await api_mastodon.Mastodon(
+            server,
+            access_token,
+            pgupdater,
+        ).get_reply_posts_from_id(
             user_id,
             replies_since,
         )
@@ -232,16 +252,18 @@ async def get_all_known_context_urls(
         max_concurrent_tasks = 10
         semaphore = asyncio.Semaphore(max_concurrent_tasks)
         tasks = [
-            asyncio.ensure_future(post_content(
-                x[0][0],
-                x[0][1],
-                x[1],
-                external_tokens,
-                pgupdater,
-                home_server,
-                home_server_token,
-                semaphore,
-            ))
+            asyncio.ensure_future(
+                post_content(
+                    x[0][0],
+                    x[0][1],
+                    x[1],
+                    external_tokens,
+                    pgupdater,
+                    home_server,
+                    home_server_token,
+                    semaphore,
+                ),
+            )
             for x in toots_to_get_context_for
         ]
         futures = asyncio.gather(*tasks)
@@ -253,14 +275,16 @@ async def get_all_known_context_urls(
 
     return known_context_urls
 
-async def get_context_for_server(server : str,  # noqa: ARG001
-            external_tokens : dict[str, str],
-            pgupdater : PostgreSQLUpdater,
-            home_server : str,
-            home_server_token : str,
-            toots_to_get_context_for : list[tuple[tuple[str, str], str]],
-            semaphore : asyncio.Semaphore | None = None,
-            ) -> list[str]:
+
+async def get_context_for_server(
+    server: str,  # noqa: ARG001
+    external_tokens: dict[str, str],
+    pgupdater: PostgreSQLUpdater,
+    home_server: str,
+    home_server_token: str,
+    toots_to_get_context_for: list[tuple[tuple[str, str], str]],
+    semaphore: asyncio.Semaphore | None = None,
+) -> list[str]:
     """Get the context for the given toots from their original server."""
     if semaphore is None:
         semaphore = asyncio.Semaphore(1)
@@ -271,27 +295,28 @@ async def get_context_for_server(server : str,  # noqa: ARG001
             url = post[1]
             try:
                 context = await post_content(
-                        parsed_url[0],
-                        parsed_url[1],
-                        url,
-                        external_tokens,
-                        pgupdater,
-                        home_server,
-                        home_server_token,
-                    )
+                    parsed_url[0],
+                    parsed_url[1],
+                    url,
+                    external_tokens,
+                    pgupdater,
+                    home_server,
+                    home_server_token,
+                )
             except Exception as ex:
                 logging.error(f"Error getting context for toot {url} : {ex}")
-                logging.debug(
-                        f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
+                logging.debug(f"Debug info: {parsed_url[0]}, {parsed_url[1]}, {url}")
                 continue
             if context:
                 logging.info(f"Got {len(context)} context posts for {url}")
                 known_context_urls.extend(context)
         return known_context_urls
 
-def _get_context_url(toot : dict[str, str],
-                parsed_urls : dict[str, tuple[str | None, str | None]],
-                ) -> tuple | None:
+
+def _get_context_url(
+    toot: dict[str, str],
+    parsed_urls: dict[str, tuple[str | None, str | None]],
+) -> tuple | None:
     if toot is not None and toot_has_parseable_url(toot, parsed_urls):
         reblog = toot.get("reblog")
         if isinstance(reblog, str):
@@ -347,13 +372,17 @@ def get_all_replied_toot_server_ids(
     """
     return filter(
         lambda replied_to: replied_to is not None,
-        (get_replied_toot_server_id(
+        (
+            get_replied_toot_server_id(
                 server,
                 toot,
                 replied_toot_server_ids,
                 parsed_urls,
-            ) for toot in reply_toots),
+            )
+            for toot in reply_toots
+        ),
     )
+
 
 def get_replied_toot_server_id(  # noqa: PLR0911
     server: str,
@@ -382,14 +411,16 @@ def get_replied_toot_server_id(  # noqa: PLR0911
             logging.debug(f"Found {o_url} in replied toots dictionary as None")
             return (None, None)
         if isinstance(replied_toot_server_ids[o_url], str):
-            found_server, found_id = cast(
-                str, replied_toot_server_ids[o_url]).split(",")
+            found_server, found_id = cast(str, replied_toot_server_ids[o_url]).split(
+                ",",
+            )
             logging.debug(
-        f"Found {o_url} in replied toots dictionary as {found_server}, {found_id}")
+                f"Found {o_url} in replied toots dictionary as {found_server}, {found_id}",
+            )
             return (
                 found_server,
                 found_id,
-                    )
+            )
 
     url = get_redirect_url(o_url)
 
@@ -401,7 +432,8 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     if match:
         if match[0] is not None and match[1] is not None:
             logging.debug(
-                f"Added {url} to replied toots dictionary as {match[0]}, {match[1]}")
+                f"Added {url} to replied toots dictionary as {match[0]}, {match[1]}",
+            )
             replied_toot_server_ids[o_url] = f"{url},{match[0]},{match[1]}"
             return (match[0], match[1])
         logging.debug(f"Added {url} to replied toots dictionary as None")
@@ -413,7 +445,7 @@ def get_replied_toot_server_id(  # noqa: PLR0911
     return (None, None)
 
 
-def get_redirect_url(url : str) -> str | None:
+def get_redirect_url(url: str) -> str | None:
     """Get the URL given URL redirects to.
 
     Args:
@@ -426,9 +458,14 @@ def get_redirect_url(url : str) -> str | None:
         redirect.
     """
     try:
-        resp = requests.head(url, allow_redirects=False, timeout=5,headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
-        })
+        resp = requests.head(
+            url,
+            allow_redirects=False,
+            timeout=5,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
+            },
+        )
     except Exception as ex:
         logging.error(f"Error getting redirect URL for URL {url} Exception: {ex}")
         return None
@@ -444,13 +481,14 @@ def get_redirect_url(url : str) -> str | None:
     )
     return None
 
+
 async def get_all_context_urls(  # noqa: PLR0913
-        server: str,
-        replied_toot_ids: Iterable[tuple[str | None, str | None]],
-        external_tokens: dict[str, str],
-        pgupdater: PostgreSQLUpdater,
-        home_server: str,
-        home_server_token: str,
+    server: str,
+    replied_toot_ids: Iterable[tuple[str | None, str | None]],
+    external_tokens: dict[str, str],
+    pgupdater: PostgreSQLUpdater,
+    home_server: str,
+    home_server_token: str,
 ) -> Iterable[str]:
     """Get the URLs of the context toots of the given toots.
 
@@ -485,8 +523,7 @@ async def get_all_context_urls(  # noqa: PLR0913
     ___replied_toot_ids: dict[str, list[tuple[tuple[str, str], str]]] = {}
     for server in __replied_toot_ids:
         ___replied_toot_ids[server] = [
-            (toot, server)
-            for toot in __replied_toot_ids[server]
+            (toot, server) for toot in __replied_toot_ids[server]
         ]
 
     max_concurrent_tasks = 10
@@ -495,15 +532,17 @@ async def get_all_context_urls(  # noqa: PLR0913
     promises = []
     for server in __replied_toot_ids:
         promises.append(
-            asyncio.ensure_future(get_context_for_server(
-                server,
-                external_tokens,
-                pgupdater,
-                home_server,
-                home_server_token,
-                ___replied_toot_ids[server],
-                semaphore,
-            )),
+            asyncio.ensure_future(
+                get_context_for_server(
+                    server,
+                    external_tokens,
+                    pgupdater,
+                    home_server,
+                    home_server_token,
+                    ___replied_toot_ids[server],
+                    semaphore,
+                ),
+            ),
         )
     results = await asyncio.gather(*promises)
     for result in results:
@@ -511,16 +550,16 @@ async def get_all_context_urls(  # noqa: PLR0913
             context_urls.extend(result)
     # Filter out duplicate URLs and self-references
     return [
-        url for url in context_urls
+        url
+        for url in context_urls
         if not str(url).startswith(f"https://{server}/") and url != server
     ]
 
 
-
 def filter_known_users(
-        users : list[dict[str, str]],
-        known_users : OrderedSet,
-        ) -> list[dict[str, str]]:
+    users: list[dict[str, str]],
+    known_users: OrderedSet,
+) -> list[dict[str, str]]:
     """Filter out users that are already known.
 
     Args:
@@ -532,10 +571,13 @@ def filter_known_users(
     -------
     list[dict[str, str]]: The users that are not already known.
     """
-    return list(filter(
-        lambda user: user["acct"] not in known_users,
-        users,
-    ))
+    return list(
+        filter(
+            lambda user: user["acct"] not in known_users,
+            users,
+        ),
+    )
+
 
 def toot_has_parseable_url(
     toot: dict[str, Any],

@@ -14,13 +14,13 @@ if TYPE_CHECKING:
 
 
 async def add_post_with_context(
-        post : dict[str, str],
-        home_server : str,
-        access_token : str,
-        external_tokens : dict[str, str],
-        pgupdater : PostgreSQLUpdater,
-        arguments : Namespace,
-        ) -> bool:
+    post: dict[str, str],
+    home_server: str,
+    access_token: str,
+    external_tokens: dict[str, str],
+    pgupdater: PostgreSQLUpdater,
+    arguments: Namespace,
+) -> bool:
     """Add the given post to the server.
 
     Args:
@@ -37,29 +37,46 @@ async def add_post_with_context(
     bool: True if the post was added successfully, False otherwise.
     """
     added = await api_mastodon.Mastodon(
-        home_server, access_token, pgupdater).add_context_url(post["url"])
+        home_server,
+        access_token,
+        pgupdater,
+    ).add_context_url(post["url"])
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
-                arguments, "backfill_with_context", 0) > 0:
-            parsed_urls : dict[str, tuple[str | None, str | None]] = {}
+            arguments,
+            "backfill_with_context",
+            0,
+        ) > 0:
+            parsed_urls: dict[str, tuple[str | None, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is not None and parsed[0] is not None:
-                known_context_urls = \
-                    await getter_wrappers.get_all_known_context_urls(
-                    home_server, [post], parsed_urls, external_tokens, pgupdater,
-                    access_token)
-                (await add_context_urls_wrapper(
-                    home_server, access_token, known_context_urls, pgupdater))
+                known_context_urls = await getter_wrappers.get_all_known_context_urls(
+                    home_server,
+                    [post],
+                    parsed_urls,
+                    external_tokens,
+                    pgupdater,
+                    access_token,
+                )
+                (
+                    await add_context_urls_wrapper(
+                        home_server,
+                        access_token,
+                        known_context_urls,
+                        pgupdater,
+                    )
+                )
         return True
 
     return False
 
+
 async def add_context_urls_wrapper(
-        home_server : str,
-        access_token : str,
-        context_urls : Iterable[str],
-        pgupdater : PostgreSQLUpdater,
-        ) -> None:
+    home_server: str,
+    access_token: str,
+    context_urls: Iterable[str],
+    pgupdater: PostgreSQLUpdater,
+) -> None:
     """Add the given toot URLs to the server.
 
     Args:
@@ -77,8 +94,9 @@ async def add_context_urls_wrapper(
     failed = 0
     already_added = 0
     posts_to_fetch = []
-    cached_posts: dict[str, Status | None] = \
-        pgupdater.get_dict_from_cache(list_of_context_urls)
+    cached_posts: dict[str, Status | None] = pgupdater.get_dict_from_cache(
+        list_of_context_urls,
+    )
     logging.debug(f"Got {len(cached_posts)} cached posts")
     for url in list_of_context_urls:
         logging.debug(f"Checking {url}")
@@ -103,7 +121,10 @@ async def add_context_urls_wrapper(
             logging.debug(f"Adding {url} to home server")
             tasks.append(
                 api_mastodon.Mastodon(
-                home_server, access_token, pgupdater).add_context_url(url, semaphore),
+                    home_server,
+                    access_token,
+                    pgupdater,
+                ).add_context_url(url, semaphore),
             )
         futures = await asyncio.gather(*tasks)
         for result in futures:
@@ -115,5 +136,7 @@ async def add_context_urls_wrapper(
                 failed += 1
                 logging.warning(f"Failed {result}")
 
-    logging.info(f"\033[1mAdded {count} new statuses (with {failed} failures, \
-{already_added} already seen)\033[0m")
+    logging.info(
+        f"\033[1mAdded {count} new statuses (with {failed} failures, \
+{already_added} already seen)\033[0m",
+    )

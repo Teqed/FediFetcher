@@ -30,6 +30,7 @@ class API(metaclass=ABCMeta):
         """Get the context of an object by URI."""
         raise NotImplementedError
 
+
 class FederationInterface:
     """Interface for dependency injection of different federation APIs."""
 
@@ -54,4 +55,3 @@ class FederationInterface:
     def get_context(self, uri: str) -> Coroutine[Any, Any, list[str]]:
         """Get the context of an object by URI."""
         return self._equipped_api.get_context(uri)
-

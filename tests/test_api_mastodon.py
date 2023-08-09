@@ -6,7 +6,8 @@ import pytest
 
 from fedifetcher.api.mastodon.api_mastodon import Mastodon
 
-pytest_plugins = ('pytest_asyncio',)  # noqa: Q000
+pytest_plugins = ("pytest_asyncio",)
+
 
 class TestMastodon:
     """Test the Mastodon class."""
@@ -64,37 +65,37 @@ class TestMastodon:
             "last_status_at": "2023-08-03",
             "noindex": False,
             "emojis": [
-            {
-                "shortcode": "verified_animate",
-                "url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/576/original/2fa90b024d54a0f0.gif",
-                "static_url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/576/static/2fa90b024d54a0f0.png",
-                "visible_in_picker": True,
-            },
-            {
-                "shortcode": "party_github",
-                "url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/786/original/ef6ea29e513ccd2d.gif",
-                "static_url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/786/static/ef6ea29e513ccd2d.png",
-                "visible_in_picker": True,
-            },
+                {
+                    "shortcode": "verified_animate",
+                    "url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/576/original/2fa90b024d54a0f0.gif",
+                    "static_url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/576/static/2fa90b024d54a0f0.png",
+                    "visible_in_picker": True,
+                },
+                {
+                    "shortcode": "party_github",
+                    "url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/786/original/ef6ea29e513ccd2d.gif",
+                    "static_url": "https://mastodon.shatteredsky.net/system/custom_emojis/images/000/029/786/static/ef6ea29e513ccd2d.png",
+                    "visible_in_picker": True,
+                },
             ],
             "roles": [
-            {
-                "id": "3",
-                "name": "Owner",
-                "color": "",
-            },
+                {
+                    "id": "3",
+                    "name": "Owner",
+                    "color": "",
+                },
             ],
             "fields": [
-            {
-                "name": ":verified_animate: Home",
-                "value": '<a href="https://shatteredsky.net" target="_blank" rel="nofollow noopener noreferrer me" translate="no"><span class="invisible">https://</span><span class="">shatteredsky.net</span><span class="invisible"></span></a>',
-                "verified_at": "2023-07-02T20:56:08.588+00:00",
-            },
-            {
-                "name": ":party_github:\u200b GitHub",
-                "value": '<a href="https://github.com/Teqed" target="_blank" rel="nofollow noopener noreferrer me" translate="no"><span class="invisible">https://</span><span class="">github.com/Teqed</span><span class="invisible"></span></a>',
-                "verified_at": "2023-07-02T20:56:09.155+00:00",
-            },
+                {
+                    "name": ":verified_animate: Home",
+                    "value": '<a href="https://shatteredsky.net" target="_blank" rel="nofollow noopener noreferrer me" translate="no"><span class="invisible">https://</span><span class="">shatteredsky.net</span><span class="invisible"></span></a>',
+                    "verified_at": "2023-07-02T20:56:08.588+00:00",
+                },
+                {
+                    "name": ":party_github:\u200b GitHub",
+                    "value": '<a href="https://github.com/Teqed" target="_blank" rel="nofollow noopener noreferrer me" translate="no"><span class="invisible">https://</span><span class="">github.com/Teqed</span><span class="invisible"></span></a>',
+                    "verified_at": "2023-07-02T20:56:09.155+00:00",
+                },
             ],
         },
         "media_attachments": [],
@@ -104,22 +105,24 @@ class TestMastodon:
         "reactions": [],
         "card": None,
         "poll": None,
-        }
+    }
 
     async def test_init(self) -> None:
         """Test the __init__ method."""
         # Test a successful __init__
         assert isinstance(self.mastodon, Mastodon)
 
-    async def test_add_context_url_success(self)-> None:
+    async def test_add_context_url_success(self) -> None:
         """Test the add_context_url method."""
         # Test a successful add_context_url
         search_mock: dict[str, list[dict[str, Any]]] = {"statuses": [self.status_mock]}
         self.mastodon.client.get = AsyncMock(return_value=search_mock)
-        result = await self.mastodon.get("https://mastodon.shatteredsky.net/users/teq/statuses/109612104811129202")
+        result = await self.mastodon.get(
+            "https://mastodon.shatteredsky.net/users/teq/statuses/109612104811129202",
+        )
         assert result == self.status_mock
 
-    async def test_add_context_url_failed(self)-> None:
+    async def test_add_context_url_failed(self) -> None:
         """Test the add_context_url method."""
         self.mastodon.client.get = AsyncMock(return_value=False)
         result = await self.mastodon.get("url")
@@ -129,7 +132,8 @@ class TestMastodon:
         """Test the get_home_status_id_from_url method."""
         self.mastodon.client.pgupdater = MagicMock()
         self.mastodon.client.pgupdater.get_from_cache = MagicMock(
-            return_value={"id": "123456"})
+            return_value={"id": "123456"},
+        )
         self.mastodon.get = AsyncMock(return_value={"id": "123456"})
         expected_result = "123456"
         result = await self.mastodon.get_id("url")
@@ -148,7 +152,8 @@ class TestMastodon:
         """Test the get_home_status_id_from_url_list method."""
         self.mastodon.client.pgupdater = MagicMock()
         self.mastodon.client.pgupdater.get_dict_from_cache = MagicMock(
-            return_value={"url": {"id": "123456"}})
+            return_value={"url": {"id": "123456"}},
+        )
         self.mastodon.get = AsyncMock(return_value={"id": "123456"})
         expected_result = {"url": "123456"}
         result = await self.mastodon.get_ids_from_list(["url"])
@@ -156,16 +161,18 @@ class TestMastodon:
 
     async def test_get_toot_context(self) -> None:
         """Test the get_toot_context method."""
-        if False: # TODO: Fix this test
+        if False:  # TODO: Fix this test
             self.mastodon.client.pgupdater = MagicMock()
             self.mastodon.client.pgupdater.queue_status_update = MagicMock()
             self.mastodon.client.pgupdater.commit_status_updates = MagicMock()
-            self.mastodon.get_ids_from_list = AsyncMock(
-                return_value={"url": "123456"})
+            self.mastodon.get_ids_from_list = AsyncMock(return_value={"url": "123456"})
             mastodon = MagicMock()
             mastodon.status_context = AsyncMock(
                 return_value={
-                    "ancestors": [{"url": "https://example.com"}], "descendants": []})
+                    "ancestors": [{"url": "https://example.com"}],
+                    "descendants": [],
+                },
+            )
             expected_result = ["https://example.com"]
             result = await self.mastodon.get_context(
                 "123456",

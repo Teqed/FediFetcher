@@ -41,7 +41,7 @@ class TestParsers:
         def test_invalid(self) -> None:
             """Test an invalid user URL."""
             url = "https://example.com"
-            expected_result = (None)
+            expected_result = None
             result = user(url)
             assert result == expected_result
 

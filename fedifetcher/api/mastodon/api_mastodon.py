@@ -17,17 +17,20 @@ from fedifetcher.api.postgresql import PostgreSQLUpdater
 class Mastodon(API):
     """A class representing a Mastodon instance."""
 
-    clients : ClassVar[dict[str, HttpMethod]] = {}
-    def __init__(self,
+    clients: ClassVar[dict[str, HttpMethod]] = {}
+
+    def __init__(
+        self,
         server: str,
         token: str | None = None,
         pgupdater: PostgreSQLUpdater | None = None,
-        ) -> None:
+    ) -> None:
         """Initialize the Mastodon instance."""
-        if server not in Mastodon.clients or (
-            token is not None and Mastodon.clients[server].token is None) or (
-            pgupdater is not None and Mastodon.clients[server].pgupdater is None
-            ):
+        if (
+            server not in Mastodon.clients
+            or (token is not None and Mastodon.clients[server].token is None)
+            or (pgupdater is not None and Mastodon.clients[server].pgupdater is None)
+        ):
             msg = f"Creating Mastodon client for {server}"
             logging.info(f"\033[1;33m{msg}\033[0m")
             if token:
@@ -36,8 +39,9 @@ class Mastodon(API):
             client = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=60),
                 headers={
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
-            })
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 +https://github.com/Teqed Meowstodon/1.0.0",  # noqa: E501
+                },
+            )
 
             Mastodon.clients[server] = HttpMethod(
                 api_base_url=server,
@@ -48,9 +52,9 @@ class Mastodon(API):
         self.client = Mastodon.clients[server]
 
     async def get_user_id(
-            self,
-            user : str,
-            ) -> str | None:
+        self,
+        user: str,
+    ) -> str | None:
         """Get the user id from the server using a username.
 
         This function retrieves the user id from the server by \
@@ -65,15 +69,14 @@ class Mastodon(API):
         str | None: The user id if found, or None if the user is not found.
         """
         account_search = await self.account_lookup(
-            acct = f"{user}",
+            acct=f"{user}",
         )
-        if account_search and \
-                account_search.get("username") == user:
+        if account_search and account_search.get("username") == user:
             return account_search["id"]
         return None
 
     async def get_home_timeline(
-            self,
+        self,
         limit: int = 40,
     ) -> list[dict[str, str]]:
         """Get all posts in the user's home timeline.
@@ -97,14 +100,17 @@ class Mastodon(API):
         """
         timeline_toots_dict = await self.timelines_home(limit=limit)
         if not timeline_toots_dict or (
-                timeline_toots := timeline_toots_dict.get("list")):
+            timeline_toots := timeline_toots_dict.get("list")
+        ):
             return []
-        toots = cast(list[dict[str, str]], (
-            timeline_toots))
+        toots = cast(list[dict[str, str]], (timeline_toots))
         toots_result = toots.copy()
         number_of_toots_received = len(toots)
-        while isinstance(toots, dict) and number_of_toots_received < limit and \
-                timeline_toots_dict.get("_pagination_next"):
+        while (
+            isinstance(toots, dict)
+            and number_of_toots_received < limit
+            and timeline_toots_dict.get("_pagination_next")
+        ):
             toots_dict = await self.fetch_next(toots)
             if not toots_dict or not (toots := toots_dict.get("list")):
                 break
@@ -188,9 +194,9 @@ class Mastodon(API):
         return None
 
     async def get_user_posts_from_id(
-            self,
-            user_id : str,
-            ) -> list[dict[str, str]] | None:
+        self,
+        user_id: str,
+    ) -> list[dict[str, str]] | None:
         """Get a list of posts from a user.
 
         Args:
@@ -212,9 +218,9 @@ class Mastodon(API):
         """
         logging.info(f"Getting posts for user {user_id} on {self.client.api_base_url}")
         return await self.account_statuses(
-                        account_id = user_id,
-                        limit = 40,
-                        )
+            account_id=user_id,
+            limit=40,
+        )
 
     async def get_reply_posts_from_id(
         self,
@@ -246,8 +252,10 @@ class Mastodon(API):
                     for toot in all_statuses
                     if toot["in_reply_to_id"]
                     and datetime.strptime(
-                        toot["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ",
-                    ).replace(tzinfo=UTC) > reply_since \
+                        toot["created_at"],
+                        "%Y-%m-%dT%H:%M:%S.%fZ",
+                    ).replace(tzinfo=UTC)
+                    > reply_since
                     and self.client.pgupdater.get_from_cache(toot["url"]) is None
                 ]
         except Exception:
@@ -256,12 +264,12 @@ class Mastodon(API):
         return None
 
     async def get_toot_context(
-            self,
-            toot_id: str,
-            home_server: str,
-            home_token: str,
-            _pgupdater: PostgreSQLUpdater,
-            ) -> list[str]:
+        self,
+        toot_id: str,
+        home_server: str,
+        home_token: str,
+        _pgupdater: PostgreSQLUpdater,
+    ) -> list[str]:
         """Get the URLs of the context toots of the given toot asynchronously."""
         if not _pgupdater:
             return []
@@ -276,15 +284,19 @@ class Mastodon(API):
         # Sort by server
         context_statuses.sort(key=lambda status: status["url"].split("/")[2])
         context_statuses_url_list = [status["url"] for status in context_statuses]
-        home_status_list: dict[str, str] = \
-            await Mastodon(home_server, home_token, _pgupdater,
-                    ).get_home_status_id_from_url_list(context_statuses_url_list)
+        home_status_list: dict[str, str] = await Mastodon(
+            home_server,
+            home_token,
+            _pgupdater,
+        ).get_home_status_id_from_url_list(context_statuses_url_list)
         for status in context_statuses:
             home_status_id = home_status_list.get(status["url"])
             if home_status_id:
                 _pgupdater.queue_status_update(
                     home_status_id,
-                    status.get("reblogs_count"), status.get("favourites_count"))
+                    status.get("reblogs_count"),
+                    status.get("favourites_count"),
+                )
         # Commit status updates
         _pgupdater.commit_status_updates()
         return [status["url"] for status in context_statuses]
@@ -322,17 +334,21 @@ class Mastodon(API):
             exclude_types=exclude_types,
             account_id=account_id,
         )
-        if not notifications_dict or \
-                not (notifications := notifications_dict.get("list")):
+        if not notifications_dict or not (
+            notifications := notifications_dict.get("list")
+        ):
             return []
         number_of_notifications_received = len(notifications)
         notifications_result = notifications.copy()
-        while notifications \
-                and number_of_notifications_received < limit \
-                    and notifications_dict.get("_pagination_next"):
+        while (
+            notifications
+            and number_of_notifications_received < limit
+            and notifications_dict.get("_pagination_next")
+        ):
             more_notifications_dict = await self.fetch_next(notifications_dict)
-            if not more_notifications_dict or \
-                    not (more_notifications := more_notifications_dict.get("list")):
+            if not more_notifications_dict or not (
+                more_notifications := more_notifications_dict.get("list")
+            ):
                 break
             number_of_notifications_received += len(more_notifications)
             notifications_result.extend(more_notifications)
@@ -359,12 +375,15 @@ class Mastodon(API):
             return []
         number_of_bookmarks_received = len(bookmarks)
         bookmarks_result = bookmarks.copy()
-        while bookmarks \
-                and number_of_bookmarks_received < limit \
-                    and bookmarks_dict.get("_pagination_next"):
+        while (
+            bookmarks
+            and number_of_bookmarks_received < limit
+            and bookmarks_dict.get("_pagination_next")
+        ):
             more_bookmarks_dict = await self.fetch_next(bookmarks_dict)
-            if not more_bookmarks_dict or \
-                    not (more_bookmarks := more_bookmarks_dict.get("list")):
+            if not more_bookmarks_dict or not (
+                more_bookmarks := more_bookmarks_dict.get("list")
+            ):
                 break
             number_of_bookmarks_received += len(more_bookmarks)
             bookmarks_result.extend(more_bookmarks)
@@ -392,11 +411,13 @@ class Mastodon(API):
         number_of_favourites_received = len(favourites)
         favourites_result = favourites.copy()
         if favourites and favourites_dict:
-            while number_of_favourites_received < limit \
-                    and favourites_dict.get("_pagination_next"):
+            while number_of_favourites_received < limit and favourites_dict.get(
+                "_pagination_next",
+            ):
                 more_favourites_dict = await self.fetch_next(favourites_dict)
-                if not more_favourites_dict or \
-                        not (more_favourites := more_favourites_dict.get("list")):
+                if not more_favourites_dict or not (
+                    more_favourites := more_favourites_dict.get("list")
+                ):
                     break
                 number_of_favourites_received += len(more_favourites)
                 favourites_result.extend(more_favourites)
@@ -419,14 +440,17 @@ class Mastodon(API):
         list[dict[str, str]]: A list of follow requests, or [] if the request fails.
         """
         follow_requests_dict = await self.follow_requests(limit=limit)
-        if not follow_requests_dict or \
-                not (follow_requests := follow_requests_dict.get("list")):
+        if not follow_requests_dict or not (
+            follow_requests := follow_requests_dict.get("list")
+        ):
             return []
         number_of_follow_requests_received = len(follow_requests)
         follow_requests_result = follow_requests.copy()
-        while follow_requests \
-                and number_of_follow_requests_received < limit \
-                    and follow_requests_dict.get("_pagination_next"):
+        while (
+            follow_requests
+            and number_of_follow_requests_received < limit
+            and follow_requests_dict.get("_pagination_next")
+        ):
             more_follow_requests = await self.fetch_next(follow_requests_dict)
             if not more_follow_requests:
                 break
@@ -457,12 +481,15 @@ class Mastodon(API):
             return []
         number_of_followers_received = len(followers)
         followers_result = followers.copy()
-        while followers \
-                and number_of_followers_received < limit \
-                    and followers_dict.get("_pagination_next"):
+        while (
+            followers
+            and number_of_followers_received < limit
+            and followers_dict.get("_pagination_next")
+        ):
             more_followers_dict = await self.fetch_next(followers_dict)
-            if not more_followers_dict or \
-                    not (more_followers := more_followers_dict.get("list")):
+            if not more_followers_dict or not (
+                more_followers := more_followers_dict.get("list")
+            ):
                 break
             number_of_followers_received += len(more_followers)
             followers_result.extend(more_followers)
@@ -491,22 +518,25 @@ class Mastodon(API):
             return []
         number_of_following_received = len(following)
         following_result = following.copy()
-        while following \
-                and number_of_following_received < limit \
-                    and following_dict.get("_pagination_next"):
+        while (
+            following
+            and number_of_following_received < limit
+            and following_dict.get("_pagination_next")
+        ):
             more_following_dict = await self.fetch_next(following_dict)
-            if not more_following_dict or \
-                    not (more_following := more_following_dict.get("list")):
+            if not more_following_dict or not (
+                more_following := more_following_dict.get("list")
+            ):
                 break
             number_of_following_received += len(more_following)
             following_result.extend(more_following)
         return cast(list[dict[str, str]], following_result)
 
     async def add_context_url(
-            self,
-            url : str,
-            semaphore: asyncio.Semaphore | None = None,
-            ) -> Status | bool:
+        self,
+        url: str,
+        semaphore: asyncio.Semaphore | None = None,
+    ) -> Status | bool:
         """Add the given toot URL to the server.
 
         Args:
@@ -528,12 +558,13 @@ class Mastodon(API):
                 return False
             try:
                 result = await self.search_v2(
-                    q = url,
-                    resolve = True,
+                    q=url,
+                    resolve=True,
                 )
             except Exception:
                 logging.exception(
-                    f"Error adding context url {url} to {self.client.api_base_url}")
+                    f"Error adding context url {url} to {self.client.api_base_url}",
+                )
                 return False
             if result and (statuses := result.get("statuses")):
                 for _status in statuses:
@@ -551,13 +582,14 @@ class Mastodon(API):
                 )
                 return False
             logging.debug(
-                f"Could not find status for {url} on {self.client.api_base_url}")
+                f"Could not find status for {url} on {self.client.api_base_url}",
+            )
             return False
 
     async def get_trending_posts(
-            self,
-            limit : int = 40,
-            ) -> list[dict[str, str]]:
+        self,
+        limit: int = 40,
+    ) -> list[dict[str, str]]:
         """Get a list of trending posts.
 
         Args:
@@ -572,14 +604,18 @@ class Mastodon(API):
         list[dict[str, str]]: A list of trending posts, or [] if the \
             request fails.
         """
+
         async def _get_trending_posts(
-                offset: int = 0,
+            offset: int = 0,
         ) -> list[dict[str, str]]:
             """Get a page of trending posts and return it."""
             getting_trending_posts_dict = await self.trending_statuses(
-                                                limit=40, offset=offset)
+                limit=40,
+                offset=offset,
+            )
             if not getting_trending_posts_dict or not (
-                    getting_trending_posts := getting_trending_posts_dict.get("list")):
+                getting_trending_posts := getting_trending_posts_dict.get("list")
+            ):
                 return []
             return cast(list[dict[str, str]], getting_trending_posts)
 
@@ -590,37 +626,44 @@ class Mastodon(API):
             got_trending_posts = await _get_trending_posts(0)
         except Exception:
             logging.exception(
-                f"Error getting trending posts for {self.client.api_base_url}")
+                f"Error getting trending posts for {self.client.api_base_url}",
+            )
             return []
         logging.info(
-        f"Got {len(got_trending_posts)} trending posts for {self.client.api_base_url}")
+            f"Got {len(got_trending_posts)} trending posts for \
+                {self.client.api_base_url}",
+        )
         trending_posts: list[dict[str, str]] = []
         trending_posts.extend(got_trending_posts)
         a_page = 40
         if limit > a_page and len(got_trending_posts) == a_page:
             while len(trending_posts) < limit:
                 try:
-                    got_trending_posts = await _get_trending_posts(
-                                                        len(trending_posts))
+                    got_trending_posts = await _get_trending_posts(len(trending_posts))
                 except Exception:
                     logging.exception(
-                        f"Error getting trending posts for {self.client.api_base_url}")
+                        f"Error getting trending posts for {self.client.api_base_url}",
+                    )
                     break
                 old_length = len(trending_posts)
                 trending_posts.extend(got_trending_posts)
                 new_length = len(trending_posts)
                 logging.info(
-                f"Got {new_length} trending posts for {self.client.api_base_url} ...")
+                    f"Got {new_length} trending posts for "
+                    f"{self.client.api_base_url} ...",
+                )
                 if (len(got_trending_posts) < a_page) or (old_length == new_length):
                     break
 
         logging.info(
-    f"Found {len(trending_posts)} trending posts total for {self.client.api_base_url}")
+            f"Found {len(trending_posts)} trending posts total for "
+            f"{self.client.api_base_url}",
+        )
         return trending_posts
 
     async def get_home_status_id_from_url(
-            self,
-            url: str,
+        self,
+        url: str,
     ) -> str | None:
         """Get the status id from a toot URL asynchronously.
 
@@ -652,21 +695,25 @@ class Mastodon(API):
                 status = self.client.pgupdater.get_from_cache(url)
                 status_id = status.get("id") if status else None
                 logging.info(
-                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
+                    f"Got status id {status_id} for {url} from "
+                    f"{self.client.api_base_url}",
+                )
                 return str(status_id)
             logging.error(
-            f"Something went wrong fetching: {url} from {self.client.api_base_url} , \
-did not match {result.get('url')}")
+                f"Something went wrong fetching: {url} from "
+                f"{self.client.api_base_url} , did not match {result.get('url')}",
+            )
             logging.debug(result)
         elif result is False:
             logging.warning(
-                f"Failed to get status id for {url} on {self.client.api_base_url}")
+                f"Failed to get status id for {url} on {self.client.api_base_url}",
+            )
         logging.error(f"Status id for {url} not found")
         return None
 
     async def get_home_status_id_from_url_list(
-            self,
-            urls: list[str],
+        self,
+        urls: list[str],
     ) -> dict[str, str]:
         """Get the status ids from a list of toot URLs asynchronously.
 
@@ -685,11 +732,13 @@ did not match {result.get('url')}")
         if not self.client.pgupdater:
             return {}
         status_ids = {}
-        cached_statuses: dict[str, Status | None] = \
-            self.client.pgupdater.get_dict_from_cache(urls)
+        cached_statuses: dict[
+            str,
+            Status | None,
+        ] = self.client.pgupdater.get_dict_from_cache(urls)
         max_concurrent_tasks = 10
         semaphore = asyncio.Semaphore(max_concurrent_tasks)
-        promises : list[tuple[str, asyncio.Task[Status | bool]]] = []
+        promises: list[tuple[str, asyncio.Task[Status | bool]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
             if cached_status:
@@ -699,8 +748,9 @@ did not match {result.get('url')}")
                     continue
             msg = f"Fetching status id for {url} from {self.client.api_base_url}"
             logging.info(f"\033[1;33m{msg}\033[0m")
-            promises.append((url, asyncio.ensure_future(
-                self.add_context_url(url, semaphore))))
+            promises.append(
+                (url, asyncio.ensure_future(self.add_context_url(url, semaphore))),
+            )
         await asyncio.gather(*[promise for _, promise in promises])
         for url, task in promises:
             _result = task.result()
@@ -711,23 +761,27 @@ did not match {result.get('url')}")
                     status_id = status.get("id") if status else None
                     status_ids[url] = status_id
                     logging.info(
-                f"Got status id {status_id} for {url} from {self.client.api_base_url}")
+                        f"Got status id {status_id} for {url} from "
+                        f"{self.client.api_base_url}",
+                    )
                     continue
                 logging.error(
-            f"Something went wrong fetching: {url} from {self.client.api_base_url} , \
-did not match {_result.get('url')}")
+                    f"Something went wrong fetching: {url} from "
+                    f"{self.client.api_base_url} , did not match {_result.get('url')}",
+                )
                 logging.debug(_result)
             elif _result is False:
                 logging.warning(
-                f"Failed to get status id for {url} on {self.client.api_base_url}")
+                    f"Failed to get status id for {url} on {self.client.api_base_url}",
+                )
             logging.error(f"Status id for {url} not found")
         return status_ids
 
     def get_status_by_id(
-            self,
-            status_id : str,
-            semaphore: asyncio.Semaphore | None = None,
-            ) -> Coroutine[Any, Any, dict[str, Any] | Status]:
+        self,
+        status_id: str,
+        semaphore: asyncio.Semaphore | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any] | Status]:
         """Get the status from a toot URL.
 
         Args:
@@ -742,10 +796,10 @@ did not match {_result.get('url')}")
         return self.status(status_id, semaphore=semaphore)
 
     def status(
-            self,
-            status_id: str,
-            semaphore: asyncio.Semaphore | None = None,
-        ) -> Coroutine[Any, Any, dict[str, Any] | Status | None]:
+        self,
+        status_id: str,
+        semaphore: asyncio.Semaphore | None = None,
+    ) -> Coroutine[Any, Any, dict[str, Any] | Status | None]:
         """Obtain information about a status.
 
         Reference: https://docs.joinmastodon.org/methods/statuses/#get
@@ -753,8 +807,8 @@ did not match {_result.get('url')}")
         return self.client.get(f"/api/v1/statuses/{status_id}", semaphore=semaphore)
 
     def status_context(
-            self,
-            status_id: str,
+        self,
+        status_id: str,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """View statuses above and below this status in the thread.
 
@@ -763,8 +817,8 @@ did not match {_result.get('url')}")
         return self.client.get(f"/api/v1/statuses/{status_id}/context")
 
     def account_lookup(
-            self,
-            acct: str,
+        self,
+        acct: str,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Quickly lookup a username to see if it is available.
 
@@ -775,17 +829,17 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/accounts/lookup", params={"acct": acct})
 
     async def account_statuses(
-            self,
-            account_id: str,
-            only_media: bool = False,
-            pinned: bool = False,
-            exclude_replies: bool = False,
-            exclude_reblogs: bool = False,
-            tagged: str | None = None,
-            max_id: str | None = None,
-            min_id: str | None = None,
-            since_id: str | None = None,
-            limit: int | None = None,
+        self,
+        account_id: str,
+        only_media: bool = False,
+        pinned: bool = False,
+        exclude_replies: bool = False,
+        exclude_reblogs: bool = False,
+        tagged: str | None = None,
+        max_id: str | None = None,
+        min_id: str | None = None,
+        since_id: str | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Statuses posted to the given account.
 
@@ -812,7 +866,9 @@ did not match {_result.get('url')}")
             params["limit"] = limit
 
         status_json = await self.client.get(
-            f"/api/v1/accounts/{account_id}/statuses", params=params)
+            f"/api/v1/accounts/{account_id}/statuses",
+            params=params,
+        )
         if not status_json:
             return []
         status_list = status_json.get("list")
@@ -830,15 +886,15 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/accounts/verify_credentials")
 
     def notifications(  # noqa: PLR0913
-            self,
-            notification_id : str | None = None,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            min_id: str | None = None,
-            limit: int | None = None,
-            types: list[str] | None = None,
-            exclude_types: list[str] | None = None,
-            account_id: str | None = None,
+        self,
+        notification_id: str | None = None,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        min_id: str | None = None,
+        limit: int | None = None,
+        types: list[str] | None = None,
+        exclude_types: list[str] | None = None,
+        account_id: str | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Notifications concerning the user.
 
@@ -860,17 +916,15 @@ did not match {_result.get('url')}")
         if account_id:
             params["account_id"] = account_id
         if notification_id:
-            return self.client.get(
-                f"/api/v1/notifications/{notification_id}")
-        return self.client.get(
-            "/api/v1/notifications", params=params)
+            return self.client.get(f"/api/v1/notifications/{notification_id}")
+        return self.client.get("/api/v1/notifications", params=params)
 
     def bookmarks(
-            self,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            min_id: str | None = None,
-            limit: int | None = None,
+        self,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        min_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Statuses the user has bookmarked.
 
@@ -888,11 +942,11 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/bookmarks", params=params)
 
     def favourites(
-            self,
-            max_id: str | None = None,
-            min_id: str | None = None,
-            since_id: str | None = None,
-            limit: int | None = None,
+        self,
+        max_id: str | None = None,
+        min_id: str | None = None,
+        since_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Statuses the user has favourited.
 
@@ -910,10 +964,10 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/favourites", params=params)
 
     def follow_requests(
-            self,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            limit: int | None = None,
+        self,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Follow requests the user has received.
 
@@ -929,17 +983,17 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/follow_requests", params=params)
 
     def search_v2(  # noqa: PLR0913
-            self,
-            q: str,
-            search_type: str | None = None,
-            resolve: bool = False,
-            following: bool = False,
-            account_id: str | None = None,
-            exclude_unreviewed: bool = False,
-            max_id: str | None = None,
-            min_id: str | None = None,
-            limit: int | None = None,
-            offset: int | None = None,
+        self,
+        q: str,
+        search_type: str | None = None,
+        resolve: bool = False,
+        following: bool = False,
+        account_id: str | None = None,
+        exclude_unreviewed: bool = False,
+        max_id: str | None = None,
+        min_id: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Perform a search.
 
@@ -967,21 +1021,21 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v2/search", params=params)
 
     def admin_accounts_v2(
-            self,
-            origin: str | None = None,
-            status: str | None = None,
-            permissions: str | None = None,
-            role_ids: list[str] | None = None,
-            invited_by: str | None = None,
-            username: str | None = None,
-            display_name: str | None = None,
-            by_domain: str | None = None,
-            email: str | None = None,
-            ip: str | None = None,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            min_id: str | None = None,
-            limit: int | None = None,
+        self,
+        origin: str | None = None,
+        status: str | None = None,
+        permissions: str | None = None,
+        role_ids: list[str] | None = None,
+        invited_by: str | None = None,
+        username: str | None = None,
+        display_name: str | None = None,
+        by_domain: str | None = None,
+        email: str | None = None,
+        ip: str | None = None,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        min_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """View all accounts.
 
@@ -1022,8 +1076,10 @@ did not match {_result.get('url')}")
             params["limit"] = limit
         return self.client.get("/api/v2/admin/accounts", params=params)
 
-    def fetch_next(self, previous_page: dict[str, Any],
-        ) -> Coroutine[Any, Any, dict[str, Any] | None]:
+    def fetch_next(
+        self,
+        previous_page: dict[str, Any],
+    ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Fetch the next page of results.
 
         Reference: https://docs.joinmastodon.org/api/guidelines/#pagination
@@ -1031,11 +1087,11 @@ did not match {_result.get('url')}")
         return self.client.get(previous_page["_pagination_next"])
 
     def account_followers(
-            self,
-            account_id: str,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            limit: int | None = None,
+        self,
+        account_id: str,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Accounts which follow the given account.
 
@@ -1051,14 +1107,16 @@ did not match {_result.get('url')}")
         if limit:
             params["limit"] = limit
         return self.client.get(
-            f"/api/v1/accounts/{account_id}/followers", params=params)
+            f"/api/v1/accounts/{account_id}/followers",
+            params=params,
+        )
 
     def account_following(
-            self,
-            account_id: str,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            limit: int | None = None,
+        self,
+        account_id: str,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Accounts which the given account is following.
 
@@ -1074,12 +1132,14 @@ did not match {_result.get('url')}")
         if limit:
             params["limit"] = limit
         return self.client.get(
-            f"/api/v1/accounts/{account_id}/following", params=params)
+            f"/api/v1/accounts/{account_id}/following",
+            params=params,
+        )
 
     def trending_statuses(
-            self,
-            limit: int | None = None,
-            offset: int | None = None,
+        self,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Get trending statuses.
 
@@ -1093,11 +1153,11 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/trends/statuses", params=params)
 
     def timelines_home(
-            self,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            min_id: str | None = None,
-            limit: int | None = None,
+        self,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        min_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Home timeline.
 
@@ -1115,14 +1175,14 @@ did not match {_result.get('url')}")
         return self.client.get("/api/v1/timelines/home", params=params)
 
     def timelines_public(
-            self,
-            local: bool = False,
-            remote: bool = False,
-            only_media: bool = False,
-            max_id: str | None = None,
-            since_id: str | None = None,
-            min_id: str | None = None,
-            limit: int | None = None,
+        self,
+        local: bool = False,
+        remote: bool = False,
+        only_media: bool = False,
+        max_id: str | None = None,
+        since_id: str | None = None,
+        min_id: str | None = None,
+        limit: int | None = None,
     ) -> Coroutine[Any, Any, dict[str, Any] | None]:
         """Public timeline.
 
@@ -1143,8 +1203,7 @@ did not match {_result.get('url')}")
             params["limit"] = limit
         return self.client.get("/api/v1/timelines/public", params=params)
 
-    def get(
-        self, uri: str) -> Coroutine[Any, Any, Status | bool]:
+    def get(self, uri: str) -> Coroutine[Any, Any, Status | bool]:
         """Get an object by URI."""
         return self.add_context_url(uri)
 
@@ -1152,21 +1211,23 @@ did not match {_result.get('url')}")
         """Get the ID of an object by URI."""
         return self.get_home_status_id_from_url(uri)
 
-    def get_ids_from_list(
-        self, uris: list[str]) -> Coroutine[Any, Any, dict[str, str]]:
+    def get_ids_from_list(self, uris: list[str]) -> Coroutine[Any, Any, dict[str, str]]:
         """Get the IDs of objects by URIs."""
         return self.get_home_status_id_from_url_list(uris)
 
     def get_context(
-        self, uri: str) -> Coroutine[Any, Any, list[str]] | type[NotImplementedError]:
+        self,
+        uri: str,
+    ) -> Coroutine[Any, Any, list[str]] | type[NotImplementedError]:
         """Get the context of an object by URI."""
         logging.debug(f"Getting context for {uri} on {self.client.api_base_url}")
         return NotImplementedError
 
+
 def filter_language(
-        toots : Iterable[dict[str, str]],
-        language : str,
-        ) -> Iterator[dict[str, str]]:
+    toots: Iterable[dict[str, str]],
+    language: str,
+) -> Iterator[dict[str, str]]:
     """Filter out toots that are not in the given language.
 
     Args:
@@ -1178,5 +1239,4 @@ def filter_language(
     -------
     Iterator[dict[str, str]]: The filtered toots.
     """
-    return filter(
-        lambda toot: toot.get("language") == language, toots)
+    return filter(lambda toot: toot.get("language") == language, toots)

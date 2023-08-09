@@ -55,6 +55,7 @@ def user(unparsed_url: str) -> tuple[str, str] | None:
     logging.error(f"Error parsing user URL {unparsed_url}")
     return None
 
+
 def post(
     unparsed_url: str,
     parsed_urls: dict[str, tuple[str | None, str | None]] | None = None,
@@ -72,6 +73,7 @@ def post(
     tuple[str, str | None] | None: A tuple containing the server and toot ID,
         or None if no match is found.
     """
+
     def parse_post(url: str, pattern: str) -> tuple[str, str] | None:
         """Parse a post URL using the provided regex pattern.
 

@@ -11,21 +11,26 @@ from fedifetcher.helpers.helpers import Response
 class HttpMethod:
     """A class representing a request client."""
 
-    def __init__(self,
-                    api_base_url: str,
-                    session: aiohttp.ClientSession,
-                    token: str | None = None,
-                    pgupdater = None,  # noqa: ANN001
-                    ) -> None:
-            """Initialize the client."""
-            self.api_base_url = api_base_url
-            self.token = token
-            self.session = session
-            self.pgupdater = pgupdater
+    def __init__(
+        self,
+        api_base_url: str,
+        session: aiohttp.ClientSession,
+        token: str | None = None,
+        pgupdater=None,  # noqa: ANN001
+    ) -> None:
+        """Initialize the client."""
+        self.api_base_url = api_base_url
+        self.token = token
+        self.session = session
+        self.pgupdater = pgupdater
 
-    async def get(self,
-        endpoint: str, params: dict | None = None, tries: int = 0,
-        semaphore: asyncio.Semaphore | None = None) -> dict[str, Any] | None:
+    async def get(
+        self,
+        endpoint: str,
+        params: dict | None = None,
+        tries: int = 0,
+        semaphore: asyncio.Semaphore | None = None,
+    ) -> dict[str, Any] | None:
         """Perform a GET request to the server."""
         if semaphore is None:
             semaphore = asyncio.Semaphore(1)
@@ -45,8 +50,8 @@ class HttpMethod:
                         ratelimit_reset_timer_in_minutes = 5
                         if tries > ratelimit_reset_timer_in_minutes:
                             logging.error(
-                            f"Error with API on server {self.api_base_url}. "
-                            f"Too many requests: {response}",
+                                f"Error with API on server {self.api_base_url}. "
+                                f"Too many requests: {response}",
                             )
                             return None
                         logging.warning(
@@ -55,28 +60,36 @@ class HttpMethod:
                         )
                         await asyncio.sleep(60)
                         return await self.get(
-                            endpoint=endpoint, params=params, tries=tries + 1)
+                            endpoint=endpoint,
+                            params=params,
+                            tries=tries + 1,
+                        )
                     return await self.handle_response(response)
             except asyncio.TimeoutError:
                 logging.warning(
-                    f"Timeout error with API on server {self.api_base_url}.")
+                    f"Timeout error with API on server {self.api_base_url}.",
+                )
             except aiohttp.ClientConnectorSSLError:
-                logging.warning(
-                    f"SSL error with API on server {self.api_base_url}.")
+                logging.warning(f"SSL error with API on server {self.api_base_url}.")
             except aiohttp.ClientConnectorError:
                 logging.exception(
-                f"Connection error with API on server {self.api_base_url}.")
-            except (aiohttp.ClientError):
-                logging.exception(
-                    f"Error with API on server {self.api_base_url}.")
+                    f"Connection error with API on server {self.api_base_url}.",
+                )
+            except aiohttp.ClientError:
+                logging.exception(f"Error with API on server {self.api_base_url}.")
             except Exception:
                 logging.exception(
-                    f"Unknown error with API on server {self.api_base_url}.")
+                    f"Unknown error with API on server {self.api_base_url}.",
+                )
             return None
 
-    async def post(self,
-        endpoint: str, json: dict | None = None, tries: int = 0,
-        semaphore: asyncio.Semaphore | None = None) -> dict[str, Any] | None:
+    async def post(
+        self,
+        endpoint: str,
+        json: dict | None = None,
+        tries: int = 0,
+        semaphore: asyncio.Semaphore | None = None,
+    ) -> dict[str, Any] | None:
         """Perform a POST request to the server."""
         if semaphore is None:
             semaphore = asyncio.Semaphore(1)
@@ -96,8 +109,8 @@ class HttpMethod:
                         ratelimit_reset_timer_in_minutes = 5
                         if tries > ratelimit_reset_timer_in_minutes:
                             logging.error(
-                            f"Error with API on server {self.api_base_url}. "
-                            f"Too many requests: {response}",
+                                f"Error with API on server {self.api_base_url}. "
+                                f"Too many requests: {response}",
                             )
                             return None
                         logging.warning(
@@ -106,44 +119,49 @@ class HttpMethod:
                         )
                         await asyncio.sleep(60)
                         return await self.post(
-                            endpoint=endpoint, json=json, tries=tries + 1)
+                            endpoint=endpoint,
+                            json=json,
+                            tries=tries + 1,
+                        )
                     return await self.handle_response(response)
             except asyncio.TimeoutError:
                 logging.warning(
-                    f"Timeout error with API on server {self.api_base_url}.")
+                    f"Timeout error with API on server {self.api_base_url}.",
+                )
             except aiohttp.ClientConnectorSSLError:
-                logging.warning(
-                    f"SSL error with API on server {self.api_base_url}.")
+                logging.warning(f"SSL error with API on server {self.api_base_url}.")
             except aiohttp.ClientConnectorError:
                 logging.exception(
-                f"Connection error with API on server {self.api_base_url}.")
-            except (aiohttp.ClientError):
-                logging.exception(
-                    f"Error with API on server {self.api_base_url}.")
+                    f"Connection error with API on server {self.api_base_url}.",
+                )
+            except aiohttp.ClientError:
+                logging.exception(f"Error with API on server {self.api_base_url}.")
             except Exception:
                 logging.exception(
-                    f"Unknown error with API on server {self.api_base_url}.")
+                    f"Unknown error with API on server {self.api_base_url}.",
+                )
             return None
 
-    def handle_response_lists(self,
-            body : dict | list[dict],
-            ) -> dict[str, Any]:
+    def handle_response_lists(
+        self,
+        body: dict | list[dict],
+    ) -> dict[str, Any]:
         """Process the response into a dict."""
         if isinstance(body, list):
             body = {"list": body}
         if not isinstance(body, dict):
-            msg = \
-                f"Error with API on server {self.api_base_url}. \
+            msg = f"Error with API on server {self.api_base_url}. \
 The server returned an unexpected response: {body}"
             raise TypeError(
                 msg,
             )
         return body
 
-    def handle_response_pagination(self,
-            body : dict,
-            response : aiohttp.ClientResponse,
-            ) -> dict[str, Any]:
+    def handle_response_pagination(
+        self,
+        body: dict,
+        response: aiohttp.ClientResponse,
+    ) -> dict[str, Any]:
         """Handle pagination in the response."""
         link_header = response.headers.get("Link")
         if link_header:
@@ -160,9 +178,10 @@ The server returned an unexpected response: {body}"
                 body["_pagination_prev"] = links["prev"]
         return body
 
-    def handle_response_errors(self,
-            response : aiohttp.ClientResponse,
-            ) -> None:
+    def handle_response_errors(
+        self,
+        response: aiohttp.ClientResponse,
+    ) -> None:
         """Handle errors in the response."""
         if response.status == Response.BAD_REQUEST:
             logging.error(
@@ -195,13 +214,15 @@ The server returned an unexpected response: {body}"
                 f"The server encountered an error: {response}",
             )
 
-    async def handle_response(self, response: aiohttp.ClientResponse,
-        ) -> dict | None:
+    async def handle_response(
+        self,
+        response: aiohttp.ClientResponse,
+    ) -> dict | None:
         """Handle errors in the response."""
         if response.status != Response.OK:
             return self.handle_response_errors(response)
         body = await response.json()
-        if not body: # Successful response with no body
+        if not body:  # Successful response with no body
             return {"Status": "OK"}
         try:
             body: dict[str, Any] = self.handle_response_lists(body)
