@@ -38,6 +38,8 @@ class FederationInterface:
 
     def __init__(self, equippable_api: API) -> None:
         """Initialize the API."""
+        # TODO: When creating an interface, accept the base URL as a parameter,
+        # TODO: and make a hostmeta request to get the type of API to use.
         self._equipped_api: API = equippable_api
 
     def get(self, uri: str) -> Coroutine[Any, Any, dict | bool]:
