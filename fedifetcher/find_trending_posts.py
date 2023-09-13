@@ -204,7 +204,8 @@ less popular posts from {fetch_domain}"
                             status_id),
                     ),
                 )
-        await asyncio.gather(*promises.values())
+        list_of_promises = list(promises.values())
+        await asyncio.gather(*list_of_promises)
         for _status_id, future in promises.items():
             original_post = future.result()
             if original_post:
