@@ -2,3 +2,5 @@
 artifacts/*
 **\__pycache__
 src/mastodon-py/
+.idea
+fedifetcher.egg-info/
