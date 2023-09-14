@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from fedifetcher.api.mastodon.api_mastodon import Mastodon
+from fedifetcher.api.mastodon.api_mastodon import Mastodon, filter_language
 
 pytest_plugins = ("pytest_asyncio",)
 
@@ -112,41 +112,23 @@ class TestMastodon:
         # Test a successful __init__
         assert isinstance(self.mastodon, Mastodon)
 
-    async def test_add_context_url_success(self) -> None:
-        """Test the add_context_url method."""
-        # Test a successful add_context_url
+    async def test_get(self) -> None:
+        """Test the get method."""
+        # Test a successful get
         search_mock: dict[str, list[dict[str, Any]]] = {"statuses": [self.status_mock]}
-        self.mastodon.client.get = AsyncMock(return_value=search_mock)
+        self.mastodon.search_v2 = AsyncMock(return_value=search_mock)
+        self.mastodon.client.pgupdater = MagicMock()
+        self.mastodon.client.pgupdater.get_from_cache = MagicMock(return_value=None)
         result = await self.mastodon.get(
             "https://mastodon.shatteredsky.net/users/teq/statuses/109612104811129202",
         )
         assert result == self.status_mock
 
-    async def test_add_context_url_failed(self) -> None:
-        """Test the add_context_url method."""
+    async def test_get_failed(self) -> None:
+        """Test the get method."""
         self.mastodon.client.get = AsyncMock(return_value=False)
         result = await self.mastodon.get("url")
         assert result is False
-
-    async def test_get_home_status_id_from_url(self) -> None:
-        """Test the get_home_status_id_from_url method."""
-        self.mastodon.client.pgupdater = MagicMock()
-        self.mastodon.client.pgupdater.get_from_cache = MagicMock(
-            return_value={"id": "123456"},
-        )
-        self.mastodon.get = AsyncMock(return_value={"id": "123456"})
-        expected_result = "123456"
-        result = await self.mastodon.get_id("url")
-        assert result == expected_result
-
-    async def test_get_home_status_id_from_url_failed(self) -> None:
-        """Test the get_home_status_id_from_url method."""
-        self.mastodon.client.pgupdater = MagicMock()
-        self.mastodon.client.pgupdater.get_from_cache = MagicMock(return_value=None)
-        self.mastodon.get = AsyncMock(return_value=False)
-        expected_result = None
-        result = await self.mastodon.get_id("url")
-        assert result == expected_result
 
     async def test_get_home_status_id_from_url_list(self) -> None:
         """Test the get_home_status_id_from_url_list method."""
@@ -179,6 +161,27 @@ class TestMastodon:
             )
             assert result == expected_result
 
+class TestFilterLanguage:
+    """Test the filter_language method."""
+
+    async def test_filter_language(self) -> None:
+        """Test the filter_language method."""
+        # Test a successful filter_language
+        toots = [
+            {
+                "language": "en",
+            },
+            {
+                "language": "fr",
+            },
+        ]
+        expected_result = [
+            {
+                "language": "en",
+            },
+        ]
+        result = list(filter_language(toots, "en"))
+        assert result == expected_result
 
 if __name__ == "__main__":
     pytest.main()

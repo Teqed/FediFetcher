@@ -1,9 +1,11 @@
 """Generic client for API requests."""
 import asyncio
 import logging
+import re
 from typing import Any
 
 import aiohttp
+import defusedxml.ElementTree
 
 from fedifetcher.helpers.helpers import Response
 
@@ -225,6 +227,20 @@ class HttpMethod:
             return self.handle_response_errors(response)
         body = await response.json()
         if not body:  # Successful response with no body
+            try:
+                host_meta = defusedxml.ElementTree.fromstring(response.text())
+                lrdd = host_meta.find(".//{http://docs.oasis-open.org/ns/xri/xrd-1.0}Link[@rel='lrdd']")
+                url = lrdd.get("template")
+                match = re.match(
+                    r"https://(?P<server>[^/]+)/", url,
+                )
+                if match is not None:
+                    return {"Status": "OK", "Server": match.group("server")}
+            except Exception:
+                logging.debug(
+                    f"Error with API on server {self.api_base_url}. "
+                    f"The server returned an unexpected response: {body}",
+                )
             return {"Status": "OK"}
         try:
             body: dict[str, Any] = self.handle_response_lists(body)

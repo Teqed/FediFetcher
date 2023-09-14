@@ -223,7 +223,7 @@ async def get_all_reply_toots(
             server,
             access_token,
             pgupdater,
-        ).get_reply_posts_from_id(
+        ).get_user_statuses(
             user_id,
             replies_since,
         )

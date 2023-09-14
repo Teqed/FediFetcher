@@ -59,4 +59,4 @@ async def user_posts(
     if not parsed_url[0] or not user_id:
         return None
 
-    return await api_mastodon.Mastodon(parsed_url[0]).get_user_posts_from_id(user_id)
+    return await api_mastodon.Mastodon(parsed_url[0]).get_user_statuses(user_id)

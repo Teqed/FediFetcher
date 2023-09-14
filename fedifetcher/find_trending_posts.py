@@ -330,7 +330,7 @@ async def aux_domain_fetch(
             trending = await api_mastodon.Mastodon(
                 parsed_urls[0][0],
                 external_tokens.get(parsed_urls[0][0]),
-            ).get_trending_posts(120)
+            ).get_trending_statuses(120)
             domains_fetched.append(parsed_urls[0][0])
             if trending:
                 for t_post in trending:
@@ -471,7 +471,7 @@ async def fetch_trending_from_domain(  # noqa: C901, PLR0913
     trending_posts = await api_mastodon.Mastodon(
         fetch_domain,
         external_tokens.get(fetch_domain),
-    ).get_trending_posts(200)
+    ).get_trending_statuses(200)
 
     if trending_posts:
         for post in trending_posts:
@@ -526,7 +526,7 @@ async def update_local_status_ids(
         home_server,
         home_token,
         pgupdater,
-    ).get_home_status_id_from_url_list(list_of_trending_posts_urls)
+    )._get_home_status_id_from_url_list(list_of_trending_posts_urls)
     for trending_post in trending_posts_dict.values():
         local_status_id = home_status_dict.get(trending_post["url"])
         if local_status_id:

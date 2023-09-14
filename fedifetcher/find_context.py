@@ -40,7 +40,7 @@ async def add_post_with_context(
         home_server,
         access_token,
         pgupdater,
-    ).add_context_url(post["url"])
+    )._add_context_url(post["url"])
     if added is not False:
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
             arguments,
@@ -124,7 +124,7 @@ async def add_context_urls_wrapper(
                     home_server,
                     access_token,
                     pgupdater,
-                ).add_context_url(url, semaphore),
+                )._add_context_url(url, semaphore),
             )
         futures = await asyncio.gather(*tasks)
         for result in futures:

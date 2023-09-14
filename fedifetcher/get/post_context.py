@@ -64,7 +64,7 @@ async def post_content(  # noqa: PLR0913, D417
                     return []
 
             logging.debug("Getting Mastodon context")
-            return await api_mastodon.Mastodon(server, external_token).get_toot_context(
+            return await api_mastodon.Mastodon(server, external_token).get_status_context(
                 toot_id,
                 home_server,
                 home_server_token,
