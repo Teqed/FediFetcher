@@ -199,7 +199,7 @@ class FederationInterface:
                     nodeinfo = asyncio.run(temporary_client.get("/nodeinfo/2.0"))
         software_name = nodeinfo["software"]["name"] if nodeinfo else None
         if software_name == "mastodon":
-            from fedifetcher.api.mastodon.api_mastodon import Mastodon
+            from fedifetcher.api.mastodon import Mastodon
             equippable_api = Mastodon(url)
         elif software_name == "misskey":
             raise NotImplementedError
