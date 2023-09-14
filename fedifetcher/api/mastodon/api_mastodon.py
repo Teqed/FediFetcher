@@ -1,9 +1,8 @@
 """Mastodon API functions."""
-import ast
 import asyncio
 import logging
 from collections.abc import Coroutine, Iterable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any, ClassVar, cast
 
 import aiohttp
@@ -110,13 +109,16 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
         async with semaphore:
             logging.debug(f"Adding context url {uri} to {self.client.api_base_url}")
             try:
-                cached_status = self.client.pgupdater.get_from_cache(uri) if self.client.pgupdater else None
+                cached_status = self.client.pgupdater.get_from_cache(
+                    uri) if self.client.pgupdater else None
                 if cached_status:
-                    msg = f"Found cached status id {cached_status.get('id')} for {uri} on {self.client.api_base_url}"
+                    msg = (f"Found cached status id {cached_status.get('id')} for "
+                        f"{uri} on {self.client.api_base_url}")
                     logging.info(f"\033[1;33m{msg}\033[0m")
                     result = { "statuses": [cached_status] }
                 else:
-                    msg = f"Fetching status id for {uri} from {self.client.api_base_url}"
+                    msg = (f"Fetching status id for {uri} from "
+                        f"{self.client.api_base_url}")
                     logging.info(f"\033[1;33m{msg}\033[0m")
                     result = await self.search_v2(
                         client=self.client,
@@ -131,10 +133,12 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             if result and (statuses := result.get("statuses")):
                 for _status in statuses:
                     if _status.get("url") == uri:
-                        self.client.pgupdater.cache_status(_status) if self.client.pgupdater else None
+                        self.client.pgupdater.cache_status(
+                            _status) if self.client.pgupdater else None
                         return _status
                     if _status.get("uri") == uri:
-                        self.client.pgupdater.cache_status(_status) if self.client.pgupdater else None
+                        self.client.pgupdater.cache_status(
+                            _status) if self.client.pgupdater else None
                         return _status
                     logging.debug(f"{uri} did not match {_status.get('url')}")
             elif result == {}:
@@ -238,13 +242,28 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             logging.error(f"Status id for {url} not found")
         return status_ids
 
-    def get_context(
+    async def get_context(
         self,
         uri: str,
-    ) -> Coroutine[Any, Any, list[str]] | type[NotImplementedError]:
-        """Get the context of an object by URI."""
+    ) -> list[dict[str, str]]:
+        """Get the context of an object by URI.
+
+        Args:
+        ----
+        uri (str): The URI of the object to get the context of.
+
+        Returns:
+        -------
+        list[dict[str, str]]: A list of status URLs.
+        """
         logging.debug(f"Getting context for {uri} on {self.client.api_base_url}")
-        return NotImplementedError
+        status_id = uri.split("/")[-1]
+        context = await self.status_context(self.client, status_id)
+        if not context:
+            return []
+        ancestors = context.get("ancestors") or []
+        descendants = context.get("descendants") or []
+        return ancestors + descendants
 
     def get_status_by_id(
         self,
@@ -318,7 +337,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
         if limit > a_page and len(got_trending_posts) == a_page:
             while len(trending_posts) < limit:
                 try:
-                    got_trending_posts = await _async_get_trending_posts(len(trending_posts))
+                    got_trending_posts = await _async_get_trending_posts(
+                        len(trending_posts))
                 except Exception:
                     logging.exception(
                         f"Error getting trending posts for {self.client.api_base_url}",
@@ -358,7 +378,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
         -------
         list[dict[str, str]]: A list of following, or [] if the request fails.
         """
-        following_dict = await self.account_following(client=self.client, account_id=user_id, limit=limit)
+        following_dict = await self.account_following(
+            client=self.client, account_id=user_id, limit=limit)
         if not following_dict or not (following := following_dict.get("list")):
             return []
         number_of_following_received = len(following)
@@ -395,7 +416,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
         -------
         list[dict[str, str]]: A list of followers, or [] if the request fails.
         """
-        followers_dict = await self.account_followers(client=self.client, account_id=user_id, limit=limit)
+        followers_dict = await self.account_followers(
+            client=self.client, account_id=user_id, limit=limit)
         if not followers_dict or not (followers := followers_dict.get("list")):
             return []
         number_of_followers_received = len(followers)
@@ -430,7 +452,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
         -------
         list[dict[str, str]]: A list of follow requests, or [] if the request fails.
         """
-        follow_requests_dict = await self.follow_requests(client=self.client, limit=limit)
+        follow_requests_dict = await self.follow_requests(
+            client=self.client, limit=limit)
         if not follow_requests_dict or not (
             follow_requests := follow_requests_dict.get("list")
         ):
@@ -442,7 +465,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             and number_of_follow_requests_received < limit
             and follow_requests_dict.get("_pagination_next")
         ):
-            more_follow_requests = await self.fetch_next(self.client, follow_requests_dict)
+            more_follow_requests = await self.fetch_next(
+                self.client, follow_requests_dict)
             if not more_follow_requests:
                 break
             number_of_follow_requests_received += len(more_follow_requests)
@@ -474,7 +498,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             while number_of_favourites_received < limit and favourites_dict.get(
                 "_pagination_next",
             ):
-                more_favourites_dict = await self.fetch_next(self.client, favourites_dict)
+                more_favourites_dict = await self.fetch_next(
+                    self.client, favourites_dict)
                 if not more_favourites_dict or not (
                     more_favourites := more_favourites_dict.get("list")
                 ):
@@ -563,7 +588,8 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             and number_of_notifications_received < limit
             and notifications_dict.get("_pagination_next")
         ):
-            more_notifications_dict = await self.fetch_next(self.client, notifications_dict)
+            more_notifications_dict = await self.fetch_next(
+                self.client, notifications_dict)
             if not more_notifications_dict or not (
                 more_notifications := more_notifications_dict.get("list")
             ):
@@ -572,7 +598,7 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             notifications_result.extend(more_notifications)
         return cast(list[dict[str, str]], notifications_result)
 
-    async def get_status_context(
+    async def get_remote_status_context(
         self,
         toot_id: str,
         home_server: str,

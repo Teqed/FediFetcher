@@ -122,7 +122,7 @@ class API(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_status_context(
+    async def get_remote_status_context(
         self,
         toot_id: str,
         home_server: str,
@@ -303,7 +303,7 @@ class FederationInterface:
         _pgupdater: Any,
     ) -> Coroutine[Any, Any, list[str]]:
         """Get the context of a status."""
-        return self._equipped_api.get_status_context(
+        return self._equipped_api.get_remote_status_context(
             toot_id,
             home_server,
             home_token,

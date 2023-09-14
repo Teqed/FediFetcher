@@ -141,25 +141,27 @@ class TestMastodon:
         result = await self.mastodon.get_ids_from_list(["url"])
         assert result == expected_result
 
-    async def test_get_toot_context(self) -> None:
+    async def test_get_context(self) -> None:
         """Test the get_toot_context method."""
-        if False:  # TODO: Fix this test
-            self.mastodon.client.pgupdater = MagicMock()
-            self.mastodon.client.pgupdater.queue_status_update = MagicMock()
-            self.mastodon.client.pgupdater.commit_status_updates = MagicMock()
-            self.mastodon.get_ids_from_list = AsyncMock(return_value={"url": "123456"})
-            mastodon = MagicMock()
-            mastodon.status_context = AsyncMock(
-                return_value={
-                    "ancestors": [{"url": "https://example.com"}],
-                    "descendants": [],
-                },
-            )
-            expected_result = ["https://example.com"]
-            result = await self.mastodon.get_context(
-                "123456",
-            )
-            assert result == expected_result
+        self.mastodon.status_context = AsyncMock(
+            return_value={},
+        )
+        expected_result = []
+        result = await self.mastodon.get_context(
+            "https://example.com/users/user/statuses/123456",
+        )
+        assert result == expected_result
+        self.mastodon.status_context = AsyncMock(
+            return_value={
+                "ancestors": [{"url": "https://example.com"}],
+                "descendants": [],
+            },
+        )
+        expected_result = [{"url": "https://example.com"}]
+        result = await self.mastodon.get_context(
+            "https://example.com/users/user/statuses/123456",
+        )
+        assert result == expected_result
 
 class TestFilterLanguage:
     """Test the filter_language method."""
