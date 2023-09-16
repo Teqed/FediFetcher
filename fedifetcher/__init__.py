@@ -16,7 +16,7 @@ from . import (
 )
 from .api.firefish import api_firefish, api_firefish_types
 from .api.lemmy import api_lemmy
-from .api.mastodon import api_mastodon, api_mastodon_types
+from .api.mastodon import api_mastodon
 from .get import post_context
 from .helpers import cache_manager, helpers, ordered_set
 from .main import main
@@ -29,7 +29,6 @@ __all__ = [
     "api_firefish_types",
     "api_lemmy",
     "api_mastodon",
-    "api_mastodon_types",
     "cache_manager",
     "token_posts",
     "find_trending_posts",

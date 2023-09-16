@@ -3,6 +3,7 @@ from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fedifetcher.api.api import ApiError
 
 from fedifetcher.api.mastodon.api_mastodon import Mastodon, filter_language
 
@@ -127,8 +128,10 @@ class TestMastodon:
     async def test_get_failed(self) -> None:
         """Test the get method."""
         self.mastodon.client.get = AsyncMock(return_value=False)
-        result = await self.mastodon.get("url")
-        assert result is False
+        with pytest.raises(ApiError) as exception:
+            await self.mastodon.get("url")
+        exceptions_raised = exception.value
+        assert isinstance(exceptions_raised, ApiError)
 
     async def test_get_home_status_id_from_url_list(self) -> None:
         """Test the get_home_status_id_from_url_list method."""
