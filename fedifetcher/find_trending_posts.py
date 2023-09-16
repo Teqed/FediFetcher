@@ -526,7 +526,7 @@ async def update_local_status_ids(
         home_server,
         home_token,
         pgupdater,
-    )._get_home_status_id_from_url_list(list_of_trending_posts_urls)
+    ).get_ids_from_list(list_of_trending_posts_urls)
     for trending_post in trending_posts_dict.values():
         local_status_id = home_status_dict.get(trending_post["url"])
         if local_status_id:
