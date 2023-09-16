@@ -4,7 +4,6 @@ import contextlib
 from collections import OrderedDict
 from datetime import UTC, datetime
 from typing import (
-    IO,
     Any,
     Generic,
     TypeVar,
@@ -14,11 +13,6 @@ from typing import (
 
 import dateutil
 import dateutil.parser
-
-from .api_mastodon_compat import PurePath
-
-# A type representing a file name as a PurePath or string, or a file-like object, for convenience
-PathOrFile = Union[str, PurePath, IO[bytes]]
 
 BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 def base62_to_int(base62: str) -> int:
@@ -227,10 +221,7 @@ def try_cast(t, value, retry = True):
         elif real_issubclass(t, list):
             value = t(value)
         else:
-            if real_issubclass(value.__class__, dict):
-                value = t(**value)
-            else:
-                value = t(value)
+            value = t(**value) if real_issubclass(value.__class__, dict) else t(value)
     except Exception:
         if retry and isinstance(value, dict):
             value = try_cast(AttribAccessDict, value, False)

@@ -15,10 +15,11 @@ async def active_users(
 ) -> None:
     """Get posts of users which have active IDs on the local server."""
     user_ids = list(
-        await Mastodon(arguments.server, admin_token, pgupdater).get_active_user_ids(
+        await Mastodon(arguments.server, admin_token, pgupdater).get_local_accounts(
             arguments.reply_interval_in_hours,
         ),
     )
+    user_ids = [user_id["id"] for user_id in user_ids]
     logging.debug(f"Found user IDs: {user_ids}")
     """pull the context toots of toots user replied to, from their
             original server, and add them to the local server."""

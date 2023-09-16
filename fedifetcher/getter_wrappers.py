@@ -246,7 +246,11 @@ async def get_all_known_context_urls(
         for toot in reply_toots:
             context = _get_context_url(toot, parsed_urls)
             if context:
-                toots_to_get_context_for.append(context)
+                cast_context: tuple[tuple[str, str], str] = (
+                    (str(context[0][0]), str(context[0][1])),
+                    context[1],
+                )
+                toots_to_get_context_for.append(cast_context)
         # Get the context for the toots
         logging.debug(f"Getting context for {len(toots_to_get_context_for)} toots")
         max_concurrent_tasks = 10
@@ -316,7 +320,7 @@ async def get_context_for_server(
 def _get_context_url(
     toot: dict[str, str],
     parsed_urls: dict[str, tuple[str | None, str | None]],
-) -> tuple | None:
+) -> tuple[tuple[str | None, str | None], str] | None:
     if toot is not None and toot_has_parseable_url(toot, parsed_urls):
         reblog = toot.get("reblog")
         if isinstance(reblog, str):

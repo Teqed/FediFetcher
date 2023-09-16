@@ -10,9 +10,6 @@ from fedifetcher import parsers
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 
-from .api.mastodon.api_mastodon_errors import MastodonError
-
-
 def increment_count(
     post_url: str,
     incrementing_post: dict[str, str],
@@ -300,7 +297,7 @@ async def fetch_and_return_missing(
         try:
             var_manip.add_to_fetched(fetch_domain)
             var_manip.remove_from_fetching(fetch_domain)
-        except MastodonError:
+        except Exception:
             logging.error(f"Error occurred while fetching domain {fetch_domain}")
 
 

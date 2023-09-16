@@ -7,11 +7,10 @@ from typing import Any, ClassVar, cast
 
 import aiohttp
 
-from fedifetcher.api.api import API
+from fedifetcher.api.api import API, ApiError
 from fedifetcher.api.client import HttpMethod
 from fedifetcher.api.mastodon.accounts import Accounts
 from fedifetcher.api.mastodon.admin import Admin
-from fedifetcher.api.mastodon.api_mastodon_types import Status
 from fedifetcher.api.mastodon.favourites import Favourites
 from fedifetcher.api.mastodon.notifications import Notifications
 from fedifetcher.api.mastodon.relationships import Relationships
@@ -19,6 +18,7 @@ from fedifetcher.api.mastodon.search import Search
 from fedifetcher.api.mastodon.statuses import Statuses
 from fedifetcher.api.mastodon.timeline import Timeline
 from fedifetcher.api.mastodon.trends import Trends
+from fedifetcher.api.mastodon.types.api_mastodon_types import Status
 from fedifetcher.api.mastodon.utility import Utility
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 
@@ -91,7 +91,7 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             self,
             uri: str,
             semaphore: asyncio.Semaphore | None = None,
-        ) -> Status | bool:
+        ) -> Status:
         """Add the given toot URL to the server.
 
         Args:
@@ -101,8 +101,7 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
 
         Returns:
         -------
-        dict[str, str] | bool: The status of the request, or False if the \
-            request fails.
+        dict[str, str]: The status of the request.
         """
         if semaphore is None:
             semaphore = asyncio.Semaphore(1)
@@ -125,11 +124,11 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
                         q=uri,
                         resolve=True,
                     )
-            except Exception:
-                logging.exception(
-                    f"Error adding context url {uri} to {self.client.api_base_url}",
-                )
-                return False
+            except Exception as exception:
+                msg = (f"Error adding context url {uri} to "
+                    f"{self.client.api_base_url}")
+                logging.exception(msg)
+                raise exception from ApiError(msg)
             if result and (statuses := result.get("statuses")):
                 for _status in statuses:
                     if _status.get("url") == uri:
@@ -142,15 +141,15 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
                         return _status
                     logging.debug(f"{uri} did not match {_status.get('url')}")
             elif result == {}:
-                logging.debug(
-                    f"Received empty results for {uri} on {self.client.api_base_url} ",
-                    "The domain may be blocked.",
-                )
-                return False
-            logging.debug(
-                f"Could not find status for {uri} on {self.client.api_base_url}",
-            )
-            return False
+                msg = (
+                    f"Received empty results for {uri} on {self.client.api_base_url} "
+                    "The domain may be blocked."
+                    )
+                logging.debug(msg)
+                raise ApiError(msg)
+            msg = f"Could not find status for {uri} on {self.client.api_base_url}"
+            logging.debug(msg)
+            raise ApiError(msg)
 
     async def get_me(self) -> str | None:
         """Get the user ID of the authenticated user.
@@ -203,7 +202,7 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
         ] = self.client.pgupdater.get_dict_from_cache(urls)
         max_concurrent_tasks = 10
         semaphore = asyncio.Semaphore(max_concurrent_tasks)
-        promises: list[tuple[str, asyncio.Task[Status | bool]]] = []
+        promises: list[tuple[str, asyncio.Task[Status]]] = []
         for url in urls:
             cached_status = cached_statuses.get(url)
             if cached_status:
@@ -216,11 +215,10 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             promises.append(
                 (url, asyncio.ensure_future(self.get(url, semaphore))),
             )
-        await asyncio.gather(*[promise for _, promise in promises])
         for url, task in promises:
-            _result = task.result()
-            logging.debug(_result)
-            if not isinstance(_result, bool):
+            try:
+                _result: Status = await task
+                logging.debug(_result)
                 if _result.get("url") == url:
                     status = self.client.pgupdater.get_from_cache(url)
                     status_id = status.get("id") if status else None
@@ -234,12 +232,10 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
                     f"Something went wrong fetching: {url} from "
                     f"{self.client.api_base_url} , did not match {_result.get('url')}",
                 )
-                logging.debug(_result)
-            elif _result is False:
-                logging.warning(
-                    f"Failed to get status id for {url} on {self.client.api_base_url}",
-                )
-            logging.error(f"Status id for {url} not found")
+            except ApiError:
+                    logging.warning(
+                        f"Failed to get status id for {url} on {self.client.api_base_url}",
+                    )
         return status_ids
 
     async def get_context(
@@ -733,6 +729,14 @@ class Mastodon(API, Statuses, Accounts, Notifications, Favourites, Timeline, Tre
             toots_result.extend(toots)
         logging.info(f"Found {number_of_toots_received} posts in timeline")
         return toots_result
+
+    async def get_local_accounts(
+        self,
+        reply_interval_in_hours: int,
+    ) -> list[dict[str, str]]:
+        """Get a list of local accounts."""
+        # / return self.admin_accounts_v2(self.client)
+        raise NotImplementedError
 
 
 def filter_language(

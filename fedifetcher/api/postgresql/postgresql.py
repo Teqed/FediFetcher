@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from psycopg2 import Error, OperationalError
 
-from fedifetcher.api.mastodon.api_mastodon_types import Status
+from fedifetcher.api.mastodon.types.api_mastodon_types import Status
 
 
 class PostgreSQLUpdater:

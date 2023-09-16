@@ -10,7 +10,7 @@ from fedifetcher.api.api import API
 from fedifetcher.api.client import HttpMethod
 from fedifetcher.api.firefish.api_firefish_types import Note, UserDetailedNotMe
 from fedifetcher.api.mastodon import api_mastodon
-from fedifetcher.api.mastodon.api_mastodon_types import Status
+from fedifetcher.api.mastodon.types.api_mastodon_types import Status
 from fedifetcher.api.postgresql.postgresql import PostgreSQLUpdater
 
 

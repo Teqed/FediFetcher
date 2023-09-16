@@ -6,11 +6,12 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from fedifetcher import getter_wrappers, parsers
+from fedifetcher.api.api import ApiError
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 
 if TYPE_CHECKING:
-    from fedifetcher.api.mastodon.api_mastodon_types import Status
+    from fedifetcher.api.mastodon.types.api_mastodon_types import Status
 
 
 async def add_post_with_context(
@@ -36,12 +37,12 @@ async def add_post_with_context(
     -------
     bool: True if the post was added successfully, False otherwise.
     """
-    added = await api_mastodon.Mastodon(
-        home_server,
-        access_token,
-        pgupdater,
-    )._add_context_url(post["url"])
-    if added is not False:
+    try:
+        await api_mastodon.Mastodon(
+            home_server,
+            access_token,
+            pgupdater,
+        ).get(post["url"])
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
             arguments,
             "backfill_with_context",
@@ -66,8 +67,9 @@ async def add_post_with_context(
                         pgupdater,
                     )
                 )
-        return True
-
+            return True
+    except ApiError:
+        logging.debug(f"Failed to add {post['url']} to {home_server}")
     return False
 
 
@@ -124,17 +126,16 @@ async def add_context_urls_wrapper(
                     home_server,
                     access_token,
                     pgupdater,
-                )._add_context_url(url, semaphore),
+                ).get(url, semaphore),
             )
-        futures = await asyncio.gather(*tasks)
-        for result in futures:
-            logging.debug(f"Got {result}")
-            if result and not isinstance(result, bool):
+        for task in asyncio.as_completed(tasks):
+            try:
+                result: Status = await task
+                logging.debug(f"Got {result}")
                 count += 1
                 pgupdater.cache_status(result)
-            else:
+            except ApiError:
                 failed += 1
-                logging.warning(f"Failed {result}")
 
     logging.info(
         f"\033[1mAdded {count} new statuses (with {failed} failures, {already_added} "

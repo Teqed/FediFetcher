@@ -1,6 +1,7 @@
 """Get the URLs of the context toots of the given toot."""
 import asyncio
 import logging
+from fedifetcher.api.api import ApiError
 
 from fedifetcher.api.lemmy import api_lemmy
 from fedifetcher.api.mastodon import api_mastodon
@@ -49,14 +50,14 @@ async def post_content(  # noqa: PLR0913, D417
                 # This is a Calckey / Firefish post.
                 # We need to get the Mastodon-compatible ID.
                 # We can do this by getting the post from the home server.
-                _status = await api_mastodon.Mastodon(server, external_token).search_v2(
-                    toot_url,
-                )
-                if _status:
+                try:
+                    _status = await api_mastodon.Mastodon(server, external_token).get(
+                        toot_url,
+                    )
                     _fake_id = _status.get("id")
                     if _fake_id:
                         toot_id = _fake_id
-                else:
+                except ApiError:
                     # The Calckey API is out of date and requires auth on this endpoint.
                     logging.warning(
                         f"Couldn't get Mastodon-compatible ID for {toot_url}",

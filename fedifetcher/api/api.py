@@ -11,6 +11,13 @@ import aiohttp
 from fedifetcher.api.client import HttpMethod
 
 
+class ApiError(Exception):
+    """Error raised when an API call fails."""
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        """Initialize the error."""
+        super().__init__(message)
+        self.status_code = status_code
 class API(metaclass=ABCMeta):
     """Interface for dependency injection of different APIs."""
 
@@ -27,7 +34,7 @@ class API(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, uri: str) -> Coroutine[Any, Any, dict | bool]:
+    def get(self, uri: str) -> Coroutine[Any, Any, dict]:
         """Get an object by URI."""
         raise NotImplementedError
 
@@ -149,6 +156,14 @@ class API(metaclass=ABCMeta):
         """Get the home timeline."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_local_accounts(
+        self,
+        reply_interval_in_hours: int,
+    ) -> list[dict[str, str]]:
+        """Get local accounts with activity within interval."""
+        raise NotImplementedError
+
 class FederationInterface:
     """Interface for dependency injection of different federation APIs."""
 
@@ -208,7 +223,7 @@ class FederationInterface:
             raise NotImplementedError(msg)
         self._equipped_api: API = equippable_api
 
-    def get(self, uri: str) -> Coroutine[Any, Any, dict | bool]:
+    def get(self, uri: str) -> Coroutine[Any, Any, dict]:
         """Get an object by URI."""
         return self._equipped_api.get(uri)
 
