@@ -7,6 +7,7 @@ import re
 from collections.abc import Callable
 
 from fedifetcher import parsers
+from fedifetcher.api.api import API
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 
@@ -144,11 +145,9 @@ class VariableManipulators:
 
 
 async def find_trending_posts(  # noqa: C901
-    home_server: str,
-    home_token: str,
+    api: API,
     external_feeds: list[str],
     external_tokens: dict[str, str],
-    pgupdater: PostgreSQLUpdater,
 ) -> list[dict[str, str]]:
     """Pull trending posts from a list of Mastodon servers, using tokens."""
     msg = f"Finding trending posts from {len(external_feeds)} domains:"
@@ -220,51 +219,54 @@ async def find_trending_posts(  # noqa: C901
         )
         logging.info(f"\033[1;34m{msg}\033[0m")
         max_concurrent_requests = 10
-        semaphore = asyncio.Semaphore(max_concurrent_requests)
         promises_container = {}
         promises = []
-        for status_id in remember_to_find_me[fetch_domain]:
-            if (
-                str(status_id) not in trending_posts_dict
-                or "original" not in trending_posts_dict[str(status_id)]
-            ):
-                promise = asyncio.ensure_future(
-                    api_mastodon.Mastodon(
+        async with asyncio.Semaphore(max_concurrent_requests) as semaphore:
+            for status_id in remember_to_find_me[fetch_domain]:
+                if (
+                    str(status_id) not in trending_posts_dict
+                    or "original" not in trending_posts_dict[str(status_id)]
+                ):
+                    async with api_mastodon.Mastodon(
                         fetch_domain,
                         external_tokens.get(fetch_domain),
-                    ).get_status_by_id(status_id, semaphore),
-                )
-                promises_container[status_id] = promise
-                promises.append(promise)
-        await asyncio.gather(*promises)
-        for _status_id, future in promises_container.items():
-            original_post = future.result()
-            if original_post:
-                add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
-            else:
-                logging.warning(f"Couldn't find {_status_id} from {fetch_domain}")
+                    ) as api:
+                        promise = asyncio.create_task(api.get_status_by_id(status_id, semaphore))
+                        promises_container[status_id] = promise
+                        promises.append(promise)
+            await asyncio.gather(*promises)
+            for _status_id, future in promises_container.items():
+                original_post = future.result()
+                if original_post:
+                    add_post_to_dict(original_post, fetch_domain, trending_posts_dict)
+                else:
+                    logging.warning(f"Couldn't find {_status_id} from {fetch_domain}")
 
     logging.info(f"Fetching aux posts from {len(trending_posts_dict.keys())} domains")
-    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict, pgupdater)
+    if api.client.token is None or api.client.pgupdater is None:
+        msg = "No token or PostgreSQL updater"
+        raise api_mastodon.ApiError(msg)
+
+    await aux_domain_fetcher.do_aux_fetches(trending_posts_dict, api.client.pgupdater)
 
     updated_trending_posts_dict = await update_local_status_ids(
         trending_posts_dict,
-        home_server,
-        home_token,
-        pgupdater,
+        api.client.api_base_url,
+        api.client.token,
+        api.client.pgupdater,
     )
 
     """Update the status stats with the trending posts."""
-    if pgupdater:
+    if api.client.pgupdater is not None:
         for post in updated_trending_posts_dict.values():
             local_status_id = post.get("local_status_id")
             if local_status_id:
-                pgupdater.queue_status_update(
+                api.client.pgupdater.queue_status_update(
                     local_status_id,
                     int(post["reblogs_count"]),
                     int(post["favourites_count"]),
                 )
-        pgupdater.commit_status_updates()
+        api.client.pgupdater.commit_status_updates()
 
     return list(
         api_mastodon.filter_language(updated_trending_posts_dict.values(), "en"),

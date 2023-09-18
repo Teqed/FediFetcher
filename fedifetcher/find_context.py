@@ -6,8 +6,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from fedifetcher import getter_wrappers, parsers
-from fedifetcher.api.api import ApiError
-from fedifetcher.api.mastodon import api_mastodon
+from fedifetcher.api.api import API, ApiError
 from fedifetcher.api.postgresql import PostgreSQLUpdater
 
 if TYPE_CHECKING:
@@ -16,10 +15,11 @@ if TYPE_CHECKING:
 
 async def add_post_with_context(
     post: dict[str, str],
-    home_server: str,
-    access_token: str,
+    api: API,
+    # home_server: str,
+    # access_token: str,
     external_tokens: dict[str, str],
-    pgupdater: PostgreSQLUpdater,
+    # pgupdater: PostgreSQLUpdater,
     arguments: Namespace,
 ) -> bool:
     """Add the given post to the server.
@@ -38,11 +38,7 @@ async def add_post_with_context(
     bool: True if the post was added successfully, False otherwise.
     """
     try:
-        await api_mastodon.Mastodon(
-            home_server,
-            access_token,
-            pgupdater,
-        ).get(post["url"])
+        await api.get(post["url"])
         if ("replies_count" in post or "in_reply_to_id" in post) and getattr(
             arguments,
             "backfill_with_context",
@@ -51,42 +47,37 @@ async def add_post_with_context(
             parsed_urls: dict[str, tuple[str | None, str | None]] = {}
             parsed = parsers.post(post["url"], parsed_urls)
             if parsed is not None and parsed[0] is not None:
+                if api.client.pgupdater is None or api.client.token is None:
+                    msg = "No PostgreSQL updater, or no token"
+                    raise ApiError(msg)
                 known_context_urls = await getter_wrappers.get_all_known_context_urls(
-                    home_server,
+                    api,
                     [post],
                     parsed_urls,
                     external_tokens,
-                    pgupdater,
-                    access_token,
                 )
                 (
                     await add_context_urls_wrapper(
-                        home_server,
-                        access_token,
+                        api,
                         known_context_urls,
-                        pgupdater,
                     )
                 )
             return True
     except ApiError:
-        logging.debug(f"Failed to add {post['url']} to {home_server}")
+        logging.debug(f"Failed to add {post['url']} to {api.client.api_base_url}")
     return False
 
 
 async def add_context_urls_wrapper(
-    home_server: str,
-    access_token: str,
+    api: API,
     context_urls: Iterable[str],
-    pgupdater: PostgreSQLUpdater,
 ) -> None:
     """Add the given toot URLs to the server.
 
     Args:
     ----
-    home_server: The server to add the toots to.
-    access_token: The access token to use to add the toots.
+    api: The API to use to add the statuses.
     context_urls: The list of toot URLs to add.
-    pgupdater: The PostgreSQL updater.
     """
     list_of_context_urls = list(context_urls)
     if len(list_of_context_urls) == 0:
@@ -96,7 +87,10 @@ async def add_context_urls_wrapper(
     failed = 0
     already_added = 0
     posts_to_fetch = []
-    cached_posts: dict[str, Status | None] = pgupdater.get_dict_from_cache(
+    if api.client.pgupdater is None:
+        msg = "No PostgreSQL updater"
+        raise ApiError(msg)
+    cached_posts: dict[str, Status | None] = api.client.pgupdater.get_dict_from_cache(
         list_of_context_urls,
     )
     logging.debug(f"Got {len(cached_posts)} cached posts")
@@ -116,24 +110,18 @@ async def add_context_urls_wrapper(
 
     if posts_to_fetch:
         logging.debug(f"Fetching {len(posts_to_fetch)} posts")
-        max_concurrent_tasks = 10
-        semaphore = asyncio.Semaphore(max_concurrent_tasks)
         tasks = []
         for url in posts_to_fetch:
             logging.debug(f"Adding {url} to home server")
             tasks.append(
-                api_mastodon.Mastodon(
-                    home_server,
-                    access_token,
-                    pgupdater,
-                ).get(url, semaphore),
+                api.get(url),
             )
         for task in asyncio.as_completed(tasks):
             try:
                 result: Status = await task
                 logging.debug(f"Got {result}")
                 count += 1
-                pgupdater.cache_status(result)
+                api.client.pgupdater.cache_status(result)
             except ApiError:
                 failed += 1
 

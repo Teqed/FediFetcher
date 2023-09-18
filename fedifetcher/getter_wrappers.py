@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import requests
+from fedifetcher.api.api import API
 
 from fedifetcher.api.mastodon import api_mastodon
 from fedifetcher.api.postgresql import PostgreSQLUpdater
@@ -45,7 +46,8 @@ async def get_notification_users(
     since = datetime.now(datetime.now(UTC).astimezone().tzinfo) - timedelta(
         hours=max_age,
     )
-    notifications = await api_mastodon.Mastodon(server, access_token).get_notifications(
+    async with api_mastodon.Mastodon(server, access_token) as api:
+        notifications = await api.get_notifications(
         since_id=str(int(since.timestamp())),
     )
     notification_users = []
@@ -233,12 +235,10 @@ async def get_all_reply_toots(
 
 
 async def get_all_known_context_urls(
-    home_server: str,
+    api: API,
     reply_toots: list[dict[str, str]],
     parsed_urls: dict[str, tuple[str | None, str | None]],
     external_tokens: dict[str, str],
-    pgupdater: PostgreSQLUpdater,
-    home_server_token: str,
 ) -> Iterable[str]:
     known_context_urls = []
     if reply_toots is not None:
@@ -255,6 +255,9 @@ async def get_all_known_context_urls(
         logging.debug(f"Getting context for {len(toots_to_get_context_for)} toots")
         max_concurrent_tasks = 10
         semaphore = asyncio.Semaphore(max_concurrent_tasks)
+        if api.client.pgupdater is None or api.client.token is None:
+            msg = "No PostgreSQL updater, or no token"
+            raise api_mastodon.ApiError(msg)
         tasks = [
             asyncio.ensure_future(
                 post_content(
@@ -262,9 +265,9 @@ async def get_all_known_context_urls(
                     x[0][1],
                     x[1],
                     external_tokens,
-                    pgupdater,
-                    home_server,
-                    home_server_token,
+                    api.client.pgupdater,
+                    api.client.api_base_url,
+                    api.client.token,
                     semaphore,
                 ),
             )

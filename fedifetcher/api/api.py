@@ -33,6 +33,15 @@ class API(metaclass=ABCMeta):
         """Initialize the API."""
         raise NotImplementedError
 
+    async def cleanup(self) -> None:
+        await self.client.session.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args) -> None:
+        await self.cleanup()
+
     @abstractmethod
     def get(self, uri: str) -> Coroutine[Any, Any, dict]:
         """Get an object by URI."""
@@ -169,7 +178,11 @@ class FederationInterface:
 
     _equipped_api: API
 
-    def __init__(self, url: str) -> None:
+    def __init__(self,
+                domain: str,
+                token: str | None = None,
+                pgupdater: Any | None = None,
+                ) -> None:
         """Initialize the API."""
         def _normalize_url(_url: str) -> str:
             """Normalize a URL."""
@@ -181,7 +194,7 @@ class FederationInterface:
             if _url.count("/") > slashes_in_protocol_prefix:
                 _url = _url[:_url.find("/", 8)]
             return _url
-        url = _normalize_url(url)
+        domain = _normalize_url(domain)
         temporary_client_session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=60),
                 headers={
@@ -189,7 +202,7 @@ class FederationInterface:
                 },
             )
         temporary_client = HttpMethod(
-                url,
+                domain,
                 temporary_client_session,
             )
         nodeinfo = asyncio.run(temporary_client.get("/nodeinfo/2.0"))
@@ -197,31 +210,35 @@ class FederationInterface:
             wellknown_nodeinfo = asyncio.run(temporary_client.get("/.well-known/nodeinfo"))
             if not wellknown_nodeinfo:
                 raise NotImplementedError
-            url = _normalize_url(wellknown_nodeinfo["links"][0]["href"])
+            domain = _normalize_url(wellknown_nodeinfo["links"][0]["href"])
             temporary_client = HttpMethod(
-                url,
+                domain,
                 temporary_client_session,
             )
             nodeinfo = asyncio.run(temporary_client.get("/nodeinfo/2.0"))
             if not nodeinfo:
                 wellknown_hostmeta = asyncio.run(temporary_client.get("/.well-known/host-meta"))
                 if wellknown_hostmeta and wellknown_hostmeta["server"]:
-                    url = _normalize_url(wellknown_hostmeta["server"])
+                    domain = _normalize_url(wellknown_hostmeta["server"])
                     temporary_client = HttpMethod(
-                        url,
+                        domain,
                         temporary_client_session,
                     )
                     nodeinfo = asyncio.run(temporary_client.get("/nodeinfo/2.0"))
         software_name = nodeinfo["software"]["name"] if nodeinfo else None
         if software_name == "mastodon":
             from fedifetcher.api.mastodon import Mastodon
-            equippable_api = Mastodon(url)
+            equippable_api = Mastodon(domain, token, pgupdater)
         elif software_name == "misskey":
             raise NotImplementedError
         else:
             msg = f"Unknown software name: {software_name}"
             raise NotImplementedError(msg)
         self._equipped_api: API = equippable_api
+
+    async def cleanup(self) -> None:
+        """Clean up."""
+        await self._equipped_api.cleanup()
 
     def get(self, uri: str) -> Coroutine[Any, Any, dict]:
         """Get an object by URI."""
@@ -340,3 +357,20 @@ class FederationInterface:
         """Get the home timeline."""
         return self._equipped_api.get_home_timeline(limit)
 
+class FederationInterfaceManager:
+    """Manage federation interfaces."""
+
+    def __init__(self) -> None:
+        """Initialize the manager."""
+        self._interfaces: dict[str, FederationInterface] = {}
+
+    def get_interface(self, domain: str) -> FederationInterface:
+        """Get an interface."""
+        if domain not in self._interfaces:
+            self._interfaces[domain] = FederationInterface(domain)
+        return self._interfaces[domain]
+
+    async def cleanup(self) -> None:
+        """Clean up."""
+        for interface in self._interfaces.values():
+            await interface.cleanup()
