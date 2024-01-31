@@ -16,7 +16,7 @@ frozenlist==1.4.1
 gdtoolkit==4.2.2
 idna==3.6
 iniconfig==2.0.0
-lark==1.1.8
+lark==1.1.9
 mando==0.7.1
 multidict==6.0.4
 packaging==23.1
