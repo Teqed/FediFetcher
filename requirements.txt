@@ -14,7 +14,7 @@ docopt-ng==0.8.1
 docutils==0.20.1
 frozenlist==1.4.1
 gdtoolkit==4.2.2
-idna==3.6
+idna==3.7
 iniconfig==2.0.0
 lark==1.1.8
 mando==0.7.1
