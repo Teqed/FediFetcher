@@ -31,5 +31,5 @@ radon==6.0.1
 regex==2023.12.25
 requests==2.32.2
 six==1.16.0
-urllib3==2.1.0
+urllib3==2.2.2
 yarl==1.9.4
